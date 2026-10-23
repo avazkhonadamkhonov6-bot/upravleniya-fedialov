@@ -17,6 +17,7 @@ enum Role {
 enum Position {
   COOK
   WAITER
+  CASHIER
   CLEANER
 }
 
@@ -59,6 +60,10 @@ model User {
   fullName       String
   email          String     @unique
   phone          String
+  /// Рақами WhatsApp (агар холӣ бошад — phone истифода мешавад)
+  whatsapp       String     @default("")
+  /// Номи корбарии Telegram бе @ (ё рақам)
+  telegram       String     @default("")
   passwordHash   String
   role           Role
   position       Position?

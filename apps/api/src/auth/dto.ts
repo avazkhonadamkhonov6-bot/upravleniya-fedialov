@@ -1,4 +1,4 @@
-import { IsEmail, IsOptional, IsString, MinLength } from 'class-validator';
+import { IsEmail, IsOptional, IsString, MaxLength, MinLength } from 'class-validator';
 
 export class LoginDto {
   @IsEmail({}, { message: 'Почтаи электронӣ нодуруст аст' })
@@ -15,6 +15,14 @@ export class UpdateMeDto {
 
   @IsOptional() @IsString() @MinLength(7)
   phone?: string;
+
+  /** Рақами WhatsApp (ихтиёрӣ) */
+  @IsOptional() @IsString() @MaxLength(32)
+  whatsapp?: string;
+
+  /** Telegram: @номи_корбар ё рақам (ихтиёрӣ) */
+  @IsOptional() @IsString() @MaxLength(64)
+  telegram?: string;
 
   @IsOptional() @IsString()
   currentPassword?: string;

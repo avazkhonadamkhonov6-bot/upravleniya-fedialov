@@ -1,6 +1,7 @@
 import { BadRequestException, Injectable, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcryptjs';
+import { normalizeTelegram } from '@filialhub/shared';
 import { toUser } from '../common/serializers';
 import { PrismaService } from '../prisma/prisma.service';
 import { LoginDto, UpdateMeDto } from './dto';
@@ -31,9 +32,11 @@ export class AuthService {
   }
 
   async updateMe(id: number, dto: UpdateMeDto) {
-    const data: { fullName?: string; phone?: string; passwordHash?: string } = {};
+    const data: { fullName?: string; phone?: string; whatsapp?: string; telegram?: string; passwordHash?: string } = {};
     if (dto.fullName) data.fullName = dto.fullName.trim();
     if (dto.phone) data.phone = dto.phone.trim();
+    if (dto.whatsapp !== undefined) data.whatsapp = dto.whatsapp.trim();
+    if (dto.telegram !== undefined) data.telegram = normalizeTelegram(dto.telegram);
     if (dto.newPassword) {
       const user = await this.prisma.user.findUniqueOrThrow({ where: { id } });
       if (!dto.currentPassword || !(await bcrypt.compare(dto.currentPassword, user.passwordHash))) {

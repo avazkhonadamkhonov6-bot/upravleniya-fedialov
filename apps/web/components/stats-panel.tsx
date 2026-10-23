@@ -13,7 +13,7 @@ import { CalendarDays, CalendarRange, Receipt, TrendingUp, Wallet } from "lucide
 import { useState } from "react";
 import { qs } from "@/lib/api";
 import { useApi } from "@/lib/use-api";
-import { SalesChart } from "./charts";
+import { SalesChart } from "./charts-lazy";
 import { Card, CardTitle, Delta, Empty, ErrorBox, money, Segmented, Skeleton } from "./ui";
 import { tr, locale } from "@/lib/i18n";
 
@@ -91,7 +91,7 @@ export function KpiRow({ overview }: { overview?: Overview }) {
   }
   const { today, yesterday, week, month } = overview;
   return (
-    <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+    <div className="stagger grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
       <Kpi accent icon={<Wallet className="size-4" />} label={tr("Имрӯз")} revenue={today.revenue} profit={today.profit} orders={today.orders} extra={<Delta now={today.revenue} prev={yesterday.revenue} />} />
       <Kpi icon={<Receipt className="size-4" />} label={tr("Дирӯз")} revenue={yesterday.revenue} profit={yesterday.profit} orders={yesterday.orders} delay={60} />
       <Kpi icon={<CalendarRange className="size-4" />} label={tr("Ин ҳафта")} revenue={week.revenue} profit={week.profit} net={week.netProfit} orders={week.orders} delay={120} />

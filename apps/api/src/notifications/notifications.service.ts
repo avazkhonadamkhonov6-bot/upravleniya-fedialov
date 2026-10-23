@@ -5,7 +5,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { TelegramService } from './telegram.service';
 import { WhatsAppService } from './whatsapp.service';
 
-type Recipient = Pick<User, 'id' | 'phone' | 'telegramChatId'>;
+type Recipient = Pick<User, 'id' | 'phone' | 'telegramChatId'> & Partial<Pick<User, 'whatsapp'>>;
 
 @Injectable()
 export class NotificationsService {
@@ -25,11 +25,11 @@ export class NotificationsService {
         ),
       );
     }
-    if (user.phone) {
+    // Агар корманд рақами алоҳидаи WhatsApp дошта бошад — ба он, вагарна ба телефон.
+    const wa = user.whatsapp || user.phone;
+    if (wa) {
       const plain = text.replace(/<[^>]+>/g, '');
-      jobs.push(
-        this.whatsapp.send(user.phone, plain).then((r) => this.log('WHATSAPP', user.phone, user.id, plain, r.status, r.error)),
-      );
+      jobs.push(this.whatsapp.send(wa, plain).then((r) => this.log('WHATSAPP', wa, user.id, plain, r.status, r.error)));
     }
     await Promise.all(jobs);
   }

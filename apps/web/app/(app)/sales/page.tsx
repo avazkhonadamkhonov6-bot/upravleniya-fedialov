@@ -4,7 +4,8 @@ import { PAYMENT_LABELS, type Branch, type Order, type Paginated, type Period, t
 import { ChevronDown, ChevronLeft, ChevronRight, Plus } from "lucide-react";
 import Link from "next/link";
 import { Fragment, useState } from "react";
-import { bucketLabel, SalesChart } from "@/components/charts";
+import { bucketLabel } from "@/components/chart-label";
+import { SalesChart } from "@/components/charts-lazy";
 import { Badge, Button, Card, CardTitle, Empty, ErrorBox, formatDate, money, PageHeader, Segmented, Select, Skeleton, cn } from "@/components/ui";
 import { qs } from "@/lib/api";
 import { useAuth } from "@/lib/auth";

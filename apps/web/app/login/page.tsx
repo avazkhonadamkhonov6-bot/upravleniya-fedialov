@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowRight, Building2, ChefHat, Crown, Lock, Mail, UserRound } from "lucide-react";
+import { ArrowRight, Banknote, Building2, ChefHat, Crown, Lock, Mail, UserRound } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Logo } from "@/components/shell";
@@ -13,6 +13,7 @@ const DEMO = [
   { email: "chef@filialhub.tj", label: "Шеф", desc: "Ҳамаи филиалҳо", icon: Crown },
   { email: "manager1@filialhub.tj", label: "Менеҷер", desc: "Филиали Рӯдакӣ", icon: Building2 },
   { email: "waiter@filialhub.tj", label: "Официант", desc: "Фурӯш (POS)", icon: UserRound },
+  { email: "cashier@filialhub.tj", label: "Кассир", desc: "Касса ва фурӯш", icon: Banknote },
 ];
 
 export default function LoginPage() {
@@ -63,7 +64,7 @@ export default function LoginPage() {
             {[
               ["👑", tr("Шеф"), tr("ҳамаро мебинад")],
               ["🧑‍💼", tr("Менеҷер"), tr("филиали худ")],
-              ["👨‍🍳", tr("Кормандон"), tr("ошпаз · официант · фаррош")],
+              ["👨‍🍳", tr("Кормандон"), tr("ошпаз · официант · кассир · фаррош")],
             ].map(([e, t, d]) => (
               <div key={t} className="rounded-2xl border border-white/10 bg-white/5 p-4 backdrop-blur">
                 <div className="text-2xl">{e}</div>
@@ -108,7 +109,7 @@ export default function LoginPage() {
             <div className="mb-3 flex items-center gap-3 text-xs font-semibold tracking-wide text-muted uppercase">
               <span className="h-px flex-1 bg-line" /> {tr("Вуруди зуди демо")}{" "}<span className="h-px flex-1 bg-line" />
             </div>
-            <div className="grid gap-2 sm:grid-cols-3">
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
               {DEMO.map((d) => (
                 <button
                   key={d.email}

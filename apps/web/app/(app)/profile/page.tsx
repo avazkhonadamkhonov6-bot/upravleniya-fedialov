@@ -1,16 +1,23 @@
 "use client";
 
-import { POSITION_LABELS, ROLE_LABELS, type User } from "@filialhub/shared";
+import { POSITION_LABELS, ROLE_LABELS, telegramLink, whatsappLink, type User } from "@filialhub/shared";
 import { Building2, CalendarDays, Mail, Phone, Wallet } from "lucide-react";
 import { useState } from "react";
-import { Avatar, Badge, Button, Card, CardTitle, ErrorBox, Field, Input, money, PageHeader, TelegramIcon } from "@/components/ui";
+import { Avatar, Badge, Button, Card, CardTitle, ErrorBox, Field, Input, money, PageHeader, TelegramIcon, WhatsAppIcon } from "@/components/ui";
 import { api } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { tr, locale } from "@/lib/i18n";
 
 export default function ProfilePage() {
   const { user, setUser } = useAuth();
-  const [f, setF] = useState({ fullName: user?.fullName ?? "", phone: user?.phone ?? "", currentPassword: "", newPassword: "" });
+  const [f, setF] = useState({
+    fullName: user?.fullName ?? "",
+    phone: user?.phone ?? "",
+    whatsapp: user?.whatsapp ?? "",
+    telegram: user?.telegram ?? "",
+    currentPassword: "",
+    newPassword: "",
+  });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [ok, setOk] = useState(false);
@@ -30,11 +37,13 @@ export default function ProfilePage() {
         json: {
           fullName: f.fullName,
           phone: f.phone,
+          whatsapp: f.whatsapp,
+          telegram: f.telegram,
           ...(f.newPassword ? { currentPassword: f.currentPassword, newPassword: f.newPassword } : {}),
         },
       });
       setUser(updated);
-      setF({ ...f, currentPassword: "", newPassword: "" });
+      setF({ ...f, whatsapp: updated.whatsapp, telegram: updated.telegram, currentPassword: "", newPassword: "" });
       setOk(true);
     } catch (err) {
       setError((err as Error).message);
@@ -84,6 +93,24 @@ export default function ProfilePage() {
                 <div className="text-sm text-muted">{user.telegramLinked ? tr("Пайваст аст ✅") : tr("Пайваст нест")}</div>
               </div>
             </div>
+            <div className="mt-4 grid grid-cols-2 gap-2">
+              <a
+                href={whatsappLink(user.whatsapp || user.phone)}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center justify-center gap-2 rounded-xl bg-[#1fa855]/10 px-3 py-2.5 text-sm font-semibold text-[#1fa855] transition hover:bg-[#1fa855]/20"
+              >
+                <WhatsAppIcon /> WhatsApp
+              </a>
+              <a
+                href={telegramLink(user.telegram || user.phone)}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center justify-center gap-2 rounded-xl bg-[#229ed9]/10 px-3 py-2.5 text-sm font-semibold text-[#229ed9] transition hover:bg-[#229ed9]/20"
+              >
+                <TelegramIcon className="size-4" /> Telegram
+              </a>
+            </div>
             {!user.telegramLinked && (
               <p className="mt-3 text-sm text-muted">
                 {tr("Ботро кушоед,")}{" "}<code className="rounded bg-surface-2 px-1">/start</code> {tr("нависед ва рақами")}{" "}<b className="text-ink">{user.phone}</b>{tr("-ро фиристед.")}
@@ -98,12 +125,20 @@ export default function ProfilePage() {
             <Field label={tr("Ному насаб")}>
               <Input required value={f.fullName} onChange={set("fullName")} />
             </Field>
-            <Field label={tr("Рақами телефон")} hint={tr("Ҳамин рақам барои WhatsApp ва Telegram истифода мешавад")}>
-              <Input required value={f.phone} onChange={set("phone")} />
+            <Field label={tr("Рақами телефон")}>
+              <Input required type="tel" value={f.phone} onChange={set("phone")} />
             </Field>
+            <div className="grid gap-4 xl:grid-cols-2">
+              <Field label="WhatsApp" hint={tr("Агар холӣ бошад — рақами телефон")}>
+                <Input type="tel" value={f.whatsapp} onChange={set("whatsapp")} placeholder="+992 90 123 4567" />
+              </Field>
+              <Field label="Telegram" hint={tr("@номи_корбар ё рақам")}>
+                <Input value={f.telegram} onChange={set("telegram")} placeholder="@username" />
+              </Field>
+            </div>
             <div className="border-t border-line pt-4">
               <div className="mb-3 text-sm font-semibold text-ink">{tr("Иваз кардани парол")}</div>
-              <div className="grid gap-4 sm:grid-cols-2">
+              <div className="grid gap-4 xl:grid-cols-2">
                 <Field label={tr("Пароли ҳозира")}>
                   <Input type="password" value={f.currentPassword} onChange={set("currentPassword")} autoComplete="current-password" />
                 </Field>

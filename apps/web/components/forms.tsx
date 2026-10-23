@@ -119,6 +119,8 @@ export function UserForm({
     fullName: user?.fullName ?? "",
     email: user?.email ?? "",
     phone: user?.phone ?? "+992 ",
+    whatsapp: user?.whatsapp ?? "",
+    telegram: user?.telegram ?? "",
     password: "",
     role: (user?.role === "MANAGER" ? "MANAGER" : "STAFF") as "MANAGER" | "STAFF",
     position: (user?.position ?? "WAITER") as Position,
@@ -137,6 +139,8 @@ export function UserForm({
       fullName: f.fullName,
       email: f.email,
       phone: f.phone,
+      whatsapp: f.whatsapp,
+      telegram: f.telegram,
       salary: Number(f.salary),
       hiredAt: new Date(f.hiredAt).toISOString(),
       position: f.role === "STAFF" ? f.position : undefined,
@@ -161,11 +165,19 @@ export function UserForm({
         <Input required value={f.fullName} onChange={set("fullName")} placeholder={tr("Фирдавс Раҳимов")} />
       </Field>
       <div className="grid gap-4 sm:grid-cols-2">
-        <Field label={tr("Рақами телефон")} hint={tr("Барои WhatsApp ва Telegram")}>
-          <Input required value={f.phone} onChange={set("phone")} placeholder="+992 90 123 4567" />
+        <Field label={tr("Рақами телефон")}>
+          <Input required type="tel" value={f.phone} onChange={set("phone")} placeholder="+992 90 123 4567" />
         </Field>
         <Field label={tr("Почтаи электронӣ")} hint={tr("Барои воридшавӣ")}>
           <Input type="email" required value={f.email} onChange={set("email")} />
+        </Field>
+      </div>
+      <div className="grid gap-4 sm:grid-cols-2">
+        <Field label="WhatsApp" hint={tr("Агар холӣ бошад — рақами телефон")}>
+          <Input type="tel" value={f.whatsapp} onChange={set("whatsapp")} placeholder="+992 90 123 4567" />
+        </Field>
+        <Field label="Telegram" hint={tr("@номи_корбар ё рақам")}>
+          <Input value={f.telegram} onChange={set("telegram")} placeholder="@username" />
         </Field>
       </div>
       {isChef && (
@@ -189,7 +201,7 @@ export function UserForm({
       )}
       {f.role === "STAFF" && (
         <Field label={tr("Вазифа|position")}>
-          <div className="grid grid-cols-3 gap-2">
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
             {POSITIONS.map((p) => (
               <button
                 type="button"

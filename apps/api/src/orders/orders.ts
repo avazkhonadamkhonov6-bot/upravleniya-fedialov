@@ -11,7 +11,7 @@ import {
 } from '@nestjs/common';
 import { Type } from 'class-transformer';
 import { ArrayMinSize, IsIn, IsInt, IsOptional, Max, Min, ValidateNested } from 'class-validator';
-import { PAYMENTS, POINTS_RATE, type Order, type Paginated, type Payment } from '@filialhub/shared';
+import { canSell, PAYMENTS, POINTS_RATE, type Order, type Paginated, type Payment } from '@filialhub/shared';
 import { AuthUser, CurrentUser } from '../auth/decorators';
 import { scopeBranch } from '../common/access';
 import { Prisma } from '../generated/prisma/client';
@@ -88,10 +88,10 @@ function forViewer(user: AuthUser, o: Order): Order {
   return { ...o, totalCost: 0, profit: 0, items: o.items.map((i) => ({ ...i, unitCost: 0 })) };
 }
 
-/** Фурӯш метавонад шеф, менеҷер ва официант сабт кунад. */
+/** Фурӯш метавонад шеф, менеҷер, официант ва кассир сабт кунад. */
 function assertCanSell(user: AuthUser) {
-  if (user.role === 'STAFF' && user.position !== 'WAITER') {
-    throw new ForbiddenException('Танҳо официант фурӯш сабт карда метавонад');
+  if (!canSell(user)) {
+    throw new ForbiddenException('Танҳо официант ва кассир фурӯш сабт карда метавонанд');
   }
 }
 

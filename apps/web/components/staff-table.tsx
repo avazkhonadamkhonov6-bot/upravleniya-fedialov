@@ -139,7 +139,7 @@ export function StaffTable({ fixedBranchId, compact }: { fixedBranchId?: number;
                     <td className="px-3 py-2.5 whitespace-nowrap text-ink-2 tabular">{u.phone}</td>
                     <td className="px-3 py-2.5 text-right whitespace-nowrap text-ink-2 tabular">{money(u.salary)}</td>
                     <td className="px-3 py-2.5">
-                      <ContactButtons phone={u.phone} email={u.email} name={u.fullName} />
+                      <ContactButtons phone={u.phone} email={u.email} name={u.fullName} whatsapp={u.whatsapp} telegram={u.telegram} />
                     </td>
                     <td className="px-3 py-2.5 text-right">
                       {u.id !== me?.id && (isChef || u.role === "STAFF") && (

@@ -33,11 +33,13 @@ export class BranchesService {
     return branches.map((b) => {
       const manager = b.users.find((u) => u.role === 'MANAGER');
       const staff = b.users.filter((u) => u.role === 'STAFF');
-      const byPos: Record<Position, number> = { COOK: 0, WAITER: 0, CLEANER: 0 };
+      const byPos: Record<Position, number> = { COOK: 0, WAITER: 0, CASHIER: 0, CLEANER: 0 };
       staff.forEach((s) => s.position && byPos[s.position]++);
       return {
         ...toBranch(b),
-        manager: manager ? { id: manager.id, fullName: manager.fullName, phone: manager.phone, email: manager.email } : null,
+        manager: manager
+          ? { id: manager.id, fullName: manager.fullName, phone: manager.phone, email: manager.email, whatsapp: manager.whatsapp, telegram: manager.telegram }
+          : null,
         staffCount: staff.length,
         staffByPosition: byPos,
       };

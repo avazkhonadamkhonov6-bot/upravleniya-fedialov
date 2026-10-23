@@ -58,6 +58,8 @@ const LATIN: Record<string, string> = {
 };
 const latin = (s: string) => [...s.toLowerCase()].map((c) => LATIN[c] ?? c).join('');
 
+const CASHIERS_PER_BRANCH = 2;
+
 const usedEmails = new Set<string>();
 function makePerson(female = false) {
   const first = pick(female ? FIRST_F : FIRST);
@@ -70,10 +72,34 @@ function makePerson(female = false) {
   return { fullName: `${first} ${last}`, email, phone };
 }
 
+/** Барои базаи кӯҳна: ба ҳар филиале, ки камтар аз 2 кассир дорад, кассир илова мекунад (такроран бехатар). */
+async function ensureCashiers() {
+  const passwordHash = await bcrypt.hash(DEMO_PASSWORD, 10);
+  const branches = await prisma.branch.findMany({ orderBy: { id: 'asc' } });
+  let added = 0;
+  for (const b of branches) {
+    const have = await prisma.user.count({ where: { branchId: b.id, position: 'CASHIER' } });
+    for (let k = have; k < CASHIERS_PER_BRANCH; k++) {
+      let p = makePerson(rand() > 0.5);
+      while (await prisma.user.findUnique({ where: { email: p.email } })) p = makePerson(rand() > 0.5);
+      await prisma.user.create({
+        data: { ...p, passwordHash, role: 'STAFF', position: 'CASHIER', branchId: b.id, salary: 2000 + int(0, 6) * 100, hiredAt: new Date() },
+      });
+      added++;
+    }
+  }
+  if (branches.length && !(await prisma.user.findUnique({ where: { email: 'cashier@filialhub.tj' } }))) {
+    const c = await prisma.user.findFirst({ where: { branchId: branches[0].id, position: 'CASHIER' }, orderBy: { id: 'asc' } });
+    if (c) await prisma.user.update({ where: { id: c.id }, data: { email: 'cashier@filialhub.tj' } });
+  }
+  if (added) console.log(`💵 ${added} кассир илова шуд`);
+}
+
 async function main() {
   // --if-empty: барои сервер (Render) — танҳо агар база холӣ бошад, маълумоти намунавӣ сохта мешавад.
   if (process.argv.includes('--if-empty') && (await prisma.user.count()) > 0) {
     console.log('✅ База аллакай маълумот дорад — seed лозим нест.');
+    await ensureCashiers();
     return;
   }
   console.log('🧹 Пок кардани маълумоти кӯҳна…');
@@ -130,6 +156,7 @@ async function main() {
     const staffPlan: [Position, number, number][] = [
       ['COOK', int(3, 4), 2600],
       ['WAITER', int(4, 6), 1800],
+      ['CASHIER', CASHIERS_PER_BRANCH, 2000],
       ['CLEANER', 2, 1300],
     ];
     managerByBranch.set(b.id, manager.id);
@@ -148,7 +175,8 @@ async function main() {
             hiredAt: new Date(now - int(20, 600) * 86400000),
           },
         });
-        if (position === 'WAITER') waiterIds.push(u.id);
+        // Фурӯшро ҳам официантҳо, ҳам кассирҳо сабт мекунанд.
+        if (position === 'WAITER' || position === 'CASHIER') waiterIds.push(u.id);
       }
     }
     waitersByBranch.set(b.id, waiterIds);
@@ -157,6 +185,8 @@ async function main() {
   // Ҳисобҳои демо бо почтаи осон
   const demoWaiter = await prisma.user.findFirstOrThrow({ where: { branchId: branches[0].id, position: 'WAITER' } });
   await prisma.user.update({ where: { id: demoWaiter.id }, data: { email: 'waiter@filialhub.tj' } });
+  const demoCashier = await prisma.user.findFirstOrThrow({ where: { branchId: branches[0].id, position: 'CASHIER' } });
+  await prisma.user.update({ where: { id: demoCashier.id }, data: { email: 'cashier@filialhub.tj' } });
 
   console.log('🍔 Меню…');
   const products: Awaited<ReturnType<typeof prisma.product.create>>[] = [];

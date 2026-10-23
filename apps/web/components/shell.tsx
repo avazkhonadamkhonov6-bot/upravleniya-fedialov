@@ -1,6 +1,6 @@
 "use client";
 
-import { POSITION_LABELS, ROLE_LABELS, type User } from "@filialhub/shared";
+import { canSell, POSITION_LABELS, ROLE_LABELS, type User } from "@filialhub/shared";
 import {
   BarChart3,
   Building2,
@@ -43,7 +43,6 @@ interface NavItem {
   primary?: boolean;
 }
 
-const canSell = (u: User) => u.role !== "STAFF" || u.position === "WAITER";
 const isLead = (u: User) => u.role !== "STAFF";
 
 const NAV: { title: string; items: NavItem[] }[] = [

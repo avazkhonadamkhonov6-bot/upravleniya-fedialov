@@ -5,7 +5,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { POSITION_LABELS, ROLE_LABELS, type Position, type Role } from '@filialhub/shared';
+import { normalizeTelegram, POSITION_LABELS, ROLE_LABELS, type Position, type Role } from '@filialhub/shared';
 import * as bcrypt from 'bcryptjs';
 import type { AuthUser } from '../auth/decorators';
 import { scopeBranch } from '../common/access';
@@ -86,6 +86,8 @@ export class UsersService {
         fullName: dto.fullName.trim(),
         email,
         phone: dto.phone.trim(),
+        whatsapp: dto.whatsapp?.trim() ?? '',
+        telegram: dto.telegram ? normalizeTelegram(dto.telegram) : '',
         passwordHash: await bcrypt.hash(dto.password, 10),
         role: dto.role,
         position: dto.role === 'STAFF' ? dto.position : null,
@@ -139,6 +141,8 @@ export class UsersService {
         fullName: dto.fullName?.trim(),
         email,
         phone: dto.phone?.trim(),
+        whatsapp: dto.whatsapp?.trim(),
+        telegram: dto.telegram !== undefined ? normalizeTelegram(dto.telegram) : undefined,
         passwordHash: dto.password ? await bcrypt.hash(dto.password, 10) : undefined,
         role,
         position: position ?? null,

@@ -51,7 +51,7 @@ export class StatsService {
       where: { role: 'STAFF', isActive: true, branchId },
       _count: true,
     });
-    const result: Record<Position, number> = { COOK: 0, WAITER: 0, CLEANER: 0 };
+    const result: Record<Position, number> = { COOK: 0, WAITER: 0, CASHIER: 0, CLEANER: 0 };
     for (const r of rows) if (r.position) result[r.position] = r._count;
     return result;
   }
@@ -73,7 +73,7 @@ export class StatsService {
       week,
       month,
       branches,
-      employees: byPosition.COOK + byPosition.WAITER + byPosition.CLEANER,
+      employees: Object.values(byPosition).reduce((a, b) => a + b, 0),
       employeesByPosition: byPosition,
       managers,
     };

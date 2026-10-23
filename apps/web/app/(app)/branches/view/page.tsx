@@ -69,7 +69,13 @@ function BranchView() {
                 <div className="text-xs text-white/60">{branch.manager.phone}</div>
               </div>
               <div className="rounded-xl bg-white/90 p-0.5">
-                <ContactButtons phone={branch.manager.phone} email={branch.manager.email} name={branch.manager.fullName} />
+                <ContactButtons
+                  phone={branch.manager.phone}
+                  email={branch.manager.email}
+                  name={branch.manager.fullName}
+                  whatsapp={branch.manager.whatsapp}
+                  telegram={branch.manager.telegram}
+                />
               </div>
             </div>
           )}

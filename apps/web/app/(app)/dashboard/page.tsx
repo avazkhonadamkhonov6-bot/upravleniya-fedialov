@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  canSell,
   POSITION_EMOJI,
   POSITION_LABELS,
   type Branch,
@@ -11,7 +12,7 @@ import {
 import { ArrowUpRight, Building2, Receipt, ShoppingBag, Users, UtensilsCrossed, Wallet } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
-import { BranchBars } from "@/components/charts";
+import { BranchBars } from "@/components/charts-lazy";
 import { AttendanceWidget, CustomersWidget, MyShiftsWidget, TasksWidget } from "@/components/crm-widgets";
 import { ShiftButton } from "@/components/shift-button";
 import { KpiRow, MiniStat, SalesCard, StaffBreakdown, TopProducts } from "@/components/stats-panel";
@@ -245,7 +246,7 @@ function StaffHome() {
               <div className="font-semibold">{new Date(u.hiredAt).toLocaleDateString(locale())}</div>
             </div>
           </div>
-          {u.position === "WAITER" && (
+          {u.role === "STAFF" && canSell(u) && (
             <Link href="/pos" className="brand-gradient relative mt-6 flex h-12 items-center justify-center gap-2 rounded-xl font-semibold">
               <ShoppingBag className="size-5" /> {tr("Фурӯши нав")}
             </Link>
@@ -276,7 +277,13 @@ function StaffHome() {
                     <div className="text-xs text-muted">{tr("Менеҷер")}</div>
                     <div className="text-sm font-semibold text-ink">{branch.manager.fullName}</div>
                   </div>
-                  <ContactButtons phone={branch.manager.phone} email={branch.manager.email} name={branch.manager.fullName} />
+                  <ContactButtons
+                    phone={branch.manager.phone}
+                    email={branch.manager.email}
+                    name={branch.manager.fullName}
+                    whatsapp={branch.manager.whatsapp}
+                    telegram={branch.manager.telegram}
+                  />
                 </div>
               )}
             </div>

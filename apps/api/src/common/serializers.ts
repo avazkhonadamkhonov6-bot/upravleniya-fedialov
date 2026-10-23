@@ -9,6 +9,8 @@ export function toUser(u: UserWithBranch): UserDto {
     fullName: u.fullName,
     email: u.email,
     phone: u.phone,
+    whatsapp: u.whatsapp,
+    telegram: u.telegram,
     role: u.role,
     position: u.position,
     branchId: u.branchId,

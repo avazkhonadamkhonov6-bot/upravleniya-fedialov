@@ -16,7 +16,7 @@ import {
 } from '@nestjs/common';
 import { Type } from 'class-transformer';
 import { IsDateString, IsEmail, IsInt, IsOptional, IsString, MaxLength, MinLength, ValidateIf } from 'class-validator';
-import { SEGMENTS, type Customer as CustomerDto, type CustomerStats, type Paginated, type Segment } from '@filialhub/shared';
+import { canSell, SEGMENTS, type Customer as CustomerDto, type CustomerStats, type Paginated, type Segment } from '@filialhub/shared';
 import { AuthUser, CurrentUser, Roles } from '../auth/decorators';
 import { scopeBranch } from '../common/access';
 import { startOfLocalDay, startOfLocalMonth } from '../common/time';
@@ -327,11 +327,11 @@ export class CustomersController {
     return this.customers.stats(user, Number(branchId) || undefined);
   }
 
-  /** Официант ҳам дар POS мизоҷро аз рӯи рақам меёбад ва сабт мекунад. */
+  /** Официант ва кассир ҳам дар POS мизоҷро аз рӯи рақам меёбад ва сабт мекунад. */
   @Get('lookup')
   @Roles('CHEF', 'MANAGER', 'STAFF')
   lookup(@CurrentUser() user: AuthUser, @Query('phone') phone = '') {
-    if (user.role === 'STAFF' && user.position !== 'WAITER') throw new ForbiddenException('Танҳо официант');
+    if (!canSell(user)) throw new ForbiddenException('Танҳо официант ва кассир');
     return this.customers.lookup(phone);
   }
 
@@ -343,7 +343,7 @@ export class CustomersController {
   @Post()
   @Roles('CHEF', 'MANAGER', 'STAFF')
   create(@CurrentUser() user: AuthUser, @Body() dto: CreateCustomerDto) {
-    if (user.role === 'STAFF' && user.position !== 'WAITER') throw new ForbiddenException('Танҳо официант');
+    if (!canSell(user)) throw new ForbiddenException('Танҳо официант ва кассир');
     return this.customers.create(user, dto);
   }
 

@@ -3,7 +3,7 @@
 export const ROLES = ['CHEF', 'MANAGER', 'STAFF'] as const;
 export type Role = (typeof ROLES)[number];
 
-export const POSITIONS = ['COOK', 'WAITER', 'CLEANER'] as const;
+export const POSITIONS = ['COOK', 'WAITER', 'CASHIER', 'CLEANER'] as const;
 export type Position = (typeof POSITIONS)[number];
 
 export const PAYMENTS = ['CASH', 'CARD'] as const;
@@ -18,14 +18,24 @@ export const ROLE_LABELS: Record<Role, string> = {
 export const POSITION_LABELS: Record<Position, string> = {
   COOK: 'Ошпаз',
   WAITER: 'Официант',
+  CASHIER: 'Кассир',
   CLEANER: 'Фаррош',
 };
 
 export const POSITION_EMOJI: Record<Position, string> = {
   COOK: '👨‍🍳',
   WAITER: '🧑‍💼',
+  CASHIER: '💵',
   CLEANER: '🧹',
 };
+
+/** Вазифаҳое, ки фурӯш (POS) сабт карда метавонанд. */
+export const SELLER_POSITIONS: readonly Position[] = ['WAITER', 'CASHIER'];
+
+/** Шеф, менеҷер, официант ва кассир фурӯш сабт карда метавонанд. */
+export function canSell(u: { role: Role; position: Position | null }): boolean {
+  return u.role !== 'STAFF' || (u.position !== null && SELLER_POSITIONS.includes(u.position));
+}
 
 export const PAYMENT_LABELS: Record<Payment, string> = {
   CASH: 'Нақд',
@@ -49,8 +59,19 @@ export function whatsappLink(phone: string, text?: string): string {
   return `https://wa.me/${phoneDigits(phone)}${q}`;
 }
 
-export function telegramLink(phone: string): string {
-  return `https://t.me/+${phoneDigits(phone)}`;
+/** Номи корбарии Telegram-ро ба шакли ягона меорад: «@Name», «t.me/Name» → «Name» */
+export function normalizeTelegram(value: string): string {
+  return value
+    .trim()
+    .replace(/^(https?:\/\/)?(t\.me|telegram\.me)\//i, '')
+    .replace(/^@/, '');
+}
+
+/** Telegram: номи корбарӣ (@name ё t.me/name) ё рақами телефон */
+export function telegramLink(value: string): string {
+  const v = normalizeTelegram(value);
+  if (/^[a-zA-Z][a-zA-Z0-9_]{3,}$/.test(v)) return `https://t.me/${v}`;
+  return `https://t.me/+${phoneDigits(v)}`;
 }
 
 // ---------- Типҳои API ----------
@@ -64,7 +85,7 @@ export interface Branch {
   email: string;
   openedAt: string;
   isActive: boolean;
-  manager?: Pick<User, 'id' | 'fullName' | 'phone' | 'email'> | null;
+  manager?: Pick<User, 'id' | 'fullName' | 'phone' | 'email' | 'whatsapp' | 'telegram'> | null;
   staffCount?: number;
   staffByPosition?: Record<Position, number>;
 }
@@ -74,6 +95,10 @@ export interface User {
   fullName: string;
   email: string;
   phone: string;
+  /** Рақами WhatsApp; холӣ — phone */
+  whatsapp: string;
+  /** Telegram: номи корбарӣ ё рақам; холӣ — phone */
+  telegram: string;
   role: Role;
   position: Position | null;
   branchId: number | null;

@@ -37,7 +37,7 @@ export default function BranchesPage() {
       ) : data.length === 0 ? (
         <Empty icon="🏪" title={tr("Ҳоло филиал нест")} text={tr("Филиали аввалинро илова кунед.")} />
       ) : (
-        <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
+        <div className="stagger grid gap-5 md:grid-cols-2 xl:grid-cols-3">
           {data.map((b, i) => (
             <div key={b.id} className="rise card group flex flex-col overflow-hidden" style={{ animationDelay: `${i * 50}ms` }}>
               <div className="relative h-24 overflow-hidden bg-[#170d0f] px-5 pt-4">
@@ -54,7 +54,7 @@ export default function BranchesPage() {
               <div className="flex flex-1 flex-col p-5">
                 <p className="text-sm text-muted">{b.address}</p>
 
-                <div className="mt-4 grid grid-cols-3 gap-2">
+                <div className="mt-4 grid grid-cols-4 gap-2">
                   {POSITIONS.map((p) => (
                     <div key={p} className="rounded-xl bg-surface-2 p-2.5 text-center">
                       <div className="text-lg">{POSITION_EMOJI[p]}</div>
@@ -70,7 +70,7 @@ export default function BranchesPage() {
                     <div className="truncate text-sm font-semibold text-ink">{b.manager?.fullName ?? tr("Таъин нашудааст")}</div>
                     {b.manager && <div className="text-xs text-muted">{b.manager.phone}</div>}
                   </div>
-                  {b.manager && <ContactButtons phone={b.manager.phone} email={b.manager.email} name={b.manager.fullName} />}
+                  {b.manager && <ContactButtons phone={b.manager.phone} email={b.manager.email} name={b.manager.fullName} whatsapp={b.manager.whatsapp} telegram={b.manager.telegram} />}
                 </div>
 
                 <div className="mt-auto flex gap-2 pt-5">

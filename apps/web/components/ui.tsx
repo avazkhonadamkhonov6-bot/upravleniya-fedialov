@@ -153,19 +153,32 @@ export function Avatar({ name, size = 40 }: { name: string; size?: number }) {
 }
 
 /** Тугмаҳои тамос: занг, WhatsApp, Telegram, почта */
-export function ContactButtons({ phone, email, name }: { phone: string; email?: string; name?: string }) {
+/** Тугмаҳои тамос. whatsapp / telegram — агар корманд худаш гузошта бошад; вагарна рақами телефон. */
+export function ContactButtons({
+  phone,
+  email,
+  name,
+  whatsapp,
+  telegram,
+}: {
+  phone: string;
+  email?: string;
+  name?: string;
+  whatsapp?: string;
+  telegram?: string;
+}) {
   const greet = name ? tr("Салом, {0}!", name.split(" ")[0]) : undefined;
   const items = [
     { href: `tel:+${phoneDigits(phone)}`, label: tr("Занг задан"), icon: <Phone className="size-4" />, cls: "hover:text-ink" },
     {
-      href: whatsappLink(phone, greet),
+      href: whatsappLink(whatsapp || phone, greet),
       label: "WhatsApp",
       icon: <WhatsAppIcon />,
       cls: "hover:text-[#1fa855]",
       external: true,
     },
     {
-      href: telegramLink(phone),
+      href: telegramLink(telegram || phone),
       label: "Telegram",
       icon: <TelegramIcon />,
       cls: "hover:text-[#229ed9]",

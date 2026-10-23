@@ -7,6 +7,7 @@ import {
   IsInt,
   IsOptional,
   IsString,
+  MaxLength,
   Min,
   MinLength,
 } from 'class-validator';
@@ -24,6 +25,14 @@ export class CreateUserDto {
 
   @IsString() @MinLength(6, { message: 'Парол бояд камаш 6 аломат бошад' })
   password: string;
+
+  /** Рақами WhatsApp (ихтиёрӣ) */
+  @IsOptional() @IsString() @MaxLength(32)
+  whatsapp?: string;
+
+  /** Telegram: @номи_корбар ё рақам (ихтиёрӣ) */
+  @IsOptional() @IsString() @MaxLength(64)
+  telegram?: string;
 
   @IsIn(['MANAGER', 'STAFF'], { message: 'Нақш нодуруст аст' })
   role: 'MANAGER' | 'STAFF';
@@ -53,6 +62,14 @@ export class UpdateUserDto {
 
   @IsOptional() @IsString() @MinLength(6, { message: 'Парол бояд камаш 6 аломат бошад' })
   password?: string;
+
+  /** Рақами WhatsApp (ихтиёрӣ) */
+  @IsOptional() @IsString() @MaxLength(32)
+  whatsapp?: string;
+
+  /** Telegram: @номи_корбар ё рақам (ихтиёрӣ) */
+  @IsOptional() @IsString() @MaxLength(64)
+  telegram?: string;
 
   @IsOptional() @IsIn(['MANAGER', 'STAFF'])
   role?: 'MANAGER' | 'STAFF';
