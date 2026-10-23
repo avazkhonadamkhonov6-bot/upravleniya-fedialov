@@ -1,26 +1,23 @@
 {
-  "name": "exem-e-4.next",
-  "version": "0.1.0",
+  "name": "filialhub",
+  "version": "1.0.0",
   "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
   "scripts": {
-    "dev": "next dev",
-    "build": "next build",
-    "start": "next start",
-    "lint": "eslint"
-  },
-  "dependencies": {
-    "next": "16.4.2",
-    "react": "19.3.0",
-    "react-dom": "19.3.0"
+    "predev": "npm run build -w @filialhub/shared && npm run prisma:generate -w @filialhub/api",
+    "dev": "concurrently -n api,web -c red,cyan \"npm run dev -w @filialhub/api\" \"npm run dev -w @filialhub/web\"",
+    "build": "npm run build -w @filialhub/shared && npm run build -w @filialhub/api && npm run build -w @filialhub/web",
+    "start": "concurrently -n api,web -c red,cyan \"npm run start -w @filialhub/api\" \"npm run start -w @filialhub/web\"",
+    "db:setup": "npm run db:setup -w @filialhub/api",
+    "db:seed": "npm run db:seed -w @filialhub/api",
+    "dev:web": "npm run build -w @filialhub/shared && npm run dev -w @filialhub/web",
+    "build:api": "npm run build -w @filialhub/shared && npm run build -w @filialhub/api",
+    "build:web": "npm run build -w @filialhub/shared && npm run build -w @filialhub/web"
   },
   "devDependencies": {
-    "@tailwindcss/turbopack": "^4",
-    "@types/node": "^20",
-    "@types/react": "^19",
-    "@types/react-dom": "^19",
-    "eslint": "^9",
-    "eslint-config-next": "16.4.2",
-    "tailwindcss": "^4",
-    "typescript": "^5"
+    "concurrently": "^9.2.1"
   }
 }

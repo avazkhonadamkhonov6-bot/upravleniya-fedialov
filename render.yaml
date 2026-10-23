@@ -1,0 +1,54 @@
+# Render Blueprint: Dashboard → New → Blueprint → ин репозиторийро интихоб кунед.
+# Сохта мешавад: PostgreSQL + API (NestJS) + сайт (Next.js).
+# Пас аз сохтан дар filialhub-web тағйирёбандаи API_URL-ро ба суроғаи filialhub-api гузоред
+# (масалан https://filialhub-api.onrender.com) ва «Manual Deploy» кунед.
+
+databases:
+  - name: filialhub-db
+    plan: free
+    databaseName: filialhub
+    user: filialhub
+
+services:
+  - type: web
+    name: filialhub-api
+    runtime: node
+    plan: free
+    region: frankfurt
+    buildCommand: npm ci --include=dev && npm run build:api
+    # Миграцияҳо + маълумоти намунавӣ (танҳо агар база холӣ бошад) + сервер
+    startCommand: npm run start:prod -w @filialhub/api
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      - key: DATABASE_URL
+        fromDatabase:
+          name: filialhub-db
+          property: connectionString
+      - key: JWT_SECRET
+        generateValue: true
+      - key: TIMEZONE
+        value: Asia/Dushanbe
+      - key: DAILY_REPORT_CRON
+        value: "0 0 22 * * *"
+      - key: TELEGRAM_BOT_TOKEN
+        sync: false
+      - key: WHATSAPP_TOKEN
+        sync: false
+      - key: WHATSAPP_PHONE_NUMBER_ID
+        sync: false
+
+  - type: web
+    name: filialhub-web
+    runtime: node
+    plan: free
+    region: frankfurt
+    buildCommand: npm ci --include=dev && npm run build:web
+    startCommand: cd apps/web && npx next start -p $PORT
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      # Суроғаи API дар Render, масалан https://filialhub-api.onrender.com (бе / дар охир)
+      - key: API_URL
+        sync: false

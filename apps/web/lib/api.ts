@@ -1,0 +1,72 @@
+"use client";
+
+
+import { tr } from "@/lib/i18n";
+const TOKEN_KEY = "fh-token";
+
+export class ApiError extends Error {
+  constructor(
+    message: string,
+    public status: number,
+  ) {
+    super(message);
+  }
+}
+
+export function getToken(): string | null {
+  try {
+    return localStorage.getItem(TOKEN_KEY);
+  } catch {
+    return null;
+  }
+}
+
+export function setToken(token: string | null) {
+  try {
+    if (token) localStorage.setItem(TOKEN_KEY, token);
+    else localStorage.removeItem(TOKEN_KEY);
+  } catch {}
+}
+
+export async function api<T>(path: string, init: RequestInit & { json?: unknown } = {}): Promise<T> {
+  const { json, headers, ...rest } = init;
+  const token = getToken();
+  let res: Response;
+  try {
+    res = await fetch(`/api${path}`, {
+      ...rest,
+      headers: {
+        ...(json !== undefined ? { "Content-Type": "application/json" } : {}),
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        ...headers,
+      },
+      body: json !== undefined ? JSON.stringify(json) : rest.body,
+    });
+  } catch {
+    throw new ApiError(tr("Сервер дастрас нест. Санҷед, ки API кор мекунад."), 0);
+  }
+
+  if (res.status === 401 && token) {
+    setToken(null);
+    // Пурра аз нав бор мекунем, то ҳолати кӯҳнаи саҳифа тоза шавад.
+    // eslint-disable-next-line @next/next/no-location-assign-relative-destination
+    if (typeof window !== "undefined" && !location.pathname.startsWith("/login")) location.href = "/login";
+  }
+  if (!res.ok) {
+    let message = tr("Хатогӣ ({0})", res.status);
+    try {
+      const body = await res.json();
+      message = Array.isArray(body.message) ? body.message.map((m: string) => tr(m)).join(", ") : body.message ? tr(body.message) : message;
+    } catch {}
+    if (res.status >= 500 && message.startsWith("Internal")) message = tr("Хатогии сервер. Базаи маълумотро санҷед.");
+    throw new ApiError(message, res.status);
+  }
+  return res.status === 204 ? (undefined as T) : res.json();
+}
+
+export function qs(params: Record<string, string | number | boolean | undefined | null>) {
+  const s = new URLSearchParams();
+  for (const [k, v] of Object.entries(params)) if (v !== undefined && v !== null && v !== "") s.set(k, String(v));
+  const str = s.toString();
+  return str ? `?${str}` : "";
+}
