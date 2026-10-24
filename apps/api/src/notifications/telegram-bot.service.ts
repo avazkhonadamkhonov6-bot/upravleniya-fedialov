@@ -87,7 +87,8 @@ export class TelegramBotService implements OnModuleInit {
     }
     const digits = phoneDigits(contact.phone_number).slice(-9);
     const users = await this.prisma.user.findMany({ where: { isActive: true } });
-    const user = users.find((u) => phoneDigits(u.phone).slice(-9) === digits);
+    // Ҳам рақами телефон, ҳам рақами WhatsApp-и корманд қабул мешавад.
+    const user = users.find((u) => [u.phone, u.whatsapp].some((p) => p && phoneDigits(p).slice(-9) === digits));
     if (!user) {
       return this.telegram.send(chatId, '❌ Ин рақам дар системаи FilialHub ёфт нашуд. Ба менеҷер муроҷиат кунед.', {
         reply_markup: { remove_keyboard: true },
