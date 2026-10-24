@@ -67,8 +67,9 @@
 
 ## ☁️ Backend дар Render (бе `npm run dev`)
 
-> **Ҳолати ҳозира (24.10.2026):** `filialhub-web.onrender.com` кор мекунад, вале API нест —
-> `https://filialhub-web.onrender.com/api/health` → «Not Found». Яъне хизмати **filialhub-api** дар Render сохта нашудааст.
+> **Ҳолати ҳозира (24.10.2026):** ҳама дар Render кор мекунад —
+> сайт: https://filialhub-web.onrender.com · API: https://filialhub-api.onrender.com/api/health · база: `filialhub-db` (Free, Frankfurt).
+> ⚠️ Базаи Free дар Render 30 рӯз амал мекунад (то **23.11.2026**) — пеш аз он ба нақшаи пулакӣ гузаред ё базаи навро созед.
 
 **А. Агар ҳоло аз сифр сохтан мехоҳед (тавсия):**
 

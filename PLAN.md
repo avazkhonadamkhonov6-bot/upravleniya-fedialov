@@ -192,7 +192,9 @@ exem-e-4.next/
 | 8 | JSON-LD: `"\u003c"` дар JS худи `<` аст — `replace` ҳеҷ чизро иваз намекард | `login/layout.tsx` | `"\\u003c"` |
 | 9 | Саҳифаи `/` барои Google холӣ буд (танҳо спиннер, client redirect) | `app/page.tsx` | Server Component бо мундариҷа |
 | 10 | `ErrorBox` барои screen reader эълон намешуд | `ui.tsx` | `role="alert"` |
-| 11 | Дар Render API нест: `filialhub-web` кор мекунад, вале `/api/health` → «Not Found» | Render | Нигаред ба README → «Backend дар Render» |
+| 11 | Дар Render API нест: `filialhub-web` кор мекунад, вале `/api/health` → «Not Found»; `API_URL` холӣ | Render | `filialhub-db` + `filialhub-api` сохта шуд, `API_URL` гузошта шуд |
+| 13 | Render: seed > 5 с транзаксия → API афтод, порт кушода нашуд | `seed.ts`, `start:prod` | Порт аввал, seed дар паси кор, timeout 120 с |
+| 14 | Render: seed бо 18 000 `order.create` → out of memory (512 MB) | `seed.ts` | `createManyAndReturn` + `createMany` (11 с) |
 | 12 | Корманд `/alerts`, `/search`, `/messages`, `/tasks`, `/shifts` дархост мекард (403 / маълумоти зиёдатӣ) | `shell.tsx` | Зангӯла, ҷустуҷӯ, «Омадам» танҳо барои онҳое, ки дастрасӣ доранд |
 
 ## 9.3 Санҷиш
