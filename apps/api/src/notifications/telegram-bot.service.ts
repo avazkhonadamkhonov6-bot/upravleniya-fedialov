@@ -2,6 +2,7 @@ import { Injectable, OnModuleInit } from '@nestjs/common';
 import { phoneDigits, POSITION_LABELS, ROLE_LABELS, type Period } from '@filialhub/shared';
 import { PrismaService } from '../prisma/prisma.service';
 import { escape } from './notifications.service';
+import { ChatService } from './chat.service';
 import { ReportService } from './report.service';
 import { TelegramService, TgMessage } from './telegram.service';
 
@@ -21,6 +22,7 @@ export class TelegramBotService implements OnModuleInit {
     private readonly telegram: TelegramService,
     private readonly prisma: PrismaService,
     private readonly reports: ReportService,
+    private readonly chat: ChatService,
   ) {}
 
   onModuleInit() {
@@ -74,6 +76,13 @@ export class TelegramBotService implements OnModuleInit {
       }
       const branchId = user.role === 'CHEF' ? undefined : (user.branchId ?? undefined);
       return this.telegram.send(chatId, await this.reports.buildReport(periods[command] ?? 'day', branchId));
+    }
+
+    // Матни оддӣ (на команда) — ҷавоб дар чат: ба FilialHub меравад.
+    const text = (msg.text ?? '').trim();
+    if (text && !text.startsWith('/')) {
+      const to = await this.chat.routeIncoming(user, text.slice(0, 2000), 'TELEGRAM');
+      return this.telegram.send(chatId, to ? `✅ Паём ба <b>${escape(to.fullName)}</b> фиристода шуд.` : 'Қабулкунанда ёфт нашуд.');
     }
 
     return this.telegram.send(chatId, HELP);

@@ -26,6 +26,7 @@ import {
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState, useSyncExternalStore } from "react";
+import { api } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { AlertsBell } from "./alerts-bell";
 import { CommandPalette } from "./command-palette";
@@ -117,6 +118,26 @@ export function Logo({ light }: { light?: boolean }) {
   );
 }
 
+/** Шумораи паёмҳои нохондашуда (ҳар 20 сония нав мешавад) */
+function useUnreadMessages(enabled: boolean) {
+  const [count, setCount] = useState(0);
+  useEffect(() => {
+    if (!enabled) return;
+    let alive = true;
+    const pull = () =>
+      api<{ count: number }>("/messages/unread")
+        .then((r) => alive && setCount(r.count))
+        .catch(() => {});
+    pull();
+    const t = setInterval(pull, 20000);
+    return () => {
+      alive = false;
+      clearInterval(t);
+    };
+  }, [enabled]);
+  return count;
+}
+
 function isActive(pathname: string, href: string) {
   if (href === "/branches") return pathname === "/branches" || (pathname.startsWith("/branches/") && pathname !== "/branches/view");
   return pathname === href || pathname.startsWith(href + "/");
@@ -129,6 +150,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const { theme, toggle } = useTheme();
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [moreOpen, setMoreOpen] = useState(false);
+  const unread = useUnreadMessages(!!user);
 
   useEffect(() => {
     if (!loading && !user) router.replace("/login");
@@ -197,6 +219,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                         <n.icon className="size-4" />
                       </span>
                       {tr(n.label)}
+                      {n.href === "/messages" && unread > 0 && (
+                        <span className="brand-gradient ml-auto grid h-5 min-w-5 place-items-center rounded-full px-1.5 text-[11px] font-bold text-white">
+                          {unread}
+                        </span>
+                      )}
                     </Link>
                   );
                 })}

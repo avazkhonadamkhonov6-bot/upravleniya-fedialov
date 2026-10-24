@@ -466,3 +466,24 @@ export interface MessageLog {
   senderName: string | null;
   createdAt: string;
 }
+
+// ---------- Чат ----------
+
+export type MessageSource = 'WEB' | 'TELEGRAM' | 'WHATSAPP';
+
+export interface ChatMessage {
+  id: number;
+  senderId: number;
+  recipientId: number;
+  text: string;
+  source: MessageSource;
+  whatsappStatus: DeliveryStatus | null;
+  telegramStatus: DeliveryStatus | null;
+  readAt: string | null;
+  createdAt: string;
+}
+
+export interface ChatContact extends MessageRecipient {
+  lastMessage: { text: string; createdAt: string; mine: boolean } | null;
+  unread: number;
+}

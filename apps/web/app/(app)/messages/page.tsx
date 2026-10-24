@@ -4,40 +4,25 @@ import {
   POSITION_EMOJI,
   POSITION_LABELS,
   ROLE_LABELS,
-  telegramLink,
-  whatsappLink,
   type Channel,
+  type ChatContact,
+  type ChatMessage,
   type DeliveryStatus,
-  type MessageLog,
-  type MessageRecipient,
-  type MessageRecipients,
   type MessageResult,
 } from "@filialhub/shared";
-import { Check, Search, Send } from "lucide-react";
-import { useSearchParams } from "next/navigation";
-import { Suspense, useMemo, useState } from "react";
+import { ArrowLeft, Check, CheckCheck, Megaphone, Search, Send } from "lucide-react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useToast } from "@/components/toast";
-import {
-  Avatar,
-  Badge,
-  Button,
-  Card,
-  CardTitle,
-  cn,
-  Empty,
-  ErrorBox,
-  formatDate,
-  Input,
-  PageHeader,
-  Select,
-  Skeleton,
-  TelegramIcon,
-  WhatsAppIcon,
-} from "@/components/ui";
+import { Avatar, Badge, Button, Card, cn, Empty, ErrorBox, Input, Modal, PageHeader, Skeleton, TelegramIcon, WhatsAppIcon } from "@/components/ui";
 import { api } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
-import { tr } from "@/lib/i18n";
-import { useApi } from "@/lib/use-api";
+import { locale, tr } from "@/lib/i18n";
+
+interface ContactsResponse {
+  contacts: ChatContact[];
+  configured: { telegram: boolean; whatsapp: boolean };
+}
 
 const STATUS: Record<DeliveryStatus, { label: string; tone: "good" | "blue" | "brand" | "warn" }> = {
   SENT: { label: "Фиристода шуд", tone: "good" },
@@ -46,71 +31,205 @@ const STATUS: Record<DeliveryStatus, { label: string; tone: "good" | "blue" | "b
   NOT_LINKED: { label: "Telegram пайваст нест", tone: "warn" },
 };
 
+const roleOf = (c: Pick<ChatContact, "position" | "role">) =>
+  c.position ? `${POSITION_EMOJI[c.position]} ${tr(POSITION_LABELS[c.position])}` : tr(ROLE_LABELS[c.role]);
+
+function timeShort(iso: string) {
+  const d = new Date(iso);
+  const today = new Date().toDateString() === d.toDateString();
+  return today
+    ? d.toLocaleTimeString(locale(), { hour: "2-digit", minute: "2-digit" })
+    : d.toLocaleDateString(locale(), { day: "numeric", month: "short" });
+}
+
 export default function MessagesPage() {
   return (
-    <Suspense fallback={<Skeleton className="h-96" />}>
-      <Messages />
+    <Suspense fallback={<Skeleton className="h-[600px]" />}>
+      <Chat />
     </Suspense>
   );
 }
 
-function Messages() {
-  const toast = useToast();
-  const { user } = useAuth();
-  const preselect = Number(useSearchParams().get("to")) || 0;
-  const { data, error } = useApi<MessageRecipients>("/messages/recipients");
-  const history = useApi<MessageLog[]>("/messages");
-
-  const [selected, setSelected] = useState<number[]>(preselect ? [preselect] : []);
+function Chat() {
+  const router = useRouter();
+  const activeId = Number(useSearchParams().get("to")) || 0;
+  const [data, setData] = useState<ContactsResponse | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const [query, setQuery] = useState("");
-  const [branch, setBranch] = useState("");
+  const [broadcast, setBroadcast] = useState(false);
+
+  const loadContacts = useCallback(() => {
+    api<ContactsResponse>("/messages/contacts")
+      .then((d) => {
+        setData(d);
+        setError(null);
+      })
+      .catch((e: Error) => setError(e.message));
+  }, []);
+
+  // Рӯйхат ҳар 8 сония нав мешавад (паёмҳои нав ва нохондашудаҳо).
+  useEffect(() => {
+    loadContacts();
+    const t = setInterval(loadContacts, 8000);
+    return () => clearInterval(t);
+  }, [loadContacts]);
+
+  const open = (id: number) => router.replace(id ? `/messages?to=${id}` : "/messages", { scroll: false });
+  const contacts = useMemo(() => data?.contacts ?? [], [data]);
+  const active = contacts.find((c) => c.id === activeId) ?? null;
+  const q = query.trim().toLowerCase();
+  const shown = q ? contacts.filter((c) => c.fullName.toLowerCase().includes(q) || (c.branchName ?? "").toLowerCase().includes(q)) : contacts;
+
+  return (
+    <>
+      <PageHeader
+        title={tr("Паёмҳо")}
+        subtitle={tr("Дар ин ҷо нависед ва ҷавобҳоро бинед — нусха ба WhatsApp ва Telegram меравад")}
+        actions={
+          <Button variant="outline" onClick={() => setBroadcast(true)}>
+            <Megaphone className="size-4" /> {tr("Ба чанд нафар")}
+          </Button>
+        }
+      />
+      <ErrorBox message={error} />
+      {data && (!data.configured.whatsapp || !data.configured.telegram) && (
+        <p className="mb-4 rounded-xl border border-line bg-surface-2 px-4 py-3 text-sm text-muted">
+          {tr("💡 Нусха ба WhatsApp/Telegram танҳо пас аз гузоштани токенҳо дар сервер меравад. Ҳоло паёмҳо дар сайт сабт мешаванд.")}{" "}
+          {!data.configured.telegram && <b className="text-ink-2">Telegram: {tr("токен нест")}.</b>}{" "}
+          {!data.configured.whatsapp && <b className="text-ink-2">WhatsApp: {tr("токен нест")}.</b>}
+        </p>
+      )}
+
+      <Card className="grid h-[calc(100dvh-15rem)] min-h-[520px] overflow-hidden p-0 lg:grid-cols-[340px_minmax(0,1fr)]">
+        {/* Рӯйхати суҳбатҳо */}
+        <div className={cn("flex min-h-0 flex-col border-line lg:border-r", active && "hidden lg:flex")}>
+          <div className="border-b border-line p-3">
+            <div className="relative">
+              <Search className="pointer-events-none absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-muted" />
+              <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder={tr("Ҷустуҷӯ…")} className="pl-10" />
+            </div>
+          </div>
+          <div className="min-h-0 flex-1 overflow-y-auto p-2">
+            {!data ? (
+              <Skeleton className="m-2 h-64" />
+            ) : shown.length === 0 ? (
+              <Empty title={tr("Ҳеҷ чиз ёфт нашуд")} />
+            ) : (
+              shown.map((c) => <ContactRow key={c.id} c={c} active={c.id === activeId} onClick={() => open(c.id)} />)
+            )}
+          </div>
+        </div>
+
+        {/* Суҳбат */}
+        <div className={cn("min-h-0", !active && "hidden lg:block")}>
+          {active ? (
+            <Thread key={active.id} contact={active} onBack={() => open(0)} onSent={loadContacts} />
+          ) : (
+            <div className="grid h-full place-items-center p-8 text-center">
+              <div>
+                <div className="mb-3 text-5xl">💬</div>
+                <div className="font-semibold text-ink">{tr("Суҳбатро интихоб кунед")}</div>
+                <p className="mt-1 text-sm text-muted">{tr("Аз рӯйхати чап касеро интихоб кунед, то ба ӯ нависед.")}</p>
+              </div>
+            </div>
+          )}
+        </div>
+      </Card>
+
+      <Modal open={broadcast} onClose={() => setBroadcast(false)} title={tr("Паём ба чанд нафар")}>
+        {broadcast && (
+          <Broadcast
+            contacts={contacts}
+            onDone={() => {
+              setBroadcast(false);
+              loadContacts();
+            }}
+          />
+        )}
+      </Modal>
+    </>
+  );
+}
+
+function ContactRow({ c, active, onClick }: { c: ChatContact; active: boolean; onClick: () => void }) {
+  return (
+    <button
+      onClick={onClick}
+      className={cn("flex w-full cursor-pointer items-center gap-3 rounded-xl p-2.5 text-left transition", active ? "bg-brand-soft" : "hover:bg-surface-2")}
+    >
+      <div className="relative">
+        <Avatar name={c.fullName} size={42} />
+        {c.telegramLinked && (
+          <span className="absolute -right-0.5 -bottom-0.5 grid size-4 place-items-center rounded-full bg-[#229ed9] text-white ring-2 ring-surface">
+            <TelegramIcon className="size-2.5" />
+          </span>
+        )}
+      </div>
+      <div className="min-w-0 flex-1">
+        <div className="flex items-baseline justify-between gap-2">
+          <span className={cn("truncate text-sm text-ink", c.unread ? "font-bold" : "font-semibold")}>{c.fullName}</span>
+          {c.lastMessage && <span className="shrink-0 text-[11px] text-muted tabular">{timeShort(c.lastMessage.createdAt)}</span>}
+        </div>
+        <div className="flex items-center justify-between gap-2">
+          <span className={cn("truncate text-xs", c.unread ? "font-semibold text-ink-2" : "text-muted")}>
+            {c.lastMessage ? `${c.lastMessage.mine ? tr("Шумо:") + " " : ""}${c.lastMessage.text}` : `${roleOf(c)}${c.branchName ? " · " + c.branchName : ""}`}
+          </span>
+          {c.unread > 0 && (
+            <span className="brand-gradient grid h-5 min-w-5 shrink-0 place-items-center rounded-full px-1.5 text-[11px] font-bold text-white">{c.unread}</span>
+          )}
+        </div>
+      </div>
+    </button>
+  );
+}
+
+function Thread({ contact, onBack, onSent }: { contact: ChatContact; onBack: () => void; onSent: () => void }) {
+  const { user } = useAuth();
+  const toast = useToast();
+  const [messages, setMessages] = useState<ChatMessage[] | null>(null);
   const [text, setText] = useState("");
   const [channels, setChannels] = useState<Channel[]>(["WHATSAPP", "TELEGRAM"]);
   const [busy, setBusy] = useState(false);
-  const [results, setResults] = useState<MessageResult[] | null>(null);
-  // Матни охирини фиристодашуда — тугмаҳои «аз телефони худ» пас аз тоза шудани майдон ҳам мемонанд.
-  const [lastText, setLastText] = useState("");
-  const phoneText = text.trim() || lastText;
+  const bottom = useRef<HTMLDivElement>(null);
+  const lastId = useRef(0);
 
-  const recipients = useMemo(() => data?.recipients ?? [], [data]);
-  const branches = useMemo(
-    () => [...new Map(recipients.filter((r) => r.branchId).map((r) => [r.branchId!, r.branchName ?? ""])).entries()],
-    [recipients],
-  );
-  const shown = recipients.filter((r) => {
-    const q = query.trim().toLowerCase();
-    if (branch && String(r.branchId) !== branch) return false;
-    return !q || r.fullName.toLowerCase().includes(q) || r.phone.includes(q) || r.telegram.toLowerCase().includes(q);
-  });
-  const chosen = recipients.filter((r) => selected.includes(r.id));
-  const allShownSelected = shown.length > 0 && shown.every((r) => selected.includes(r.id));
+  // Аввал ҳамаи суҳбат, баъд ҳар 4 сония танҳо паёмҳои нав.
+  useEffect(() => {
+    let alive = true;
+    const pull = async () => {
+      try {
+        const rows = await api<ChatMessage[]>(`/messages/thread/${contact.id}${lastId.current ? `?after=${lastId.current}` : ""}`);
+        if (!alive) return;
+        if (rows.length) lastId.current = rows[rows.length - 1].id;
+        setMessages((m) => (m && lastId.current ? [...m, ...rows.filter((r) => !m.some((x) => x.id === r.id))] : rows));
+      } catch {}
+    };
+    void pull();
+    const t = setInterval(pull, 4000);
+    return () => {
+      alive = false;
+      clearInterval(t);
+    };
+  }, [contact.id]);
 
-  const toggle = (id: number) => setSelected((s) => (s.includes(id) ? s.filter((x) => x !== id) : [...s, id]));
-  const toggleAll = () =>
-    setSelected((s) => (allShownSelected ? s.filter((id) => !shown.some((r) => r.id === id)) : [...new Set([...s, ...shown.map((r) => r.id)])]));
-  const toggleChannel = (c: Channel) => setChannels((cs) => (cs.includes(c) ? cs.filter((x) => x !== c) : [...cs, c]));
+  useEffect(() => {
+    bottom.current?.scrollIntoView({ block: "end" });
+  }, [messages?.length]);
 
   async function send() {
-    if (!chosen.length) return toast.error(tr("Қабулкунандаро интихоб кунед"));
-    if (!text.trim()) return toast.error(tr("Матни паёмро нависед"));
-    if (!channels.length) return toast.error(tr("WhatsApp ё Telegram-ро интихоб кунед"));
-    // Агар сервер токен надошта бошад ва як нафар интихоб шуда бошад — WhatsApp/Telegram-и ӯро фавран бо ҳамин матн мекушоем.
-    // window.open бояд пеш аз await бошад, вагарна браузер онро ҳамчун popup манъ мекунад.
-    if (data && chosen.length === 1) {
-      const r = chosen[0];
-      if (channels.includes("WHATSAPP") && !data.configured.whatsapp) window.open(whatsappLink(r.whatsapp || r.phone, text), "_blank", "noopener");
-      else if (channels.includes("TELEGRAM") && !data.configured.telegram && !r.telegramLinked)
-        window.open(telegramLink(r.telegram || r.phone, text), "_blank", "noopener");
-    }
+    const body = text.trim();
+    if (!body || busy) return;
     setBusy(true);
     try {
-      const res = await api<MessageResult[]>("/messages", { method: "POST", json: { userIds: selected, text, channels } });
-      setResults(res);
-      setLastText(text.trim());
+      const res = await api<{ messages: ChatMessage[]; results: MessageResult[] }>("/messages", {
+        method: "POST",
+        json: { userIds: [contact.id], text: body, channels },
+      });
       setText("");
-      history.reload();
-      const sent = res.filter((r) => r.status === "SENT").length;
-      toast.success(tr("Паём фиристода шуд"), sent ? tr("{0} паём рафт", sent) : tr("Дар сайт сабт шуд 🔔"));
+      const m = res.messages[0];
+      lastId.current = Math.max(lastId.current, m.id);
+      setMessages((list) => [...(list ?? []), m]);
+      onSent();
     } catch (e) {
       toast.error(tr("Хатогӣ"), (e as Error).message);
     } finally {
@@ -118,241 +237,231 @@ function Messages() {
     }
   }
 
-  if (error) return <ErrorBox message={error} />;
+  const toggle = (c: Channel) => setChannels((cs) => (cs.includes(c) ? cs.filter((x) => x !== c) : [...cs, c]));
 
   return (
-    <>
-      <PageHeader title={tr("Паёмҳо")} subtitle={tr("Ба WhatsApp ва Telegram-и кормандон нависед")} />
-      <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)]">
-        {/* Қабулкунандагон */}
-        <Card className="flex flex-col p-0">
-          <div className="space-y-3 border-b border-line p-5">
-            <div className="flex items-center justify-between gap-3">
-              <h2 className="text-base font-semibold text-ink">{tr("Ба кӣ")}</h2>
-              <span className="text-sm text-muted">{tr("{0} интихоб шуд", selected.length)}</span>
-            </div>
-            <div className="flex flex-col gap-2 sm:flex-row">
-              <div className="relative flex-1">
-                <Search className="pointer-events-none absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-muted" />
-                <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder={tr("Ҷустуҷӯ…")} className="pl-10" />
-              </div>
-              {branches.length > 1 && (
-                <Select value={branch} onChange={(e) => setBranch(e.target.value)} className="sm:w-52" aria-label={tr("Филиал")}>
-                  <option value="">{tr("Ҳамаи филиалҳо")}</option>
-                  {branches.map(([id, name]) => (
-                    <option key={id} value={id}>
-                      {name}
-                    </option>
-                  ))}
-                </Select>
-              )}
-            </div>
-            {shown.length > 0 && (
-              <button onClick={toggleAll} className="cursor-pointer text-sm font-semibold text-brand hover:underline">
-                {allShownSelected ? tr("Ҳамаро бекор кардан") : tr("Ҳамаро интихоб кардан ({0})", shown.length)}
-              </button>
-            )}
+    <div className="flex h-full min-h-0 flex-col">
+      <div className="flex items-center gap-3 border-b border-line p-3">
+        <button onClick={onBack} className="grid size-9 cursor-pointer place-items-center rounded-lg text-muted hover:bg-surface-2 lg:hidden" aria-label={tr("Пештар")}>
+          <ArrowLeft className="size-5" />
+        </button>
+        <Avatar name={contact.fullName} size={40} />
+        <div className="min-w-0 flex-1">
+          <div className="truncate font-semibold text-ink">{contact.fullName}</div>
+          <div className="truncate text-xs text-muted">
+            {roleOf(contact)}
+            {contact.branchName ? ` · ${contact.branchName}` : ""}
           </div>
-          <div className="max-h-[520px] flex-1 overflow-y-auto p-2">
-            {!data ? (
-              <Skeleton className="m-3 h-64" />
-            ) : shown.length === 0 ? (
-              <Empty title={tr("Ҳеҷ чиз ёфт нашуд")} />
-            ) : (
-              shown.map((r) => <RecipientRow key={r.id} r={r} checked={selected.includes(r.id)} onToggle={() => toggle(r.id)} />)
+        </div>
+        <div className="hidden items-center gap-2 text-xs sm:flex">
+          <span className="flex items-center gap-1 rounded-full bg-[#1fa855]/10 px-2 py-1 font-semibold text-[#1fa855]">
+            <WhatsAppIcon className="size-3.5" /> {contact.whatsapp || contact.phone}
+          </span>
+          <span
+            className={cn(
+              "flex items-center gap-1 rounded-full px-2 py-1 font-semibold",
+              contact.telegramLinked ? "bg-[#229ed9]/10 text-[#229ed9]" : "bg-surface-2 text-muted",
             )}
-          </div>
-        </Card>
-
-        {/* Паём */}
-        <div className="space-y-6">
-          <Card>
-            <CardTitle>{tr("Паём")}</CardTitle>
-            <textarea
-              value={text}
-              onChange={(e) => setText(e.target.value)}
-              rows={6}
-              maxLength={2000}
-              placeholder={tr("Матни паёмро нависед…")}
-              className="w-full resize-y rounded-xl border border-line bg-surface-2 px-4 py-3 text-sm text-ink outline-none transition placeholder:text-muted focus:border-brand/50 focus:bg-surface"
-            />
-            <div className="mt-1 text-right text-xs text-muted tabular">{text.length} / 2000</div>
-
-            <div className="mt-3 grid grid-cols-2 gap-2">
-              <ChannelToggle on={channels.includes("WHATSAPP")} onClick={() => toggleChannel("WHATSAPP")} color="#1fa855" icon={<WhatsAppIcon />} label="WhatsApp" />
-              <ChannelToggle on={channels.includes("TELEGRAM")} onClick={() => toggleChannel("TELEGRAM")} color="#229ed9" icon={<TelegramIcon className="size-4" />} label="Telegram" />
-            </div>
-
-            {data && (!data.configured.whatsapp || !data.configured.telegram) && (
-              <p className="mt-3 rounded-xl bg-surface-2 p-3 text-xs text-muted">
-                {tr(
-                  "💡 Агар токени бот/WhatsApp дар сервер набошад, паём дар сайт (🔔) ва таърих сабт мешавад. Барои фиристодан аз телефони худ — тугмаҳои зеринро пахш кунед.",
-                )}
-              </p>
-            )}
-
-            <Button onClick={send} loading={busy} className="mt-4 w-full">
-              <Send className="size-4" /> {tr("Фиристодан ({0})", chosen.length)}
-            </Button>
-          </Card>
-
-          {chosen.length > 0 && phoneText && (
-            <Card>
-              <CardTitle>{tr("Аз телефони худ фиристодан")}</CardTitle>
-              <p className="-mt-2 mb-3 text-sm text-muted">{tr("WhatsApp ё Telegram бо ҳамин матн кушода мешавад.")}</p>
-              <div className="max-h-72 space-y-2 overflow-y-auto">
-                {chosen.map((r) => (
-                  <div key={r.id} className="flex items-center gap-3 rounded-xl bg-surface-2 p-2.5">
-                    <Avatar name={r.fullName} size={32} />
-                    <span className="min-w-0 flex-1 truncate text-sm font-medium text-ink">{r.fullName}</span>
-                    <a
-                      href={whatsappLink(r.whatsapp || r.phone, phoneText)}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex items-center gap-1.5 rounded-lg bg-[#1fa855]/10 px-2.5 py-1.5 text-xs font-semibold text-[#1fa855] hover:bg-[#1fa855]/20"
-                    >
-                      <WhatsAppIcon className="size-3.5" /> WhatsApp
-                    </a>
-                    <a
-                      href={telegramLink(r.telegram || r.phone, phoneText)}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex items-center gap-1.5 rounded-lg bg-[#229ed9]/10 px-2.5 py-1.5 text-xs font-semibold text-[#229ed9] hover:bg-[#229ed9]/20"
-                    >
-                      <TelegramIcon className="size-3.5" /> Telegram
-                    </a>
-                  </div>
-                ))}
-              </div>
-            </Card>
-          )}
-
-          {results && (
-            <Card>
-              <CardTitle>{tr("Натиҷа")}</CardTitle>
-              <ul className="space-y-2">
-                {results.map((r, i) => (
-                  <li key={i} className="flex items-center gap-3 text-sm">
-                    {r.channel === "WHATSAPP" ? <WhatsAppIcon className="size-4 text-[#1fa855]" /> : <TelegramIcon className="size-4 text-[#229ed9]" />}
-                    <span className="min-w-0 flex-1 truncate text-ink">{r.fullName}</span>
-                    <Badge tone={STATUS[r.status].tone}>{tr(STATUS[r.status].label)}</Badge>
-                  </li>
-                ))}
-              </ul>
-            </Card>
-          )}
+          >
+            <TelegramIcon className="size-3.5" /> {contact.telegramLinked ? tr("Пайваст") : tr("Пайваст нест")}
+          </span>
         </div>
       </div>
 
-      <Card className="mt-6 p-0">
-        <div className="border-b border-line p-5">
-          <h2 className="text-base font-semibold text-ink">{tr("Таърихи паёмҳо")}</h2>
-        </div>
-        {!history.data ? (
-          <Skeleton className="m-5 h-40" />
-        ) : history.data.length === 0 ? (
-          <Empty icon="✉️" title={tr("Ҳоло паём нест")} />
+      <div className="min-h-0 flex-1 space-y-3 overflow-y-auto bg-[radial-gradient(circle_at_1px_1px,var(--line)_1px,transparent_0)] [background-size:18px_18px] p-4">
+        {!messages ? (
+          <Skeleton className="h-40" />
+        ) : messages.length === 0 ? (
+          <Empty icon="👋" title={tr("Ҳоло паём нест")} text={tr("Аввалин паёмро нависед.")} />
         ) : (
-          <div className="cv-auto max-h-[640px] space-y-4 overflow-y-auto bg-[radial-gradient(circle_at_1px_1px,var(--line)_1px,transparent_0)] [background-size:18px_18px] p-5">
-            {history.data.map((m) => (
-              <ChatBubble key={m.id} m={m} mine={!!user && m.senderName === user.fullName} />
-            ))}
-          </div>
+          messages.map((m) => <Bubble key={m.id} m={m} mine={m.senderId === user?.id} />)
         )}
-      </Card>
-    </>
+        <div ref={bottom} />
+      </div>
+
+      <div className="border-t border-line p-3">
+        <div className="mb-2 flex flex-wrap items-center gap-2 text-xs">
+          <span className="text-muted">{tr("Нусха ба:")}</span>
+          <MiniToggle on={channels.includes("WHATSAPP")} onClick={() => toggle("WHATSAPP")} color="#1fa855" icon={<WhatsAppIcon className="size-3.5" />} label="WhatsApp" />
+          <MiniToggle
+            on={channels.includes("TELEGRAM")}
+            onClick={() => toggle("TELEGRAM")}
+            color="#229ed9"
+            icon={<TelegramIcon className="size-3.5" />}
+            label={contact.telegramLinked ? "Telegram" : tr("Telegram (пайваст нест)")}
+          />
+        </div>
+        <div className="flex items-end gap-2">
+          <textarea
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && !e.shiftKey) {
+                e.preventDefault();
+                void send();
+              }
+            }}
+            rows={1}
+            maxLength={2000}
+            placeholder={tr("Паём нависед… (Enter — фиристодан)")}
+            className="max-h-40 min-h-11 flex-1 resize-none rounded-xl border border-line bg-surface-2 px-4 py-2.5 text-sm text-ink outline-none transition placeholder:text-muted focus:border-brand/50 focus:bg-surface field-sizing-content"
+          />
+          <Button onClick={send} loading={busy} disabled={!text.trim()} className="h-11 w-11 shrink-0 px-0" aria-label={tr("Фиристодан")}>
+            {!busy && <Send className="size-4" />}
+          </Button>
+        </div>
+      </div>
+    </div>
   );
 }
 
-function RecipientRow({ r, checked, onToggle }: { r: MessageRecipient; checked: boolean; onToggle: () => void }) {
-  const role = r.position ? `${POSITION_EMOJI[r.position]} ${tr(POSITION_LABELS[r.position])}` : tr(ROLE_LABELS[r.role]);
+function Bubble({ m, mine }: { m: ChatMessage; mine: boolean }) {
+  const time = new Date(m.createdAt).toLocaleTimeString(locale(), { hour: "2-digit", minute: "2-digit" });
   return (
-    <button
-      onClick={onToggle}
-      className={cn(
-        "flex w-full cursor-pointer items-center gap-3 rounded-xl p-2.5 text-left transition",
-        checked ? "bg-brand-soft" : "hover:bg-surface-2",
-      )}
-      aria-pressed={checked}
-    >
-      <span
-        className={cn(
-          "grid size-5 shrink-0 place-items-center rounded-md border transition",
-          checked ? "border-brand bg-brand text-white" : "border-line bg-surface",
-        )}
-      >
-        {checked && <Check className="size-3.5" />}
-      </span>
-      <Avatar name={r.fullName} size={36} />
-      <span className="min-w-0 flex-1">
-        <span className="block truncate text-sm font-semibold text-ink">{r.fullName}</span>
-        <span className="block truncate text-xs text-muted">
-          {role}
-          {r.branchName ? ` · ${r.branchName}` : ""}
-        </span>
-      </span>
-      <span className="flex shrink-0 items-center gap-1 text-muted">
-        <WhatsAppIcon className="size-3.5" />
-        <TelegramIcon className={cn("size-3.5", r.telegramLinked && "text-[#229ed9]")} />
-      </span>
-    </button>
+    <div className={cn("flex", mine ? "justify-end" : "justify-start")}>
+      <div className={cn("max-w-[85%] sm:max-w-[70%]")}>
+        <div
+          className={cn(
+            "rounded-2xl px-4 py-2.5 text-sm whitespace-pre-line shadow-sm",
+            mine ? "brand-gradient rounded-br-md text-white" : "rounded-bl-md border border-line bg-surface text-ink",
+          )}
+        >
+          {m.text}
+        </div>
+        <div className={cn("mt-1 flex flex-wrap items-center gap-1.5 text-[11px] text-muted", mine && "justify-end")}>
+          {!mine && m.source !== "WEB" && (
+            <span className="flex items-center gap-1">
+              {m.source === "WHATSAPP" ? <WhatsAppIcon className="size-3 text-[#1fa855]" /> : <TelegramIcon className="size-3 text-[#229ed9]" />}
+              {tr("аз {0}", m.source === "WHATSAPP" ? "WhatsApp" : "Telegram")}
+            </span>
+          )}
+          <span className="tabular">{time}</span>
+          {mine && (
+            <>
+              {m.whatsappStatus && <DeliveryMark channel="WHATSAPP" status={m.whatsappStatus} />}
+              {m.telegramStatus && <DeliveryMark channel="TELEGRAM" status={m.telegramStatus} />}
+              {m.readAt ? <CheckCheck className="size-3.5 text-[#229ed9]" aria-label={tr("Хонда шуд")} /> : <Check className="size-3.5" aria-label={tr("Фиристода шуд")} />}
+            </>
+          )}
+        </div>
+      </div>
+    </div>
   );
 }
 
-function ChannelToggle({ on, onClick, color, icon, label }: { on: boolean; onClick: () => void; color: string; icon: React.ReactNode; label: string }) {
+function DeliveryMark({ channel, status }: { channel: Channel; status: DeliveryStatus }) {
+  const s = STATUS[status];
+  return (
+    <span title={`${channel === "WHATSAPP" ? "WhatsApp" : "Telegram"}: ${tr(s.label)}`} className="flex items-center gap-0.5">
+      {channel === "WHATSAPP" ? <WhatsAppIcon className="size-3" /> : <TelegramIcon className="size-3" />}
+      <Badge tone={s.tone} className="px-1.5 py-0 text-[10px]">
+        {tr(s.label)}
+      </Badge>
+    </span>
+  );
+}
+
+function MiniToggle({ on, onClick, color, icon, label }: { on: boolean; onClick: () => void; color: string; icon: React.ReactNode; label: string }) {
   return (
     <button
       type="button"
       onClick={onClick}
       aria-pressed={on}
-      className={cn(
-        "flex cursor-pointer items-center justify-center gap-2 rounded-xl border px-3 py-2.5 text-sm font-semibold transition",
-        on ? "border-transparent" : "border-line bg-surface-2 text-muted",
-      )}
+      className={cn("flex cursor-pointer items-center gap-1 rounded-full border px-2.5 py-1 font-semibold transition", on ? "border-transparent" : "border-line text-muted")}
       style={on ? { background: `color-mix(in oklab, ${color} 14%, transparent)`, color } : undefined}
     >
-      {icon} {label}
-      {on && <Check className="size-4" />}
+      {icon} {label} {on && <Check className="size-3" />}
     </button>
   );
 }
 
-/** Паём дар таърих ба шакли чат: аз ман — рост ва сурх, ба ман — чап ва сафед */
-function ChatBubble({ m, mine }: { m: MessageLog; mine: boolean }) {
-  // Сатри аввал — «✉️ Ном (вазифа):», онро дар ҳубобча нишон намедиҳем.
-  const lines = m.text.split(/\r?\n/);
-  const body = lines.length > 1 ? lines.slice(1).join("\n") : m.text;
+/** Хабар ба чанд нафар якбора */
+function Broadcast({ contacts, onDone }: { contacts: ChatContact[]; onDone: () => void }) {
+  const toast = useToast();
+  const [selected, setSelected] = useState<number[]>([]);
+  const [query, setQuery] = useState("");
+  const [text, setText] = useState("");
+  const [channels, setChannels] = useState<Channel[]>(["WHATSAPP", "TELEGRAM"]);
+  const [busy, setBusy] = useState(false);
+  const q = query.trim().toLowerCase();
+  const shown = q ? contacts.filter((c) => c.fullName.toLowerCase().includes(q) || (c.branchName ?? "").toLowerCase().includes(q)) : contacts;
+  const allShown = shown.length > 0 && shown.every((c) => selected.includes(c.id));
+  const toggle = (id: number) => setSelected((s) => (s.includes(id) ? s.filter((x) => x !== id) : [...s, id]));
+
+  async function send() {
+    if (!selected.length) return toast.error(tr("Қабулкунандаро интихоб кунед"));
+    if (!text.trim()) return toast.error(tr("Матни паёмро нависед"));
+    setBusy(true);
+    try {
+      const res = await api<{ messages: ChatMessage[]; results: MessageResult[] }>("/messages", { method: "POST", json: { userIds: selected, text, channels } });
+      const sent = res.results.filter((r) => r.status === "SENT").length;
+      toast.success(tr("Паём фиристода шуд"), tr("{0} нафар · {1} нусха ба WhatsApp/Telegram рафт", res.messages.length, sent));
+      onDone();
+    } catch (e) {
+      toast.error(tr("Хатогӣ"), (e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
   return (
-    <div className={cn("flex items-end gap-2.5", mine && "flex-row-reverse")}>
-      <Avatar name={(mine ? m.recipientName : m.senderName) ?? "?"} size={32} />
-      <div className={cn("max-w-[80%] sm:max-w-[65%]", mine && "items-end text-right")}>
-        <div className={cn("mb-1 flex items-center gap-1.5 text-xs text-muted", mine && "justify-end")}>
-          {mine ? (
-            <>
-              {tr("Ба")} <b className="text-ink-2">{m.recipientName ?? m.to}</b>
-            </>
-          ) : (
-            <>
-              <b className="text-ink-2">{m.senderName ?? "—"}</b> → {m.recipientName ?? m.to}
-            </>
-          )}
-        </div>
-        <div
-          className={cn(
-            "rounded-2xl px-4 py-2.5 text-left text-sm whitespace-pre-line shadow-sm",
-            mine ? "brand-gradient rounded-br-md text-white" : "rounded-bl-md border border-line bg-surface text-ink",
-          )}
-        >
-          {body}
-        </div>
-        <div className={cn("mt-1 flex items-center gap-1.5 text-[11px] text-muted", mine && "justify-end")}>
-          {m.channel === "WHATSAPP" ? <WhatsAppIcon className="size-3 text-[#1fa855]" /> : <TelegramIcon className="size-3 text-[#229ed9]" />}
-          <span className="tabular">{formatDate(m.createdAt, true)}</span>
-          <Badge tone={STATUS[m.status].tone} className="px-1.5 py-0 text-[10px]">
-            {tr(STATUS[m.status].label)}
-          </Badge>
-        </div>
+    <div className="space-y-4">
+      <div className="relative">
+        <Search className="pointer-events-none absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-muted" />
+        <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder={tr("Ҷустуҷӯ…")} className="pl-10" />
       </div>
+      <div className="flex items-center justify-between text-sm">
+        <button
+          onClick={() => setSelected((s) => (allShown ? s.filter((id) => !shown.some((c) => c.id === id)) : [...new Set([...s, ...shown.map((c) => c.id)])]))}
+          className="cursor-pointer font-semibold text-brand hover:underline"
+        >
+          {allShown ? tr("Ҳамаро бекор кардан") : tr("Ҳамаро интихоб кардан ({0})", shown.length)}
+        </button>
+        <span className="text-muted">{tr("{0} интихоб шуд", selected.length)}</span>
+      </div>
+      <div className="max-h-64 overflow-y-auto rounded-xl border border-line p-1">
+        {shown.map((c) => (
+          <label key={c.id} className="flex cursor-pointer items-center gap-3 rounded-lg p-2 hover:bg-surface-2">
+            <input type="checkbox" checked={selected.includes(c.id)} onChange={() => toggle(c.id)} className="size-4 accent-[var(--brand)]" />
+            <Avatar name={c.fullName} size={30} />
+            <span className="min-w-0 flex-1">
+              <span className="block truncate text-sm font-medium text-ink">{c.fullName}</span>
+              <span className="block truncate text-xs text-muted">
+                {roleOf(c)}
+                {c.branchName ? ` · ${c.branchName}` : ""}
+              </span>
+            </span>
+          </label>
+        ))}
+      </div>
+      <textarea
+        value={text}
+        onChange={(e) => setText(e.target.value)}
+        rows={4}
+        maxLength={2000}
+        placeholder={tr("Матни паёмро нависед…")}
+        className="w-full resize-y rounded-xl border border-line bg-surface-2 px-4 py-3 text-sm text-ink outline-none transition placeholder:text-muted focus:border-brand/50 focus:bg-surface"
+      />
+      <div className="flex flex-wrap items-center gap-2 text-xs">
+        <span className="text-muted">{tr("Нусха ба:")}</span>
+        <MiniToggle
+          on={channels.includes("WHATSAPP")}
+          onClick={() => setChannels((cs) => (cs.includes("WHATSAPP") ? cs.filter((x) => x !== "WHATSAPP") : [...cs, "WHATSAPP"]))}
+          color="#1fa855"
+          icon={<WhatsAppIcon className="size-3.5" />}
+          label="WhatsApp"
+        />
+        <MiniToggle
+          on={channels.includes("TELEGRAM")}
+          onClick={() => setChannels((cs) => (cs.includes("TELEGRAM") ? cs.filter((x) => x !== "TELEGRAM") : [...cs, "TELEGRAM"]))}
+          color="#229ed9"
+          icon={<TelegramIcon className="size-3.5" />}
+          label="Telegram"
+        />
+      </div>
+      <Button onClick={send} loading={busy} className="w-full">
+        <Send className="size-4" /> {tr("Фиристодан ({0})", selected.length)}
+      </Button>
     </div>
   );
 }
