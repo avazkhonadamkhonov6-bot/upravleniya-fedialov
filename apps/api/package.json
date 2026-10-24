@@ -11,7 +11,7 @@
     "db:migrate": "prisma migrate deploy",
     "db:seed": "tsx prisma/seed.ts",
     "prebuild": "prisma generate",
-    "start:prod": "prisma migrate deploy && tsx prisma/seed.ts --if-empty && node dist/main.js"
+    "start:prod": "prisma migrate deploy && (tsx prisma/seed.ts --if-empty &) && node dist/main.js"
   },
   "dependencies": {
     "@filialhub/shared": "*",

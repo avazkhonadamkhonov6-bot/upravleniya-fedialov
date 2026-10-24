@@ -5,7 +5,11 @@ import { PrismaPg } from '@prisma/adapter-pg';
 import * as bcrypt from 'bcryptjs';
 import { PrismaClient, type Position } from '../src/generated/prisma/client';
 
-const prisma = new PrismaClient({ adapter: new PrismaPg({ connectionString: process.env.DATABASE_URL }) });
+// Дар серверҳои суст (Render Free, 0.1 CPU) як рӯзи фурӯш аз 5 сония (пешфарз) зиёд вақт мегирад.
+const prisma = new PrismaClient({
+  adapter: new PrismaPg({ connectionString: process.env.DATABASE_URL }),
+  transactionOptions: { timeout: 120_000, maxWait: 30_000 },
+});
 
 const DEMO_PASSWORD = 'demo1234';
 const DAYS = 90;
@@ -111,7 +115,11 @@ async function ensureDemoEmails(branchId?: number) {
 
 async function main() {
   // --if-empty: барои сервер (Render) — танҳо агар база холӣ бошад, маълумоти намунавӣ сохта мешавад.
-  if (process.argv.includes('--if-empty') && (await prisma.user.count()) > 0) {
+  // Seed-и нопурра (масалан сервер дар миёна афтод): ҳисоби демои шеф ҳаст, вале огоҳиномаҳо (қадами охирин) нестанд.
+  const unfinishedDemo =
+    !!(await prisma.user.findUnique({ where: { email: 'chef@filialhub.tj' } })) && (await prisma.alert.count()) === 0;
+  if (unfinishedDemo) console.log('⚠️ Маълумоти демо нопурра аст — аз нав сохта мешавад.');
+  if (process.argv.includes('--if-empty') && !unfinishedDemo && (await prisma.user.count()) > 0) {
     console.log('✅ База аллакай маълумот дорад — seed лозим нест.');
     await ensureCashiers();
     return;
