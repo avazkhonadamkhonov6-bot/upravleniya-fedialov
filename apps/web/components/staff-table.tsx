@@ -2,6 +2,7 @@
 
 import { POSITION_EMOJI, POSITION_LABELS, POSITIONS, type Branch, type Position, type User } from "@filialhub/shared";
 import { Pencil, Plus, Search, Send } from "lucide-react";
+import Link from "next/link";
 import { useState } from "react";
 import { qs } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
@@ -139,7 +140,19 @@ export function StaffTable({ fixedBranchId, compact }: { fixedBranchId?: number;
                     <td className="px-3 py-2.5 whitespace-nowrap text-ink-2 tabular">{u.phone}</td>
                     <td className="px-3 py-2.5 text-right whitespace-nowrap text-ink-2 tabular">{money(u.salary)}</td>
                     <td className="px-3 py-2.5">
-                      <ContactButtons phone={u.phone} email={u.email} name={u.fullName} whatsapp={u.whatsapp} telegram={u.telegram} />
+                      <div className="flex items-center gap-1">
+                        <ContactButtons phone={u.phone} email={u.email} name={u.fullName} whatsapp={u.whatsapp} telegram={u.telegram} />
+                        {u.id !== me?.id && (
+                          <Link
+                            href={`/messages?to=${u.id}`}
+                            title={tr("Паём навиштан")}
+                            aria-label={tr("Паём навиштан")}
+                            className="grid size-8 place-items-center rounded-lg text-muted transition hover:bg-surface-2 hover:text-brand"
+                          >
+                            <Send className="size-4" />
+                          </Link>
+                        )}
+                      </div>
                     </td>
                     <td className="px-3 py-2.5 text-right">
                       {u.id !== me?.id && (isChef || u.role === "STAFF") && (

@@ -1,17 +1,25 @@
 "use client";
 
-import { POSITION_EMOJI, POSITION_LABELS, POSITIONS, type Branch } from "@filialhub/shared";
+import { POSITION_EMOJI, POSITION_LABELS, POSITIONS, type Branch, type BranchRank, type Period } from "@filialhub/shared";
 import { ArrowUpRight, MapPin, Pencil, Plus } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 import { BranchForm } from "@/components/forms";
-import { Badge, Button, ContactButtons, Empty, ErrorBox, Modal, PageHeader, Skeleton } from "@/components/ui";
+import { Badge, Button, Card, ContactButtons, Empty, ErrorBox, Modal, money, PageHeader, Segmented, Skeleton, cn } from "@/components/ui";
+import { qs } from "@/lib/api";
 import { useApi } from "@/lib/use-api";
 import { tr } from "@/lib/i18n";
 
 export default function BranchesPage() {
   const { data, error, reload } = useApi<Branch[]>("/branches");
   const [editing, setEditing] = useState<Branch | "new" | null>(null);
+  const [period, setPeriod] = useState<Period>("month");
+  const { data: ranks } = useApi<BranchRank[]>(`/stats/branches${qs({ period })}`);
+  const rankOf = (id: number) => ranks?.find((r) => r.branchId === id);
+  const totals = ranks?.reduce(
+    (t, r) => ({ revenue: t.revenue + r.revenue, profit: t.profit + r.profit, expenses: t.expenses + r.expenses, netProfit: t.netProfit + r.netProfit }),
+    { revenue: 0, profit: 0, expenses: 0, netProfit: 0 },
+  );
 
   const totalStaff = data?.reduce((s, b) => s + (b.staffCount ?? 0) + (b.manager ? 1 : 0), 0);
 
@@ -27,6 +35,32 @@ export default function BranchesPage() {
         }
       />
       <ErrorBox message={error} />
+
+      {/* Ҳамаи филиалҳо якҷоя барои давраи интихобшуда */}
+      <Card className="mb-6">
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+          <h2 className="text-base font-semibold text-ink">{tr("Ҳамаи филиалҳо якҷоя")}</h2>
+          <Segmented
+            value={period}
+            onChange={setPeriod}
+            options={[
+              { value: "day", label: tr("Имрӯз") },
+              { value: "week", label: tr("Ин ҳафта") },
+              { value: "month", label: tr("Ин моҳ") },
+            ]}
+          />
+        </div>
+        {!totals ? (
+          <Skeleton className="h-16" />
+        ) : (
+          <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
+            <Metric label={tr("Фурӯш")} value={money(totals.revenue)} />
+            <Metric label={tr("Фоида")} value={money(totals.profit)} color="var(--chart-profit)" />
+            <Metric label={tr("Хароҷот")} value={money(totals.expenses)} color="var(--warn)" />
+            <Metric label={tr("Фоидаи соф")} value={money(totals.netProfit)} color={totals.netProfit < 0 ? "var(--brand)" : "var(--good)"} strong />
+          </div>
+        )}
+      </Card>
 
       {!data ? (
         <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
@@ -53,6 +87,8 @@ export default function BranchesPage() {
               </div>
               <div className="flex flex-1 flex-col p-5">
                 <p className="text-sm text-muted">{b.address}</p>
+
+                <BranchMoney rank={rankOf(b.id)} loading={!ranks} />
 
                 <div className="mt-4 grid grid-cols-4 gap-2">
                   {POSITIONS.map((p) => (
@@ -102,5 +138,48 @@ export default function BranchesPage() {
         )}
       </Modal>
     </>
+  );
+}
+
+function Metric({ label, value, color, strong }: { label: string; value: string; color?: string; strong?: boolean }) {
+  return (
+    <div className={cn("rounded-xl p-3", strong ? "bg-surface-2 ring-1 ring-line" : "bg-surface-2")}>
+      <div className="text-[11px] font-semibold tracking-wide text-muted uppercase">{label}</div>
+      <div className={cn("mt-1 tabular leading-tight break-words", strong ? "text-lg font-extrabold" : "text-base font-bold")} style={{ color: color ?? "var(--ink)" }}>
+        {value}
+      </div>
+    </div>
+  );
+}
+
+/** Фурӯш, фоида, хароҷот ва фоидаи софи филиал барои давраи интихобшуда */
+function BranchMoney({ rank, loading }: { rank?: BranchRank; loading: boolean }) {
+  if (loading) return <Skeleton className="mt-4 h-24" />;
+  if (!rank) return null;
+  return (
+    <div className="mt-4 grid grid-cols-2 gap-2 text-sm">
+      <div className="rounded-xl bg-surface-2 p-2.5">
+        <div className="text-[11px] text-muted">{tr("Фурӯш")}</div>
+        <div className="font-bold text-ink tabular">{money(rank.revenue)}</div>
+      </div>
+      <div className="rounded-xl bg-surface-2 p-2.5">
+        <div className="text-[11px] text-muted">{tr("Фоида")}</div>
+        <div className="font-bold tabular" style={{ color: "var(--chart-profit)" }}>
+          {money(rank.profit)}
+        </div>
+      </div>
+      <div className="rounded-xl bg-surface-2 p-2.5">
+        <div className="text-[11px] text-muted">{tr("Хароҷот")}</div>
+        <div className="font-bold tabular" style={{ color: "var(--warn)" }}>
+          {money(rank.expenses)}
+        </div>
+      </div>
+      <div className="rounded-xl bg-surface-2 p-2.5">
+        <div className="text-[11px] text-muted">{tr("Фоидаи соф")}</div>
+        <div className="font-extrabold tabular" style={{ color: rank.netProfit < 0 ? "var(--brand)" : "var(--good)" }}>
+          {money(rank.netProfit)}
+        </div>
+      </div>
+    </div>
   );
 }

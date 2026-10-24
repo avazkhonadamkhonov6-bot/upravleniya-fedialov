@@ -12,6 +12,7 @@ import {
   LogOut,
   Menu,
   MessageCircle,
+  MessagesSquare,
   Moon,
   Search,
   ShoppingBag,
@@ -61,6 +62,7 @@ const NAV: { title: string; items: NavItem[] }[] = [
       { href: "/customers", label: "Мизоҷон ва бонус", short: "Мизоҷон", icon: HeartHandshake, show: isLead, primary: true },
       { href: "/tasks", label: "Вазифаҳо", short: "Вазифа", icon: ClipboardList, show: () => true, primary: true },
       { href: "/schedule", label: "Ҷадвал ва давомот", short: "Ҷадвал", icon: CalendarClock, show: () => true },
+      { href: "/messages", label: "Паёмҳо", short: "Паём", icon: MessagesSquare, show: () => true },
     ],
   },
   {

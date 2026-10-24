@@ -17,6 +17,7 @@ import { CustomersModule } from './customers/customers';
 import { ExpensesModule } from './expenses/expenses';
 import { ShiftsModule } from './shifts/shifts';
 import { TasksModule } from './tasks/tasks';
+import { MessagesModule } from './messages/messages';
 
 @Module({
   imports: [
@@ -34,6 +35,7 @@ import { TasksModule } from './tasks/tasks';
     TasksModule,
     ShiftsModule,
     ExpensesModule,
+    MessagesModule,
   ],
   controllers: [HealthController],
   providers: [

@@ -149,14 +149,15 @@ function BranchRanking() {
         <div className="grid gap-6 2xl:grid-cols-[minmax(0,1fr)_1.3fr]">
           <BranchBars data={data} />
           <div className="-mx-2 overflow-x-auto">
-            <table className="w-full min-w-[520px] text-sm">
+            <table className="w-full min-w-[620px] text-sm">
               <thead>
                 <tr className="text-left text-xs tracking-wide text-muted uppercase">
                   <th className="px-2 pb-3 font-semibold">{tr("Филиал")}</th>
                   <th className="px-2 pb-3 text-right font-semibold">{tr("Фурӯш")}</th>
                   <th className="px-2 pb-3 text-right font-semibold">{tr("Фоида")}</th>
-                  <th className="px-2 pb-3 text-right font-semibold">{tr("Фармоиш")}</th>
+                  <th className="px-2 pb-3 text-right font-semibold">{tr("Хароҷот")}</th>
                   <th className="px-2 pb-3 text-right font-semibold">{tr("Соф")}</th>
+                  <th className="px-2 pb-3 text-right font-semibold">{tr("Фармоиш")}</th>
                   <th className="px-2 pb-3 text-right font-semibold">{tr("Корманд")}</th>
                 </tr>
               </thead>
@@ -176,8 +177,16 @@ function BranchRanking() {
                     <td className="px-2 py-3 text-right font-semibold whitespace-nowrap tabular" style={{ color: "var(--chart-profit)" }}>
                       {money(r.profit)}
                     </td>
+                    <td className="px-2 py-3 text-right whitespace-nowrap tabular" style={{ color: "var(--warn)" }}>
+                      {money(r.expenses)}
+                    </td>
+                    <td
+                      className="px-2 py-3 text-right font-semibold whitespace-nowrap tabular"
+                      style={{ color: r.netProfit < 0 ? "var(--brand)" : "var(--good)" }}
+                    >
+                      {money(r.netProfit)}
+                    </td>
                     <td className="px-2 py-3 text-right tabular text-ink-2">{r.orders}</td>
-                    <td className="px-2 py-3 text-right font-semibold whitespace-nowrap tabular text-ink">{money(r.netProfit)}</td>
                     <td className="px-2 py-3 text-right tabular text-ink-2">{r.employees}</td>
                   </tr>
                 ))}

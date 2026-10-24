@@ -67,10 +67,11 @@ export function normalizeTelegram(value: string): string {
     .replace(/^@/, '');
 }
 
-/** Telegram: номи корбарӣ (@name ё t.me/name) ё рақами телефон */
-export function telegramLink(value: string): string {
+/** Telegram: номи корбарӣ (@name ё t.me/name) ё рақами телефон; text — матни омода (барои номи корбарӣ) */
+export function telegramLink(value: string, text?: string): string {
   const v = normalizeTelegram(value);
-  if (/^[a-zA-Z][a-zA-Z0-9_]{3,}$/.test(v)) return `https://t.me/${v}`;
+  const q = text ? `?text=${encodeURIComponent(text)}` : '';
+  if (/^[a-zA-Z][a-zA-Z0-9_]{3,}$/.test(v)) return `https://t.me/${v}${q}`;
   return `https://t.me/+${phoneDigits(v)}`;
 }
 
@@ -416,4 +417,52 @@ export interface SearchResult {
   title: string;
   subtitle: string;
   href: string;
+}
+
+// ---------- Паёмҳо ----------
+
+export const CHANNELS = ['WHATSAPP', 'TELEGRAM'] as const;
+export type Channel = (typeof CHANNELS)[number];
+
+/** Натиҷаи фиристодан: SENT — рафт, DRY_RUN — токен нест (танҳо сабт шуд), FAILED — хато, NOT_LINKED — Telegram пайваст нест */
+export type DeliveryStatus = 'SENT' | 'DRY_RUN' | 'FAILED' | 'NOT_LINKED';
+
+export interface MessageRecipient {
+  id: number;
+  fullName: string;
+  role: Role;
+  position: Position | null;
+  branchId: number | null;
+  branchName: string | null;
+  phone: string;
+  whatsapp: string;
+  telegram: string;
+  telegramLinked: boolean;
+}
+
+export interface MessageRecipients {
+  recipients: MessageRecipient[];
+  /** Оё бот/API барои фиристодан аз сервер танзим шудааст */
+  configured: { telegram: boolean; whatsapp: boolean };
+}
+
+export interface MessageResult {
+  userId: number;
+  fullName: string;
+  channel: Channel;
+  status: DeliveryStatus;
+  error?: string;
+}
+
+export interface MessageLog {
+  id: number;
+  channel: Channel;
+  to: string;
+  status: DeliveryStatus;
+  error: string | null;
+  text: string;
+  recipientId: number | null;
+  recipientName: string | null;
+  senderName: string | null;
+  createdAt: string;
 }

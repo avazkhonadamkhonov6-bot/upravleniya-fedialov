@@ -138,12 +138,15 @@ model Notification {
   channel   Channel
   to        String
   userId    Int?
+  /// Кӣ паёмро дастӣ навишт (null — огоҳиномаи худкор)
+  senderId  Int?
   text      String
   status    DeliveryStatus
   error     String?
   createdAt DateTime       @default(now())
 
   @@index([createdAt])
+  @@index([senderId])
 }
 
 // ---------- CRM ----------
