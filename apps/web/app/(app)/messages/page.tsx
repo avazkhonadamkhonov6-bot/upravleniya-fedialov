@@ -93,6 +93,7 @@ function Messages() {
     try {
       const res = await api<MessageResult[]>("/messages", { method: "POST", json: { userIds: selected, text, channels } });
       setResults(res);
+      setText("");
       history.reload();
       const sent = res.filter((r) => r.status === "SENT").length;
       toast.success(tr("Паём фиристода шуд"), sent ? tr("{0} паём рафт", sent) : tr("Дар сайт сабт шуд 🔔"));
