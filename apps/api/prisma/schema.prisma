@@ -85,6 +85,9 @@ model User {
   alerts         Alert[]
   sentMessages     Message[]  @relation("MessageSender")
   receivedMessages Message[]  @relation("MessageRecipient")
+  media            Media[]
+  outgoingCalls    Call[]     @relation("CallCaller")
+  incomingCalls    Call[]     @relation("CallCallee")
 
   @@index([branchId])
 }
@@ -288,9 +291,48 @@ model Message {
   /// Натиҷаи нусха ба WhatsApp/Telegram: SENT | DRY_RUN | FAILED | NOT_LINKED (null — фиристода нашуд)
   whatsappStatus String?
   telegramStatus String?
+  /// Чат дар кадом канал: WHATSAPP | TELEGRAM (null — зангҳо ва паёмҳои танҳо-сайт, дар ҳарду намоён)
+  channel        String?
+  /// TEXT | VOICE | VIDEO_NOTE | CALL
+  kind           String    @default("TEXT")
+  mediaId        Int?
+  media          Media?    @relation(fields: [mediaId], references: [id], onDelete: SetNull)
+  durationSec    Int?
   readAt         DateTime?
   createdAt      DateTime  @default(now())
 
   @@index([recipientId, readAt])
   @@index([senderId, recipientId, createdAt])
+  @@index([channel])
+}
+
+/// Файли паёми овозӣ ё видеоӣ (дар худи база — барои Render хотираи диск лозим нест)
+model Media {
+  id        Int       @id @default(autoincrement())
+  ownerId   Int?
+  owner     User?     @relation(fields: [ownerId], references: [id], onDelete: SetNull)
+  mime      String
+  size      Int
+  data      Bytes
+  createdAt DateTime  @default(now())
+  messages  Message[]
+}
+
+/// Занги аудио/видео (WebRTC). Пешниҳод ва ҷавоби SDP дар ҳамин ҷо — сервери алоҳидаи сигнал лозим нест.
+model Call {
+  id         Int       @id @default(autoincrement())
+  callerId   Int
+  caller     User      @relation("CallCaller", fields: [callerId], references: [id], onDelete: Cascade)
+  calleeId   Int
+  callee     User      @relation("CallCallee", fields: [calleeId], references: [id], onDelete: Cascade)
+  video      Boolean   @default(false)
+  /// RINGING | ACTIVE | ENDED | DECLINED | MISSED | CANCELLED
+  status     String    @default("RINGING")
+  offer      String?
+  answer     String?
+  createdAt  DateTime  @default(now())
+  answeredAt DateTime?
+  endedAt    DateTime?
+
+  @@index([calleeId, status])
 }

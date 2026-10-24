@@ -354,3 +354,161 @@ tbody tr:hover {
     transform: none;
   }
 }
+
+/* ---------- v4: аниматсияҳои тамоми сайт ---------- */
+
+/* Карточкаҳои саҳифа пай дар пай пайдо мешаванд (бе иловаи синф дар ҳар саҳифа) */
+@keyframes card-in {
+  from {
+    opacity: 0;
+    transform: translateY(14px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+main :is(.grid, [class*="space-y-"]) > .card {
+  animation: card-in 0.55s cubic-bezier(0.2, 0.75, 0.2, 1) both;
+}
+main :is(.grid, [class*="space-y-"]) > .card:nth-child(2) { animation-delay: 60ms; }
+main :is(.grid, [class*="space-y-"]) > .card:nth-child(3) { animation-delay: 120ms; }
+main :is(.grid, [class*="space-y-"]) > .card:nth-child(4) { animation-delay: 180ms; }
+main :is(.grid, [class*="space-y-"]) > .card:nth-child(5) { animation-delay: 240ms; }
+main :is(.grid, [class*="space-y-"]) > .card:nth-child(n + 6) { animation-delay: 300ms; }
+
+/* Тугмаи асосӣ: ҷилои нур ҳангоми ишора */
+button.brand-gradient,
+a.brand-gradient {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+}
+button.brand-gradient::after,
+a.brand-gradient::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: linear-gradient(110deg, transparent 30%, rgb(255 255 255 / 0.28) 50%, transparent 70%);
+  transform: translateX(-120%);
+  transition: transform 0.7s cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+button.brand-gradient:hover::after,
+a.brand-gradient:hover::after {
+  transform: translateX(120%);
+}
+
+/* Менюи паҳлӯ: иконка ҳангоми ишора каме ҳаракат мекунад */
+aside nav a span:first-child {
+  transition: transform 0.2s cubic-bezier(0.2, 0.7, 0.2, 1), background-color 0.2s;
+}
+aside nav a:hover span:first-child {
+  transform: translateX(2px) scale(1.06);
+}
+
+/* Паёмҳо: ҳубобча аз поён «мепарад» */
+@keyframes msg-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.msg-in {
+  animation: msg-in 0.32s cubic-bezier(0.2, 0.9, 0.3, 1.15) both;
+}
+
+/* Экрани занг */
+@keyframes call-in {
+  from {
+    opacity: 0;
+    transform: scale(1.04);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.call-in {
+  animation: call-in 0.35s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+@keyframes call-pulse {
+  0% {
+    box-shadow:
+      0 0 0 0 rgb(228 0 43 / 0.45),
+      0 0 0 0 rgb(228 0 43 / 0.25);
+  }
+  100% {
+    box-shadow:
+      0 0 0 28px rgb(228 0 43 / 0),
+      0 0 0 56px rgb(228 0 43 / 0);
+  }
+}
+.call-pulse {
+  animation: call-pulse 1.8s cubic-bezier(0.2, 0.7, 0.2, 1) infinite;
+}
+@keyframes call-bounce {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-6px);
+  }
+}
+.call-bounce {
+  animation: call-bounce 1s ease-in-out infinite;
+}
+
+/* Хати ҷадвал ва рӯйхатҳо: пайдошавии нарм */
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+main tbody tr,
+.fade-in {
+  animation: fade-in 0.4s ease-out both;
+}
+
+/* Модал: аз поён дар телефон, бо «калоншавӣ» дар компютер */
+@keyframes modal-in {
+  from {
+    opacity: 0;
+    transform: translateY(24px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.modal-in {
+  animation: modal-in 0.32s cubic-bezier(0.2, 0.9, 0.3, 1.05) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  main :is(.grid, [class*="space-y-"]) > .card,
+  .msg-in,
+  .call-in,
+  .call-pulse,
+  .call-bounce,
+  main tbody tr,
+  .fade-in,
+  .modal-in {
+    animation: none;
+  }
+  button.brand-gradient::after,
+  a.brand-gradient::after {
+    display: none;
+  }
+  aside nav a:hover span:first-child {
+    transform: none;
+  }
+}

@@ -1,9 +1,10 @@
 import { Injectable, OnModuleInit } from '@nestjs/common';
-import { phoneDigits, POSITION_LABELS, ROLE_LABELS, type Period } from '@filialhub/shared';
+import { MEDIA_MAX_BYTES, phoneDigits, POSITION_LABELS, ROLE_LABELS, type Period } from '@filialhub/shared';
 import { PrismaService } from '../prisma/prisma.service';
 import { escape } from './notifications.service';
 import { ChatService } from './chat.service';
 import { ReportService } from './report.service';
+import { verifyTelegramLinkCode } from './telegram-link';
 import { TelegramService, TgMessage } from './telegram.service';
 
 const HELP = [
@@ -36,6 +37,10 @@ export class TelegramBotService implements OnModuleInit {
 
     const command = (msg.text ?? '').trim().split(/[\s@]/)[0].toLowerCase();
     if (command === '/start') {
+      // Пайванд аз профили сайт: /start u12_xxxx — ҳисоб фавран пайваст мешавад.
+      const code = (msg.text ?? '').trim().split(/s+/)[1];
+      const linkedId = code ? verifyTelegramLinkCode(code) : null;
+      if (linkedId) return this.linkUser(chatId, linkedId);
       return this.telegram.send(
         chatId,
         '👋 Салом! Ин боти <b>FilialHub</b> аст.\nБарои пайваст кардани ҳисоб тугмаи поёнро пахш кунед ва рақами телефонатонро фиристед.',
@@ -78,6 +83,23 @@ export class TelegramBotService implements OnModuleInit {
       return this.telegram.send(chatId, await this.reports.buildReport(periods[command] ?? 'day', branchId));
     }
 
+    // Овоз ё видео аз корманд — ба чати FilialHub.
+    const media = msg.voice ?? msg.audio
+      ? { file: (msg.voice ?? msg.audio)!, kind: 'VOICE' as const, mime: (msg.voice ?? msg.audio)!.mime_type ?? 'audio/ogg' }
+      : msg.video_note ?? msg.video
+        ? { file: (msg.video_note ?? msg.video)!, kind: 'VIDEO_NOTE' as const, mime: msg.video?.mime_type ?? 'video/mp4' }
+        : null;
+    if (media) {
+      try {
+        const { data } = await this.telegram.download(media.file.file_id);
+        if (data.byteLength > MEDIA_MAX_BYTES) return this.telegram.send(chatId, 'Файл хеле калон аст (то 15 МБ).');
+        const to = await this.chat.routeIncomingMedia(user, { data, mime: media.mime }, media.kind, media.file.duration, 'TELEGRAM');
+        return this.telegram.send(chatId, to ? `✅ Фиристода шуд ба <b>${escape(to.fullName)}</b>.` : 'Қабулкунанда ёфт нашуд.');
+      } catch {
+        return this.telegram.send(chatId, '❌ Файлро гирифта натавонистем, дубора кӯшиш кунед.');
+      }
+    }
+
     // Матни оддӣ (на команда) — ҷавоб дар чат: ба FilialHub меравад.
     const text = (msg.text ?? '').trim();
     if (text && !text.startsWith('/')) {
@@ -86,6 +108,23 @@ export class TelegramBotService implements OnModuleInit {
     }
 
     return this.telegram.send(chatId, HELP);
+  }
+
+  private async linkUser(chatId: string, userId: number) {
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user || !user.isActive) return this.telegram.send(chatId, '❌ Ҳисоб ёфт нашуд.');
+    await this.prisma.$transaction([
+      this.prisma.user.updateMany({ where: { telegramChatId: chatId }, data: { telegramChatId: null } }),
+      this.prisma.user.update({ where: { id: user.id }, data: { telegramChatId: chatId } }),
+    ]);
+    return this.telegram.send(
+      chatId,
+      `✅ ${escape(user.fullName)}, Telegram пайваст шуд!
+Акнун паёмҳо, овозҳо ва видеоҳо аз FilialHub ба ин ҷо меоянд. Ҷавоб нависед ё овоз фиристед — он ба сайт меравад.
+
+${HELP}`,
+      { reply_markup: { remove_keyboard: true } },
+    );
   }
 
   private async linkByContact(chatId: string, msg: TgMessage) {

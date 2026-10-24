@@ -127,7 +127,7 @@ async function main() {
   console.log('🧹 Пок кардани маълумоти кӯҳна…');
   // TRUNCATE ... RESTART IDENTITY — ID-ҳо ҳар дафъа аз 1 сар мешаванд.
   await prisma.$executeRawUnsafe(
-    'TRUNCATE "Alert", "AuditLog", "Expense", "Shift", "Task", "Notification", "OrderItem", "Order", "Customer", "User", "Product", "Branch" RESTART IDENTITY CASCADE',
+    'TRUNCATE "Call", "Message", "Media", "Alert", "AuditLog", "Expense", "Shift", "Task", "Notification", "OrderItem", "Order", "Customer", "User", "Product", "Branch" RESTART IDENTITY CASCADE',
   );
 
   const passwordHash = await bcrypt.hash(DEMO_PASSWORD, 10);

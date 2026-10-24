@@ -61,7 +61,10 @@ export async function api<T>(path: string, init: RequestInit & { json?: unknown 
     if (res.status >= 500 && message.startsWith("Internal")) message = tr("Хатогии сервер. Базаи маълумотро санҷед.");
     throw new ApiError(message, res.status);
   }
-  return res.status === 204 ? (undefined as T) : res.json();
+  if (res.status === 204) return undefined as T;
+  // NestJS барои `null` бадани холӣ мефиристад — онро ҳамчун null бармегардонем, на хато.
+  const body = await res.text();
+  return (body ? JSON.parse(body) : null) as T;
 }
 
 export function qs(params: Record<string, string | number | boolean | undefined | null>) {

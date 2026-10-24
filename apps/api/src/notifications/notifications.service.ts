@@ -76,6 +76,34 @@ export class NotificationsService {
     return results;
   }
 
+  /** Нусхаи паёми овозӣ/видеоӣ ба каналҳои интихобшуда */
+  async sendDirectMedia(
+    senderId: number,
+    user: Pick<User, 'id' | 'phone' | 'whatsapp' | 'telegramChatId'>,
+    media: { mime: string; data: Uint8Array<ArrayBuffer> },
+    kind: 'VOICE' | 'VIDEO_NOTE',
+    caption: string,
+    channels: Channel[],
+  ): Promise<{ channel: Channel; status: DeliveryStatus; error?: string }[]> {
+    const results: { channel: Channel; status: DeliveryStatus; error?: string }[] = [];
+    const label = kind === 'VOICE' ? '[паёми овозӣ]' : '[видеопаём]';
+    if (channels.includes('TELEGRAM')) {
+      if (!user.telegramChatId) results.push({ channel: 'TELEGRAM', status: 'NOT_LINKED' });
+      else {
+        const r = await this.telegram.sendMedia(user.telegramChatId, kind, media.data, media.mime, caption);
+        await this.log('TELEGRAM', user.telegramChatId, user.id, label, r.status, r.error, senderId);
+        results.push({ channel: 'TELEGRAM', ...r });
+      }
+    }
+    if (channels.includes('WHATSAPP')) {
+      const wa = user.whatsapp || user.phone;
+      const r = await this.whatsapp.sendMedia(wa, kind, media.data, media.mime, caption.replace(/<[^>]+>/g, ''));
+      await this.log('WHATSAPP', wa, user.id, label, r.status, r.error, senderId);
+      results.push({ channel: 'WHATSAPP', ...r });
+    }
+    return results;
+  }
+
   async welcome(user: User & { branch?: Branch | null }) {
     const role = user.position ? POSITION_LABELS[user.position] : ROLE_LABELS[user.role];
     const where = user.branch ? ` дар филиали «${user.branch.name}» (${user.branch.city})` : '';

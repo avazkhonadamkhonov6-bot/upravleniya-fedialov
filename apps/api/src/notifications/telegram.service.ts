@@ -6,6 +6,10 @@ export interface TgMessage {
   from?: { first_name?: string };
   text?: string;
   contact?: { phone_number: string; user_id?: number };
+  voice?: { file_id: string; duration: number; mime_type?: string };
+  audio?: { file_id: string; duration: number; mime_type?: string };
+  video_note?: { file_id: string; duration: number };
+  video?: { file_id: string; duration: number; mime_type?: string };
 }
 
 type UpdateHandler = (msg: TgMessage) => Promise<unknown>;
@@ -69,6 +73,48 @@ export class TelegramService implements OnModuleInit, OnModuleDestroy {
     } catch (e) {
       return { status: 'FAILED', error: (e as Error).message };
     }
+  }
+
+  /**
+   * Файли овоз/видео: овози OGG/MP3/M4A → sendVoice, видеои MP4 → sendVideoNote (мудаввар).
+   * Дигар форматҳо (масалан WebM аз Chrome) ҳамчун файл (sendDocument) мераванд — дар Telegram кушода мешаванд.
+   */
+  async sendMedia(chatId: string, kind: 'VOICE' | 'VIDEO_NOTE', data: Uint8Array<ArrayBuffer>, mime: string, caption: string): Promise<SendResult> {
+    if (!this.token) {
+      this.logger.log(`[dry-run] → ${chatId}: ${kind} ${data.byteLength} байт`);
+      return { status: 'DRY_RUN' };
+    }
+    const base = mime.split(';')[0];
+    const ext = base.split('/')[1] ?? 'bin';
+    const voiceOk = ['audio/ogg', 'audio/mpeg', 'audio/mp4', 'audio/m4a', 'audio/x-m4a'].includes(base);
+    const noteOk = base === 'video/mp4';
+    const [method, field] =
+      kind === 'VOICE' ? (voiceOk ? ['sendVoice', 'voice'] : ['sendDocument', 'document']) : noteOk ? ['sendVideoNote', 'video_note'] : ['sendDocument', 'document'];
+    const form = new FormData();
+    form.append('chat_id', chatId);
+    form.append(field, new Blob([data], { type: base }), `${kind === 'VOICE' ? 'voice' : 'video'}.${ext}`);
+    // sendVideoNote caption надорад — ном пеш аз видео бо паёми алоҳида меравад.
+    if (method === 'sendVideoNote') await this.send(chatId, caption);
+    else {
+      form.append('caption', caption);
+      form.append('parse_mode', 'HTML');
+    }
+    try {
+      const res = await fetch(`https://api.telegram.org/bot${this.token}/${method}`, { method: 'POST', body: form });
+      const json = (await res.json()) as { ok: boolean; description?: string };
+      if (!json.ok) throw new Error(json.description ?? 'Telegram error');
+      return { status: 'SENT' };
+    } catch (e) {
+      return { status: 'FAILED', error: (e as Error).message };
+    }
+  }
+
+  /** Файлро аз Telegram мегирад (то 20 МБ — маҳдудияти Bot API). */
+  async download(fileId: string): Promise<{ data: Uint8Array<ArrayBuffer>; path: string }> {
+    const file = await this.call<{ file_path: string }>('getFile', { file_id: fileId });
+    const res = await fetch(`https://api.telegram.org/file/bot${this.token}/${file.file_path}`);
+    if (!res.ok) throw new Error(`Telegram file ${res.status}`);
+    return { data: new Uint8Array(await res.arrayBuffer()), path: file.file_path };
   }
 
   private async poll() {

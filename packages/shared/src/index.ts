@@ -55,6 +55,8 @@ export const FEATURES = [
   'audit',
   'alerts',
   'search',
+  /** Қабули занг (ҳама); занг задан — танҳо онҳое, ки «messages» доранд */
+  'calls',
   'profile',
 ] as const;
 export type Feature = (typeof FEATURES)[number];
@@ -65,10 +67,10 @@ export type Feature = (typeof FEATURES)[number];
  * ошпаз ва фаррош — танҳо профил (бо маош ва рӯзи гирифтани он).
  */
 export const STAFF_FEATURES: Record<Position, readonly Feature[]> = {
-  CASHIER: ['pos', 'sales', 'profile'],
-  WAITER: ['products', 'profile'],
-  COOK: ['profile'],
-  CLEANER: ['profile'],
+  CASHIER: ['pos', 'sales', 'profile', 'calls'],
+  WAITER: ['products', 'profile', 'calls'],
+  COOK: ['profile', 'calls'],
+  CLEANER: ['profile', 'calls'],
 };
 
 type Who = { role: Role; position: Position | null };
@@ -556,11 +558,21 @@ export interface MessageLog {
 
 export type MessageSource = 'WEB' | 'TELEGRAM' | 'WHATSAPP';
 
+/** TEXT — матн, VOICE — паёми овозӣ, VIDEO_NOTE — видеои мудаввар, CALL — сабти занг */
+export type MessageKind = 'TEXT' | 'VOICE' | 'VIDEO_NOTE' | 'CALL';
+
 export interface ChatMessage {
   id: number;
   senderId: number;
   recipientId: number;
   text: string;
+  kind: MessageKind;
+  /** Чат дар кадом канал аст (null — занг ё паёми танҳо-сайт: дар ҳарду чат намоён) */
+  channel: Channel | null;
+  /** Файли овоз/видео: GET /messages/media/:mediaId */
+  mediaId: number | null;
+  mime: string | null;
+  durationSec: number | null;
   source: MessageSource;
   whatsappStatus: DeliveryStatus | null;
   telegramStatus: DeliveryStatus | null;
@@ -568,7 +580,53 @@ export interface ChatMessage {
   createdAt: string;
 }
 
+/** Маълумоти пурраи шахс барои тирезаи «Дар бораи корманд» дар чат */
+export interface ContactInfo extends MessageRecipient {
+  email: string;
+  hiredAt: string;
+  isActive: boolean;
+  /** Танҳо барои шеф ва менеҷери ҳамон филиал */
+  salary: number | null;
+  payDay: number | null;
+}
+
 export interface ChatContact extends MessageRecipient {
   lastMessage: { text: string; createdAt: string; mine: boolean } | null;
   unread: number;
+}
+
+// ---------- Занг (WebRTC) ----------
+
+export type CallStatus = 'RINGING' | 'ACTIVE' | 'ENDED' | 'DECLINED' | 'MISSED' | 'CANCELLED';
+
+export interface CallInfo {
+  id: number;
+  callerId: number;
+  calleeId: number;
+  callerName: string;
+  calleeName: string;
+  video: boolean;
+  status: CallStatus;
+  /** SDP-и пешниҳод (барои қабулкунанда) */
+  offer: string | null;
+  /** SDP-и ҷавоб (барои зангзананда) */
+  answer: string | null;
+  createdAt: string;
+  answeredAt: string | null;
+}
+
+/** Агар дар ин муддат ҷавоб надиҳанд — «занги беҷавоб» */
+export const CALL_RING_SECONDS = 45;
+
+/** Маҳдудиятҳои паёмҳои овозӣ ва видеоӣ */
+export const MEDIA_MAX_BYTES = 15 * 1024 * 1024;
+export const VOICE_MAX_SECONDS = 300;
+export const VIDEO_NOTE_MAX_SECONDS = 60;
+
+export interface TelegramLinkInfo {
+  configured: boolean;
+  botUsername: string | null;
+  /** https://t.me/<bot>?start=<код> — бо як пахш ҳисоб пайваст мешавад */
+  link: string | null;
+  linked: boolean;
 }

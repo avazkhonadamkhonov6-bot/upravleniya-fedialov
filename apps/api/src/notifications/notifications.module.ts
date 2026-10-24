@@ -1,5 +1,6 @@
 import { Global, Module } from '@nestjs/common';
 import { StatsModule } from '../stats/stats.module';
+import { ChannelsController } from './channels.controller';
 import { ChatService } from './chat.service';
 import { IntegrationsController } from './integrations.controller';
 import { NotificationsService } from './notifications.service';
@@ -12,8 +13,8 @@ import { WhatsAppService } from './whatsapp.service';
 @Global()
 @Module({
   imports: [StatsModule],
-  controllers: [IntegrationsController, WhatsAppWebhookController],
+  controllers: [IntegrationsController, WhatsAppWebhookController, ChannelsController],
   providers: [TelegramService, WhatsAppService, NotificationsService, ReportService, TelegramBotService, ChatService],
-  exports: [NotificationsService, ChatService],
+  exports: [NotificationsService, ChatService, TelegramService],
 })
 export class NotificationsModule {}

@@ -1,10 +1,11 @@
 "use client";
 
-import { POSITION_LABELS, ROLE_LABELS, telegramLink, whatsappLink, type User } from "@filialhub/shared";
+import { POSITION_LABELS, ROLE_LABELS, type User } from "@filialhub/shared";
 import { Building2, CalendarDays, Mail, Pencil, Phone } from "lucide-react";
 import { useState } from "react";
+import { ChannelsCard } from "@/components/channels-card";
 import { SalaryCard } from "@/components/salary-card";
-import { Avatar, Badge, Button, Card, CardTitle, ErrorBox, Field, Input, PageHeader, TelegramIcon, WhatsAppIcon } from "@/components/ui";
+import { Avatar, Badge, Button, Card, CardTitle, ErrorBox, Field, Input, PageHeader } from "@/components/ui";
 import { api } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { tr, locale } from "@/lib/i18n";
@@ -101,40 +102,7 @@ export default function ProfilePage() {
             </ul>
           </Card>
           {user.role !== "CHEF" && <SalaryCard user={user} />}
-          <Card>
-            <div className="flex items-center gap-3">
-              <span className="grid size-11 place-items-center rounded-2xl bg-[#229ed9]/12 text-[#229ed9]">
-                <TelegramIcon className="size-5" />
-              </span>
-              <div>
-                <div className="font-semibold text-ink">Telegram</div>
-                <div className="text-sm text-muted">{user.telegramLinked ? tr("Пайваст аст ✅") : tr("Пайваст нест")}</div>
-              </div>
-            </div>
-            <div className="mt-4 grid grid-cols-2 gap-2">
-              <a
-                href={whatsappLink(user.whatsapp || user.phone)}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center justify-center gap-2 rounded-xl bg-[#1fa855]/10 px-3 py-2.5 text-sm font-semibold text-[#1fa855] transition hover:bg-[#1fa855]/20"
-              >
-                <WhatsAppIcon /> WhatsApp
-              </a>
-              <a
-                href={telegramLink(user.telegram || user.phone)}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center justify-center gap-2 rounded-xl bg-[#229ed9]/10 px-3 py-2.5 text-sm font-semibold text-[#229ed9] transition hover:bg-[#229ed9]/20"
-              >
-                <TelegramIcon className="size-4" /> Telegram
-              </a>
-            </div>
-            {!user.telegramLinked && (
-              <p className="mt-3 text-sm text-muted">
-                {tr("Ботро кушоед,")}{" "}<code className="rounded bg-surface-2 px-1">/start</code> {tr("нависед ва рақами")}{" "}<b className="text-ink">{user.phone}</b>{tr("-ро фиристед.")}
-              </p>
-            )}
-          </Card>
+          <ChannelsCard whatsappNumber={user.whatsapp || user.phone} />
         </div>
 
         <Card>
