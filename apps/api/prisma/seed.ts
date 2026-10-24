@@ -3,7 +3,7 @@
 import 'dotenv/config';
 import { PrismaPg } from '@prisma/adapter-pg';
 import * as bcrypt from 'bcryptjs';
-import { PrismaClient, type Position } from '../src/generated/prisma/client';
+import { Prisma, PrismaClient, type Position } from '../src/generated/prisma/client';
 
 // Дар серверҳои суст (Render Free, 0.1 CPU) як рӯзи фурӯш аз 5 сония (пешфарз) зиёд вақт мегирад.
 const prisma = new PrismaClient({
@@ -286,7 +286,9 @@ async function main() {
         for (const c of eligible) if ((r -= c.weight) <= 0) return c.id;
         return eligible[0]?.id;
       };
-      const orders: { data: Parameters<typeof prisma.order.create>[0]['data'] }[] = [];
+      // Як филиал × як рӯз: фармоишҳо якбора (createManyAndReturn), баъд маҳсулоташон якбора — тез ва бо хотираи кам.
+      const orders: Prisma.OrderCreateManyInput[] = [];
+      const orderItems: Omit<Prisma.OrderItemCreateManyInput, 'orderId'>[][] = [];
       for (let k = 0; k < count; k++) {
         const hour = 9 + Math.floor(Math.pow(rand(), 0.8) * 14); // 09:00–23:00
         const createdAt = new Date(dayStart + hour * 3600000 + int(0, 3599) * 1000);
@@ -305,20 +307,19 @@ async function main() {
         const totalCost = items.reduce((s, i) => s + Number(i.unitCost) * i.qty, 0);
         const customerId = eligible.length && rand() < 0.42 ? pickCustomer() : undefined;
         orders.push({
-          data: {
-            branchId: b.id,
-            userId: pick(waiters),
-            createdAt,
-            payment: rand() > 0.45 ? 'CARD' : 'CASH',
-            total,
-            totalCost,
-            customerId,
-            pointsEarned: customerId ? Math.floor(total * 0.05) : 0,
-            items: { create: items },
-          },
+          branchId: b.id,
+          userId: pick(waiters),
+          createdAt,
+          payment: rand() > 0.45 ? 'CARD' : 'CASH',
+          total,
+          totalCost,
+          customerId,
+          pointsEarned: customerId ? Math.floor(total * 0.05) : 0,
         });
+        orderItems.push(items);
       }
-      await prisma.$transaction(orders.map((o) => prisma.order.create(o)));
+      const created = await prisma.order.createManyAndReturn({ data: orders, select: { id: true } });
+      await prisma.orderItem.createMany({ data: created.flatMap((o, i) => orderItems[i].map((it) => ({ ...it, orderId: o.id }))) });
       orderCount += orders.length;
     }
     if (d % 10 === 0) process.stdout.write(`  …${DAYS - d}/${DAYS} рӯз\n`);
