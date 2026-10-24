@@ -10,8 +10,11 @@ export class LoginDto {
 }
 
 export class UpdateMeDto {
-  @IsOptional() @IsString() @MinLength(3)
+  @IsOptional() @IsString() @MinLength(3, { message: 'Ному насабро пурра нависед' })
   fullName?: string;
+
+  @IsOptional() @IsEmail({}, { message: 'Почтаи электронӣ нодуруст аст' })
+  email?: string;
 
   @IsOptional() @IsString() @MinLength(7)
   phone?: string;

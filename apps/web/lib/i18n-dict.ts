@@ -13,6 +13,12 @@ export const DICT: Record<string, [ru: string, en: string]> = {
 
   // ---------- Паёмҳо ----------
   "Ҳамаи филиалҳо якҷоя": ["Все филиалы вместе", "All branches combined"],
+  "Маълумоти шахсӣ": ["Личные данные", "Personal details"],
+  "WhatsApp ва Telegram": ["WhatsApp и Telegram", "WhatsApp and Telegram"],
+  "Таҳрири профил": ["Редактировать профиль", "Edit profile"],
+  "Барои иваз кардани почта пароли ҳозираро нависед": ["Чтобы сменить почту, введите текущий пароль", "Enter your current password to change the email"],
+  "Лозим аст": ["Обязательно", "Required"],
+  "Танҳо барои иваз кардани почта ё парол": ["Только для смены почты или пароля", "Only to change email or password"],
   "Паёмҳо": ["Сообщения", "Messages"],
   "Ба": ["Кому:", "To"],
   "Паём": ["Сообщение", "Message"],

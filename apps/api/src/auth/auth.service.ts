@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, UnauthorizedException } from '@nestjs/common';
+import { BadRequestException, ConflictException, Injectable, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcryptjs';
 import { normalizeTelegram } from '@filialhub/shared';
@@ -32,18 +32,26 @@ export class AuthService {
   }
 
   async updateMe(id: number, dto: UpdateMeDto) {
-    const data: { fullName?: string; phone?: string; whatsapp?: string; telegram?: string; passwordHash?: string } = {};
+    const data: { fullName?: string; email?: string; phone?: string; whatsapp?: string; telegram?: string; passwordHash?: string } = {};
     if (dto.fullName) data.fullName = dto.fullName.trim();
     if (dto.phone) data.phone = dto.phone.trim();
     if (dto.whatsapp !== undefined) data.whatsapp = dto.whatsapp.trim();
     if (dto.telegram !== undefined) data.telegram = normalizeTelegram(dto.telegram);
-    if (dto.newPassword) {
-      const user = await this.prisma.user.findUniqueOrThrow({ where: { id } });
-      if (!dto.currentPassword || !(await bcrypt.compare(dto.currentPassword, user.passwordHash))) {
+
+    const current = await this.prisma.user.findUniqueOrThrow({ where: { id } });
+    const email = dto.email?.toLowerCase().trim();
+    const emailChanged = !!email && email !== current.email;
+    // Почта ва парол — маълумоти воридшавӣ: барои ивазашон пароли ҳозира лозим аст.
+    if (emailChanged || dto.newPassword) {
+      if (!dto.currentPassword || !(await bcrypt.compare(dto.currentPassword, current.passwordHash))) {
         throw new BadRequestException('Пароли ҳозира нодуруст аст');
       }
-      data.passwordHash = await bcrypt.hash(dto.newPassword, 10);
     }
+    if (emailChanged) {
+      if (await this.prisma.user.findUnique({ where: { email } })) throw new ConflictException('Ин почтаи электронӣ аллакай истифода шудааст');
+      data.email = email;
+    }
+    if (dto.newPassword) data.passwordHash = await bcrypt.hash(dto.newPassword, 10);
     const user = await this.prisma.user.update({ where: { id }, data, include: { branch: true } });
     return toUser(user);
   }

@@ -1,7 +1,7 @@
 "use client";
 
 import { POSITION_LABELS, ROLE_LABELS, telegramLink, whatsappLink, type User } from "@filialhub/shared";
-import { Building2, CalendarDays, Mail, Phone, Wallet } from "lucide-react";
+import { Building2, CalendarDays, Mail, Pencil, Phone, Wallet } from "lucide-react";
 import { useState } from "react";
 import { Avatar, Badge, Button, Card, CardTitle, ErrorBox, Field, Input, money, PageHeader, TelegramIcon, WhatsAppIcon } from "@/components/ui";
 import { api } from "@/lib/api";
@@ -12,6 +12,7 @@ export default function ProfilePage() {
   const { user, setUser } = useAuth();
   const [f, setF] = useState({
     fullName: user?.fullName ?? "",
+    email: user?.email ?? "",
     phone: user?.phone ?? "",
     whatsapp: user?.whatsapp ?? "",
     telegram: user?.telegram ?? "",
@@ -25,6 +26,9 @@ export default function ProfilePage() {
 
   const role = user.position ? tr(POSITION_LABELS[user.position]) : tr(ROLE_LABELS[user.role]);
   const set = (k: keyof typeof f) => (e: React.ChangeEvent<HTMLInputElement>) => setF({ ...f, [k]: e.target.value });
+  // Барои иваз кардани почта ё парол пароли ҳозира лозим аст.
+  const emailChanged = f.email.trim().toLowerCase() !== user.email;
+  const needsPassword = emailChanged || !!f.newPassword;
 
   async function save(e: React.FormEvent) {
     e.preventDefault();
@@ -39,11 +43,13 @@ export default function ProfilePage() {
           phone: f.phone,
           whatsapp: f.whatsapp,
           telegram: f.telegram,
-          ...(f.newPassword ? { currentPassword: f.currentPassword, newPassword: f.newPassword } : {}),
+          ...(emailChanged ? { email: f.email } : {}),
+          ...(f.newPassword ? { newPassword: f.newPassword } : {}),
+          ...(needsPassword ? { currentPassword: f.currentPassword } : {}),
         },
       });
       setUser(updated);
-      setF({ ...f, whatsapp: updated.whatsapp, telegram: updated.telegram, currentPassword: "", newPassword: "" });
+      setF({ ...f, email: updated.email, whatsapp: updated.whatsapp, telegram: updated.telegram, currentPassword: "", newPassword: "" });
       setOk(true);
     } catch (err) {
       setError((err as Error).message);
@@ -73,6 +79,17 @@ export default function ProfilePage() {
             <div className="mt-2 flex justify-center">
               <Badge tone="brand">{role}</Badge>
             </div>
+            <Button
+              variant="outline"
+              size="sm"
+              className="mt-4"
+              onClick={() => {
+                document.getElementById("profile-form")?.scrollIntoView({ behavior: "smooth", block: "start" });
+                document.getElementById("profile-name")?.focus({ preventScroll: true });
+              }}
+            >
+              <Pencil className="size-4" /> {tr("Таҳрири профил")}
+            </Button>
             <ul className="mt-6 space-y-3 text-left">
               {facts.map((x) => (
                 <li key={x.label} className="flex items-center gap-3 rounded-xl bg-surface-2 p-3">
@@ -121,40 +138,65 @@ export default function ProfilePage() {
 
         <Card>
           <CardTitle>{tr("Таҳрири маълумот")}</CardTitle>
-          <form onSubmit={save} className="max-w-xl space-y-4">
-            <Field label={tr("Ному насаб")}>
-              <Input required value={f.fullName} onChange={set("fullName")} />
-            </Field>
-            <Field label={tr("Рақами телефон")}>
-              <Input required type="tel" value={f.phone} onChange={set("phone")} />
-            </Field>
-            <div className="grid gap-4 xl:grid-cols-2">
-              <Field label="WhatsApp" hint={tr("Агар холӣ бошад — рақами телефон")}>
-                <Input type="tel" value={f.whatsapp} onChange={set("whatsapp")} placeholder="+992 90 123 4567" />
+          <form id="profile-form" onSubmit={save} className="max-w-2xl space-y-6">
+            <Section title={tr("Маълумоти шахсӣ")}>
+              <Field label={tr("Ному насаб")}>
+                <Input id="profile-name" required minLength={3} value={f.fullName} onChange={set("fullName")} autoComplete="name" />
               </Field>
-              <Field label="Telegram" hint={tr("@номи_корбар ё рақам")}>
-                <Input value={f.telegram} onChange={set("telegram")} placeholder="@username" />
-              </Field>
-            </div>
-            <div className="border-t border-line pt-4">
-              <div className="mb-3 text-sm font-semibold text-ink">{tr("Иваз кардани парол")}</div>
               <div className="grid gap-4 xl:grid-cols-2">
-                <Field label={tr("Пароли ҳозира")}>
-                  <Input type="password" value={f.currentPassword} onChange={set("currentPassword")} autoComplete="current-password" />
+                <Field label={tr("Почтаи электронӣ")} hint={emailChanged ? tr("Барои иваз кардани почта пароли ҳозираро нависед") : tr("Барои воридшавӣ")}>
+                  <Input required type="email" value={f.email} onChange={set("email")} autoComplete="email" />
                 </Field>
-                <Field label={tr("Пароли нав")}>
-                  <Input type="password" minLength={6} value={f.newPassword} onChange={set("newPassword")} autoComplete="new-password" />
+                <Field label={tr("Рақами телефон")}>
+                  <Input required type="tel" value={f.phone} onChange={set("phone")} autoComplete="tel" />
                 </Field>
               </div>
-            </div>
+            </Section>
+
+            <Section title={tr("WhatsApp ва Telegram")}>
+              <div className="grid gap-4 xl:grid-cols-2">
+                <Field label="WhatsApp" hint={tr("Агар холӣ бошад — рақами телефон")}>
+                  <Input type="tel" value={f.whatsapp} onChange={set("whatsapp")} placeholder="+992 90 123 4567" />
+                </Field>
+                <Field label="Telegram" hint={tr("@номи_корбар ё рақам")}>
+                  <Input value={f.telegram} onChange={set("telegram")} placeholder="@username" />
+                </Field>
+              </div>
+            </Section>
+
+            <Section title={tr("Иваз кардани парол")}>
+              <div className="grid gap-4 xl:grid-cols-2">
+                <Field label={tr("Пароли нав")} hint={tr("Камаш 6 аломат")}>
+                  <Input type="password" minLength={6} value={f.newPassword} onChange={set("newPassword")} autoComplete="new-password" />
+                </Field>
+                <Field label={tr("Пароли ҳозира")} hint={needsPassword ? tr("Лозим аст") : tr("Танҳо барои иваз кардани почта ё парол")}>
+                  <Input
+                    type="password"
+                    required={needsPassword}
+                    value={f.currentPassword}
+                    onChange={set("currentPassword")}
+                    autoComplete="current-password"
+                  />
+                </Field>
+              </div>
+            </Section>
             <ErrorBox message={error} />
             {ok && <div className="rounded-xl bg-good-soft px-4 py-3 text-sm font-medium text-good">{tr("Маълумот захира шуд ✅")}</div>}
-            <Button type="submit" loading={busy}>
+            <Button type="submit" loading={busy} className="w-full sm:w-auto sm:px-8">
               {tr("Захира кардан")}
             </Button>
           </form>
         </Card>
       </div>
     </>
+  );
+}
+
+function Section({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <fieldset className="space-y-4 rounded-2xl border border-line p-4 sm:p-5">
+      <legend className="px-2 text-sm font-semibold text-ink">{title}</legend>
+      {children}
+    </fieldset>
   );
 }
