@@ -30,9 +30,12 @@ export function PageHeader({
 }) {
   return (
     <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight text-ink sm:text-3xl">{title}</h1>
-        {subtitle && <p className="mt-1 text-sm text-muted">{subtitle}</p>}
+      <div className="flex gap-3">
+        <span className="brand-gradient mt-1 w-1.5 shrink-0 rounded-full sm:mt-1.5" aria-hidden />
+        <div>
+          <h1 className="text-2xl font-extrabold tracking-tight text-ink sm:text-3xl">{title}</h1>
+          {subtitle && <p className="mt-1 text-sm text-muted">{subtitle}</p>}
+        </div>
       </div>
       {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
     </div>
@@ -46,7 +49,10 @@ export function Card({ className, children }: { className?: string; children: Re
 export function CardTitle({ children, extra }: { children: React.ReactNode; extra?: React.ReactNode }) {
   return (
     <div className="mb-4 flex items-center justify-between gap-3">
-      <h2 className="text-base font-semibold text-ink">{children}</h2>
+      <h2 className="flex items-center gap-2 text-base font-semibold text-ink">
+        <span className="brand-gradient size-1.5 shrink-0 rounded-full" aria-hidden />
+        {children}
+      </h2>
       {extra}
     </div>
   );
@@ -64,8 +70,9 @@ export function Button({ variant = "primary", size = "md", loading, className, c
       className={cn(
         "inline-flex cursor-pointer items-center justify-center gap-2 rounded-xl font-semibold transition-all duration-150 active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-50",
         size === "sm" ? "h-9 px-3 text-sm" : "h-11 px-4 text-sm",
-        variant === "primary" && "brand-gradient text-white shadow-[0_8px_20px_-8px_var(--brand)] hover:brightness-110",
-        variant === "outline" && "border border-line bg-surface text-ink hover:bg-surface-2",
+        variant === "primary" &&
+          "brand-gradient text-white shadow-[0_8px_20px_-8px_var(--brand)] hover:-translate-y-px hover:shadow-[0_14px_28px_-10px_var(--brand)] hover:brightness-110",
+        variant === "outline" && "border border-line bg-surface text-ink hover:border-ink-2/25 hover:bg-surface-2",
         variant === "ghost" && "text-ink-2 hover:bg-surface-2",
         variant === "danger" && "bg-brand-soft text-brand hover:brightness-95",
         className,
@@ -144,7 +151,7 @@ export function Avatar({ name, size = 40 }: { name: string; size?: number }) {
   const tone = AVATAR_TONES[[...name].reduce((s, c) => s + c.charCodeAt(0), 0) % AVATAR_TONES.length];
   return (
     <div
-      className={cn("grid shrink-0 place-items-center rounded-full bg-gradient-to-br font-bold text-white", tone)}
+      className={cn("grid shrink-0 place-items-center rounded-full bg-gradient-to-br font-bold text-white shadow-sm ring-2 ring-surface", tone)}
       style={{ width: size, height: size, fontSize: size * 0.36 }}
     >
       {initials}
@@ -152,8 +159,7 @@ export function Avatar({ name, size = 40 }: { name: string; size?: number }) {
   );
 }
 
-/** Тугмаҳои тамос: занг, WhatsApp, Telegram, почта */
-/** Тугмаҳои тамос. whatsapp / telegram — агар корманд худаш гузошта бошад; вагарна рақами телефон. */
+/** Тугмаҳои тамос (занг, WhatsApp, Telegram, почта). whatsapp / telegram — агар корманд худаш гузошта бошад; вагарна рақами телефон. */
 export function ContactButtons({
   phone,
   email,

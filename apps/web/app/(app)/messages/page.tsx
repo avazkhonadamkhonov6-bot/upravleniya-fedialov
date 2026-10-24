@@ -35,6 +35,7 @@ import {
   WhatsAppIcon,
 } from "@/components/ui";
 import { api } from "@/lib/api";
+import { useAuth } from "@/lib/auth";
 import { tr } from "@/lib/i18n";
 import { useApi } from "@/lib/use-api";
 
@@ -55,6 +56,7 @@ export default function MessagesPage() {
 
 function Messages() {
   const toast = useToast();
+  const { user } = useAuth();
   const preselect = Number(useSearchParams().get("to")) || 0;
   const { data, error } = useApi<MessageRecipients>("/messages/recipients");
   const history = useApi<MessageLog[]>("/messages");
@@ -66,6 +68,9 @@ function Messages() {
   const [channels, setChannels] = useState<Channel[]>(["WHATSAPP", "TELEGRAM"]);
   const [busy, setBusy] = useState(false);
   const [results, setResults] = useState<MessageResult[] | null>(null);
+  // Матни охирини фиристодашуда — тугмаҳои «аз телефони худ» пас аз тоза шудани майдон ҳам мемонанд.
+  const [lastText, setLastText] = useState("");
+  const phoneText = text.trim() || lastText;
 
   const recipients = useMemo(() => data?.recipients ?? [], [data]);
   const branches = useMemo(
@@ -89,10 +94,19 @@ function Messages() {
     if (!chosen.length) return toast.error(tr("Қабулкунандаро интихоб кунед"));
     if (!text.trim()) return toast.error(tr("Матни паёмро нависед"));
     if (!channels.length) return toast.error(tr("WhatsApp ё Telegram-ро интихоб кунед"));
+    // Агар сервер токен надошта бошад ва як нафар интихоб шуда бошад — WhatsApp/Telegram-и ӯро фавран бо ҳамин матн мекушоем.
+    // window.open бояд пеш аз await бошад, вагарна браузер онро ҳамчун popup манъ мекунад.
+    if (data && chosen.length === 1) {
+      const r = chosen[0];
+      if (channels.includes("WHATSAPP") && !data.configured.whatsapp) window.open(whatsappLink(r.whatsapp || r.phone, text), "_blank", "noopener");
+      else if (channels.includes("TELEGRAM") && !data.configured.telegram && !r.telegramLinked)
+        window.open(telegramLink(r.telegram || r.phone, text), "_blank", "noopener");
+    }
     setBusy(true);
     try {
       const res = await api<MessageResult[]>("/messages", { method: "POST", json: { userIds: selected, text, channels } });
       setResults(res);
+      setLastText(text.trim());
       setText("");
       history.reload();
       const sent = res.filter((r) => r.status === "SENT").length;
@@ -182,7 +196,7 @@ function Messages() {
             </Button>
           </Card>
 
-          {chosen.length > 0 && text.trim() && (
+          {chosen.length > 0 && phoneText && (
             <Card>
               <CardTitle>{tr("Аз телефони худ фиристодан")}</CardTitle>
               <p className="-mt-2 mb-3 text-sm text-muted">{tr("WhatsApp ё Telegram бо ҳамин матн кушода мешавад.")}</p>
@@ -192,7 +206,7 @@ function Messages() {
                     <Avatar name={r.fullName} size={32} />
                     <span className="min-w-0 flex-1 truncate text-sm font-medium text-ink">{r.fullName}</span>
                     <a
-                      href={whatsappLink(r.whatsapp || r.phone, text)}
+                      href={whatsappLink(r.whatsapp || r.phone, phoneText)}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="flex items-center gap-1.5 rounded-lg bg-[#1fa855]/10 px-2.5 py-1.5 text-xs font-semibold text-[#1fa855] hover:bg-[#1fa855]/20"
@@ -200,7 +214,7 @@ function Messages() {
                       <WhatsAppIcon className="size-3.5" /> WhatsApp
                     </a>
                     <a
-                      href={telegramLink(r.telegram || r.phone, text)}
+                      href={telegramLink(r.telegram || r.phone, phoneText)}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="flex items-center gap-1.5 rounded-lg bg-[#229ed9]/10 px-2.5 py-1.5 text-xs font-semibold text-[#229ed9] hover:bg-[#229ed9]/20"
@@ -239,25 +253,11 @@ function Messages() {
         ) : history.data.length === 0 ? (
           <Empty icon="✉️" title={tr("Ҳоло паём нест")} />
         ) : (
-          <ul className="cv-auto divide-y divide-line">
+          <div className="cv-auto max-h-[640px] space-y-4 overflow-y-auto bg-[radial-gradient(circle_at_1px_1px,var(--line)_1px,transparent_0)] [background-size:18px_18px] p-5">
             {history.data.map((m) => (
-              <li key={m.id} className="flex gap-3 p-4">
-                <span className="mt-0.5">
-                  {m.channel === "WHATSAPP" ? <WhatsAppIcon className="size-4 text-[#1fa855]" /> : <TelegramIcon className="size-4 text-[#229ed9]" />}
-                </span>
-                <div className="min-w-0 flex-1">
-                  <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm">
-                    <b className="text-ink">{m.senderName ?? "—"}</b>
-                    <span className="text-muted">→</span>
-                    <b className="text-ink">{m.recipientName ?? m.to}</b>
-                    <Badge tone={STATUS[m.status].tone}>{tr(STATUS[m.status].label)}</Badge>
-                    <span className="ml-auto text-xs text-muted tabular">{formatDate(m.createdAt, true)}</span>
-                  </div>
-                  <p className="mt-1 line-clamp-3 text-sm whitespace-pre-line text-ink-2">{m.text}</p>
-                </div>
-              </li>
+              <ChatBubble key={m.id} m={m} mine={!!user && m.senderName === user.fullName} />
             ))}
-          </ul>
+          </div>
         )}
       </Card>
     </>
@@ -314,5 +314,45 @@ function ChannelToggle({ on, onClick, color, icon, label }: { on: boolean; onCli
       {icon} {label}
       {on && <Check className="size-4" />}
     </button>
+  );
+}
+
+/** Паём дар таърих ба шакли чат: аз ман — рост ва сурх, ба ман — чап ва сафед */
+function ChatBubble({ m, mine }: { m: MessageLog; mine: boolean }) {
+  // Сатри аввал — «✉️ Ном (вазифа):», онро дар ҳубобча нишон намедиҳем.
+  const lines = m.text.split(/\r?\n/);
+  const body = lines.length > 1 ? lines.slice(1).join("\n") : m.text;
+  return (
+    <div className={cn("flex items-end gap-2.5", mine && "flex-row-reverse")}>
+      <Avatar name={(mine ? m.recipientName : m.senderName) ?? "?"} size={32} />
+      <div className={cn("max-w-[80%] sm:max-w-[65%]", mine && "items-end text-right")}>
+        <div className={cn("mb-1 flex items-center gap-1.5 text-xs text-muted", mine && "justify-end")}>
+          {mine ? (
+            <>
+              {tr("Ба")} <b className="text-ink-2">{m.recipientName ?? m.to}</b>
+            </>
+          ) : (
+            <>
+              <b className="text-ink-2">{m.senderName ?? "—"}</b> → {m.recipientName ?? m.to}
+            </>
+          )}
+        </div>
+        <div
+          className={cn(
+            "rounded-2xl px-4 py-2.5 text-left text-sm whitespace-pre-line shadow-sm",
+            mine ? "brand-gradient rounded-br-md text-white" : "rounded-bl-md border border-line bg-surface text-ink",
+          )}
+        >
+          {body}
+        </div>
+        <div className={cn("mt-1 flex items-center gap-1.5 text-[11px] text-muted", mine && "justify-end")}>
+          {m.channel === "WHATSAPP" ? <WhatsAppIcon className="size-3 text-[#1fa855]" /> : <TelegramIcon className="size-3 text-[#229ed9]" />}
+          <span className="tabular">{formatDate(m.createdAt, true)}</span>
+          <Badge tone={STATUS[m.status].tone} className="px-1.5 py-0 text-[10px]">
+            {tr(STATUS[m.status].label)}
+          </Badge>
+        </div>
+      </div>
+    </div>
   );
 }

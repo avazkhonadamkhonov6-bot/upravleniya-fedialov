@@ -14,6 +14,7 @@ export const DICT: Record<string, [ru: string, en: string]> = {
   // ---------- Паёмҳо ----------
   "Ҳамаи филиалҳо якҷоя": ["Все филиалы вместе", "All branches combined"],
   "Паёмҳо": ["Сообщения", "Messages"],
+  "Ба": ["Кому:", "To"],
   "Паём": ["Сообщение", "Message"],
   "Паём навиштан": ["Написать сообщение", "Write a message"],
   "Ба WhatsApp ва Telegram-и кормандон нависед": ["Пишите сотрудникам в WhatsApp и Telegram", "Message your staff on WhatsApp and Telegram"],
