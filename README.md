@@ -38,8 +38,12 @@
 |---|---|
 | 👑 Шеф | `chef@filialhub.tj` |
 | 🧑‍💼 Менеҷер | `manager1@filialhub.tj` … `manager5@filialhub.tj` |
-| 🧑‍💼 Официант | `waiter@filialhub.tj` |
-| 💵 Кассир | `cashier@filialhub.tj` |
+| 💵 Кассир — фурӯш, таърих, профил | `cashier@filialhub.tj` |
+| 🍽️ Официант — меню, профил | `waiter@filialhub.tj` |
+| 👨‍🍳 Ошпаз — профил ва маош | `cook@filialhub.tj` |
+| 🧹 Фаррош — профил ва маош | `cleaner@filialhub.tj` |
+
+Кӣ чӣ мебинад — [SPECS.md](SPECS.md) §2. Пешрафт ва хатоҳои ислоҳшуда — [ROADMAP.md](ROADMAP.md), [PLAN.md](PLAN.md) §9.
 
 ## ✉️ Чат (WhatsApp ва Telegram)
 
@@ -63,12 +67,31 @@
 
 ## ☁️ Backend дар Render (бе `npm run dev`)
 
-1. Лоиҳаро ба GitHub бор кунед.
-2. [Render](https://dashboard.render.com) → **New → Blueprint** → репозиторийро интихоб кунед.
+> **Ҳолати ҳозира (24.10.2026):** `filialhub-web.onrender.com` кор мекунад, вале API нест —
+> `https://filialhub-web.onrender.com/api/health` → «Not Found». Яъне хизмати **filialhub-api** дар Render сохта нашудааст.
+
+**А. Агар ҳоло аз сифр сохтан мехоҳед (тавсия):**
+
+1. Тағйиротро ба GitHub бор кунед (`git push`).
+2. [Render](https://dashboard.render.com) → **New → Blueprint** → репозиторий `upravleniya-fedialov` → **Apply**.
    `render.yaml` худкор месозад: **PostgreSQL** + **filialhub-api** + **filialhub-web**.
-3. Ҳангоми аввалин оғоз API миграцияҳоро иҷро мекунад ва агар база холӣ бошад, маълумоти намунавӣ месозад
-   (ҳисобҳои демо бо пароли `demo1234`). Санҷиш: `https://filialhub-api.onrender.com/api/health`.
-4. Дар **filialhub-web → Environment** `API_URL` = суроғаи API (масалан `https://filialhub-api.onrender.com`) ва **Manual Deploy**.
+3. Интизор шавед, то **filialhub-api** «Live» шавад. Ҳангоми аввалин оғоз API миграцияҳоро иҷро мекунад ва агар база холӣ бошад,
+   маълумоти намунавӣ месозад (парол `demo1234`). Санҷиш: `https://<номи-api>.onrender.com/api/health` → `{"ok":true,…}`.
+4. Суроғаи API-ро нусха кунед (дар болои саҳифаи filialhub-api). **filialhub-web → Environment** → `API_URL` = ҳамин суроға
+   (бе `/` дар охир) → **Save** → **Manual Deploy → Clear build cache & deploy**.
+   ⚠️ `API_URL` ҳангоми **build** дар сайт навишта мешавад — бе deploy-и нав тағйир таъсир намекунад.
+5. Санҷиш: `https://<номи-web>.onrender.com/api/health` ҳам бояд `{"ok":true}` диҳад. Пас ба сайт ворид шавед.
+
+**Б. Агар `filialhub-web` аллакай ҳаст ва танҳо API лозим аст:** New → **PostgreSQL** (Free) → баъд New → **Web Service** → ҳамин репо:
+
+| Майдон | Қимат |
+|---|---|
+| Build Command | `npm ci --include=dev && npm run build:api` |
+| Start Command | `npm run start:prod -w @filialhub/api` |
+| Health Check Path | `/api/health` |
+| Environment | `NODE_VERSION=22`, `DATABASE_URL` = *Internal Database URL*-и PostgreSQL, `JWT_SECRET` = сатри тасодуфии дароз, `TIMEZONE=Asia/Dushanbe` |
+
+Баъд қадами 4–5-и боло.
 
 **Танҳо сайт дар компютер, backend дар Render:** `apps/web/.env.example`-ро ба `apps/web/.env.local` нусха кунед,
 `API_URL`-ро ба суроғаи Render иваз кунед ва:
@@ -98,5 +121,5 @@ DAILY_REPORT_CRON="0 0 22 * * *" # ҳар рӯз соати 22:00 (Душанб�
 
 ## Ҳуқуқҳо
 
-Ҳамаи ҳуқуқҳо дар **API** санҷида мешаванд (`apps/api/src/common/access.ts`): менеҷер ҳатто бо дархости
+Ҳамаи ҳуқуқҳо дар **API** санҷида мешаванд (`apps/api/src/common/access.ts`, `apps/api/src/auth/staff-access.guard.ts`; қоидаҳо — `canAccess` дар `packages/shared`): менеҷер ҳатто бо дархости
 мустақим маълумоти филиали дигарро гирифта наметавонад. Нигаред ба [PLAN.md](PLAN.md) ва [ROADMAP.md](ROADMAP.md).

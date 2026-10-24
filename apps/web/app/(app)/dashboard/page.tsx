@@ -91,7 +91,7 @@ function ManagerDashboard() {
         />
       </div>
 
-      <div className="mt-6 grid gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
+      <div className="mt-6 grid grid-cols-[minmax(0,1fr)] gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
         <SalesCard branchId={branchId} />
         <StaffBreakdown overview={overview} />
       </div>
@@ -146,7 +146,7 @@ function BranchRanking() {
       {!data ? (
         <Skeleton className="h-80" />
       ) : (
-        <div className="grid gap-6 2xl:grid-cols-[minmax(0,1fr)_1.3fr]">
+        <div className="grid grid-cols-[minmax(0,1fr)] gap-6 2xl:grid-cols-[minmax(0,1fr)_1.3fr]">
           <BranchBars data={data} />
           <div className="-mx-2 overflow-x-auto">
             <table className="w-full min-w-[620px] text-sm">
@@ -239,7 +239,7 @@ function StaffHome() {
   return (
     <>
       <PageHeader title={`${greeting()}, ${u.fullName.split(" ")[0]} 👋`} subtitle={tr("Саҳифаи корманд")} actions={<ShiftButton />} />
-      <div className="grid gap-6 lg:grid-cols-2">
+      <div className="grid grid-cols-[minmax(0,1fr)] gap-6 lg:grid-cols-2">
         <div className="rise relative overflow-hidden rounded-[24px] bg-[#170d0f] p-7 text-white shadow-card">
           <div className="absolute -top-20 -right-20 size-64 rounded-full bg-[#e4002b] opacity-40 blur-3xl" />
           <div className="relative text-5xl">{u.position ? POSITION_EMOJI[u.position] : "👤"}</div>

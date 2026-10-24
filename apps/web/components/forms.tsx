@@ -126,6 +126,7 @@ export function UserForm({
     position: (user?.position ?? "WAITER") as Position,
     branchId: user?.branchId ?? defaultBranchId ?? me?.branchId ?? branches[0]?.id ?? 0,
     salary: user?.salary ?? 3000,
+    payDay: user?.payDay ?? 1,
     hiredAt: (user?.hiredAt ?? new Date().toISOString()).slice(0, 10),
     isActive: user?.isActive ?? true,
   });
@@ -142,6 +143,7 @@ export function UserForm({
       whatsapp: f.whatsapp,
       telegram: f.telegram,
       salary: Number(f.salary),
+      payDay: Number(f.payDay),
       hiredAt: new Date(f.hiredAt).toISOString(),
       position: f.role === "STAFF" ? f.position : undefined,
     };
@@ -217,9 +219,12 @@ export function UserForm({
           </div>
         </Field>
       )}
-      <div className="grid gap-4 sm:grid-cols-2">
+      <div className="grid gap-4 sm:grid-cols-3">
         <Field label={tr("Маош (сомонӣ)")}>
           <Input type="number" min={0} step={100} value={f.salary} onChange={set("salary")} />
+        </Field>
+        <Field label={tr("Рӯзи маош")} hint={tr("Рӯзи моҳ (1–28)")}>
+          <Input type="number" min={1} max={28} required value={f.payDay} onChange={set("payDay")} />
         </Field>
         <Field label={tr("Санаи қабул")}>
           <Input type="date" value={f.hiredAt} onChange={set("hiredAt")} />

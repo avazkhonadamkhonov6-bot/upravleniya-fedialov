@@ -1,9 +1,10 @@
 "use client";
 
 import { POSITION_LABELS, ROLE_LABELS, telegramLink, whatsappLink, type User } from "@filialhub/shared";
-import { Building2, CalendarDays, Mail, Pencil, Phone, Wallet } from "lucide-react";
+import { Building2, CalendarDays, Mail, Pencil, Phone } from "lucide-react";
 import { useState } from "react";
-import { Avatar, Badge, Button, Card, CardTitle, ErrorBox, Field, Input, money, PageHeader, TelegramIcon, WhatsAppIcon } from "@/components/ui";
+import { SalaryCard } from "@/components/salary-card";
+import { Avatar, Badge, Button, Card, CardTitle, ErrorBox, Field, Input, PageHeader, TelegramIcon, WhatsAppIcon } from "@/components/ui";
 import { api } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { tr, locale } from "@/lib/i18n";
@@ -63,13 +64,12 @@ export default function ProfilePage() {
     { icon: Phone, label: tr("Телефон"), value: user.phone },
     { icon: Building2, label: tr("Филиал"), value: user.branch?.name ?? tr("Ҳамаи филиалҳо") },
     { icon: CalendarDays, label: tr("Аз санаи"), value: new Date(user.hiredAt).toLocaleDateString(locale()) },
-    ...(user.role !== "CHEF" ? [{ icon: Wallet, label: tr("Маош"), value: money(user.salary) }] : []),
   ];
 
   return (
     <>
       <PageHeader title={tr("Профил")} />
-      <div className="grid gap-6 lg:grid-cols-[380px_minmax(0,1fr)]">
+      <div className="grid grid-cols-[minmax(0,1fr)] gap-6 lg:grid-cols-[380px_minmax(0,1fr)]">
         <div className="space-y-6">
           <Card className="text-center">
             <div className="flex justify-center">
@@ -100,6 +100,7 @@ export default function ProfilePage() {
               ))}
             </ul>
           </Card>
+          {user.role !== "CHEF" && <SalaryCard user={user} />}
           <Card>
             <div className="flex items-center gap-3">
               <span className="grid size-11 place-items-center rounded-2xl bg-[#229ed9]/12 text-[#229ed9]">

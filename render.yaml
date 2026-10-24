@@ -1,7 +1,8 @@
 # Render Blueprint: Dashboard → New → Blueprint → ин репозиторийро интихоб кунед.
 # Сохта мешавад: PostgreSQL + API (NestJS) + сайт (Next.js).
 # Пас аз сохтан дар filialhub-web тағйирёбандаи API_URL-ро ба суроғаи filialhub-api гузоред
-# (масалан https://filialhub-api.onrender.com) ва «Manual Deploy» кунед.
+# (масалан https://filialhub-api.onrender.com) ва «Manual Deploy → Clear build cache & deploy» кунед
+# (API_URL ҳангоми build навишта мешавад). Санҷиш: <web>/api/health → {"ok":true}.
 
 databases:
   - name: filialhub-db

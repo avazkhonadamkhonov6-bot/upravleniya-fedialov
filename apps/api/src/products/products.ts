@@ -13,7 +13,7 @@ import {
 } from '@nestjs/common';
 import { Type } from 'class-transformer';
 import { IsBoolean, IsNumber, IsOptional, IsString, Min, MinLength } from 'class-validator';
-import { AuthUser, CurrentUser, Roles } from '../auth/decorators';
+import { AuthUser, CurrentUser, Feature, Roles } from '../auth/decorators';
 import { toProduct } from '../common/serializers';
 import { AuditService } from '../core/audit.service';
 import { PrismaService } from '../prisma/prisma.service';
@@ -111,6 +111,7 @@ export class ProductsService {
 }
 
 @Controller('products')
+@Feature('products', 'pos')
 export class ProductsController {
   constructor(private readonly products: ProductsService) {}
 

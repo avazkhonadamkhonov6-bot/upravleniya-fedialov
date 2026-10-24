@@ -17,7 +17,7 @@ import {
 import { Type } from 'class-transformer';
 import { IsDateString, IsEmail, IsInt, IsOptional, IsString, MaxLength, MinLength, ValidateIf } from 'class-validator';
 import { canSell, SEGMENTS, type Customer as CustomerDto, type CustomerStats, type Paginated, type Segment } from '@filialhub/shared';
-import { AuthUser, CurrentUser, Roles } from '../auth/decorators';
+import { AuthUser, CurrentUser, Feature, Roles } from '../auth/decorators';
 import { scopeBranch } from '../common/access';
 import { startOfLocalDay, startOfLocalMonth } from '../common/time';
 import { AuditService } from '../core/audit.service';
@@ -329,9 +329,10 @@ export class CustomersController {
 
   /** Официант ва кассир ҳам дар POS мизоҷро аз рӯи рақам меёбад ва сабт мекунад. */
   @Get('lookup')
+  @Feature('pos')
   @Roles('CHEF', 'MANAGER', 'STAFF')
   lookup(@CurrentUser() user: AuthUser, @Query('phone') phone = '') {
-    if (!canSell(user)) throw new ForbiddenException('Танҳо официант ва кассир');
+    if (!canSell(user)) throw new ForbiddenException('Танҳо кассир');
     return this.customers.lookup(phone);
   }
 
@@ -341,9 +342,10 @@ export class CustomersController {
   }
 
   @Post()
+  @Feature('pos')
   @Roles('CHEF', 'MANAGER', 'STAFF')
   create(@CurrentUser() user: AuthUser, @Body() dto: CreateCustomerDto) {
-    if (!canSell(user)) throw new ForbiddenException('Танҳо официант ва кассир');
+    if (!canSell(user)) throw new ForbiddenException('Танҳо кассир');
     return this.customers.create(user, dto);
   }
 

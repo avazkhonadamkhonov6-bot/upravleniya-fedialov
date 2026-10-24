@@ -84,12 +84,12 @@ function BranchView() {
 
       <KpiRow overview={overview} />
 
-      <div className="mt-6 grid gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
+      <div className="mt-6 grid grid-cols-[minmax(0,1fr)] gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
         <SalesCard branchId={id} />
         <StaffBreakdown overview={overview} />
       </div>
 
-      <div className="mt-6 grid gap-6 xl:grid-cols-[minmax(0,1fr)_420px]">
+      <div className="mt-6 grid grid-cols-[minmax(0,1fr)] gap-6 xl:grid-cols-[minmax(0,1fr)_420px]">
         <div>
           <h2 className="mb-3 text-lg font-bold text-ink">{tr("Кормандони филиал")}</h2>
           <StaffTable fixedBranchId={id} compact />

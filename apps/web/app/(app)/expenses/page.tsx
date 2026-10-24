@@ -124,7 +124,7 @@ export default function ExpensesPage() {
             </div>
           </div>
 
-          <div className="mt-6 grid gap-6 xl:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)]">
+          <div className="mt-6 grid grid-cols-[minmax(0,1fr)] gap-6 xl:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)]">
             <Card>
               <CardTitle>{tr("Фоидаи соф моҳ ба моҳ")}</CardTitle>
               <div style={{ height: 280 }}>

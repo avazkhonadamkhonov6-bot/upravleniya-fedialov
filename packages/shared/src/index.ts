@@ -30,11 +30,94 @@ export const POSITION_EMOJI: Record<Position, string> = {
 };
 
 /** Вазифаҳое, ки фурӯш (POS) сабт карда метавонанд. */
-export const SELLER_POSITIONS: readonly Position[] = ['WAITER', 'CASHIER'];
+export const SELLER_POSITIONS: readonly Position[] = ['CASHIER'];
 
-/** Шеф, менеҷер, официант ва кассир фурӯш сабт карда метавонанд. */
+/** Шеф, менеҷер ва кассир фурӯш сабт карда метавонанд. */
 export function canSell(u: { role: Role; position: Position | null }): boolean {
   return u.role !== 'STAFF' || (u.position !== null && SELLER_POSITIONS.includes(u.position));
+}
+
+// ---------- Дастрасӣ ба саҳифаҳо (ягона барои web ва api) ----------
+
+export const FEATURES = [
+  'dashboard',
+  'branches',
+  'staff',
+  'customers',
+  'tasks',
+  'schedule',
+  'messages',
+  'pos',
+  'sales',
+  'products',
+  'expenses',
+  'integrations',
+  'audit',
+  'alerts',
+  'search',
+  'profile',
+] as const;
+export type Feature = (typeof FEATURES)[number];
+
+/**
+ * Корманд танҳо ин саҳифаҳоро мебинад:
+ * кассир — фурӯш (POS + сабад), таърихи фурӯш, профил; официант — меню, профил;
+ * ошпаз ва фаррош — танҳо профил (бо маош ва рӯзи гирифтани он).
+ */
+export const STAFF_FEATURES: Record<Position, readonly Feature[]> = {
+  CASHIER: ['pos', 'sales', 'profile'],
+  WAITER: ['products', 'profile'],
+  COOK: ['profile'],
+  CLEANER: ['profile'],
+};
+
+type Who = { role: Role; position: Position | null };
+
+export function canAccess(u: Who, feature: Feature): boolean {
+  if (u.role === 'CHEF') return true;
+  if (u.role === 'MANAGER') return feature !== 'integrations' && feature !== 'audit';
+  return !!u.position && STAFF_FEATURES[u.position].includes(feature);
+}
+
+/** Саҳифаи аввал пас аз воридшавӣ */
+export function homePath(u: Who): string {
+  if (u.role !== 'STAFF') return '/dashboard';
+  if (u.position === 'CASHIER') return '/pos';
+  if (u.position === 'WAITER') return '/products';
+  return '/profile';
+}
+
+/** Кадом саҳифа ба кадом имконият тааллуқ дорад (барои ҳимояи роҳҳо дар web) */
+export function featureOfPath(pathname: string): Feature | null {
+  const seg = pathname.split('/')[1] ?? '';
+  const map: Record<string, Feature> = {
+    dashboard: 'dashboard',
+    branches: 'branches',
+    staff: 'staff',
+    customers: 'customers',
+    tasks: 'tasks',
+    schedule: 'schedule',
+    messages: 'messages',
+    pos: 'pos',
+    sales: 'sales',
+    products: 'products',
+    expenses: 'expenses',
+    integrations: 'integrations',
+    audit: 'audit',
+    profile: 'profile',
+  };
+  return map[seg] ?? null;
+}
+
+/** Рӯзи гирифтани маош: санаи навбатӣ (рӯзи payDay-и моҳ; агар моҳ кӯтоҳ бошад — рӯзи охир) */
+export function nextPayDate(payDay: number, from: Date = new Date()): Date {
+  const at = (y: number, m: number) => {
+    const last = new Date(y, m + 1, 0).getDate();
+    return new Date(y, m, Math.min(Math.max(payDay, 1), last));
+  };
+  const today = new Date(from.getFullYear(), from.getMonth(), from.getDate());
+  const thisMonth = at(today.getFullYear(), today.getMonth());
+  return thisMonth >= today ? thisMonth : at(today.getFullYear(), today.getMonth() + 1);
 }
 
 export const PAYMENT_LABELS: Record<Payment, string> = {
@@ -105,6 +188,8 @@ export interface User {
   branchId: number | null;
   branch?: Pick<Branch, 'id' | 'name' | 'city'> | null;
   salary: number;
+  /** Рӯзи моҳ, ки маош дода мешавад (1–28) */
+  payDay: number;
   hiredAt: string;
   isActive: boolean;
   telegramLinked: boolean;

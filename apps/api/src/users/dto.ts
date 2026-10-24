@@ -7,6 +7,7 @@ import {
   IsInt,
   IsOptional,
   IsString,
+  Max,
   MaxLength,
   Min,
   MinLength,
@@ -46,6 +47,10 @@ export class CreateUserDto {
   @IsOptional() @Type(() => Number) @IsInt() @Min(0)
   salary?: number;
 
+  /** Рӯзи гирифтани маош (1–28) */
+  @IsOptional() @Type(() => Number) @IsInt() @Min(1) @Max(28, { message: 'Рӯзи маош бояд аз 1 то 28 бошад' })
+  payDay?: number;
+
   @IsOptional() @IsDateString()
   hiredAt?: string;
 }
@@ -82,6 +87,10 @@ export class UpdateUserDto {
 
   @IsOptional() @Type(() => Number) @IsInt() @Min(0)
   salary?: number;
+
+  /** Рӯзи гирифтани маош (1–28) */
+  @IsOptional() @Type(() => Number) @IsInt() @Min(1) @Max(28, { message: 'Рӯзи маош бояд аз 1 то 28 бошад' })
+  payDay?: number;
 
   @IsOptional() @IsDateString()
   hiredAt?: string;

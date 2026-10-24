@@ -93,6 +93,20 @@ async function ensureCashiers() {
     if (c) await prisma.user.update({ where: { id: c.id }, data: { email: 'cashier@filialhub.tj' } });
   }
   if (added) console.log(`💵 ${added} кассир илова шуд`);
+  await ensureDemoEmails(branches[0]?.id);
+}
+
+/** Ҳисобҳои демо барои ошпаз ва фаррош (агар набошанд) — барои санҷиши нақшҳо. */
+async function ensureDemoEmails(branchId?: number) {
+  if (!branchId) return;
+  for (const [email, position] of [
+    ['cook@filialhub.tj', 'COOK'],
+    ['cleaner@filialhub.tj', 'CLEANER'],
+  ] as const) {
+    if (await prisma.user.findUnique({ where: { email } })) continue;
+    const u = await prisma.user.findFirst({ where: { branchId, position }, orderBy: { id: 'asc' } });
+    if (u) await prisma.user.update({ where: { id: u.id }, data: { email } });
+  }
 }
 
 async function main() {
@@ -172,10 +186,11 @@ async function main() {
             position,
             branchId: b.id,
             salary: salary + int(0, 6) * 100,
+            payDay: pick([1, 5, 10, 15, 25]),
             hiredAt: new Date(now - int(20, 600) * 86400000),
           },
         });
-        // Фурӯшро ҳам официантҳо, ҳам кассирҳо сабт мекунанд.
+        // Таърихи фурӯш: пештар официантҳо ҳам сабт мекарданд; ҳоло танҳо кассир.
         if (position === 'WAITER' || position === 'CASHIER') waiterIds.push(u.id);
       }
     }
@@ -187,6 +202,7 @@ async function main() {
   await prisma.user.update({ where: { id: demoWaiter.id }, data: { email: 'waiter@filialhub.tj' } });
   const demoCashier = await prisma.user.findFirstOrThrow({ where: { branchId: branches[0].id, position: 'CASHIER' } });
   await prisma.user.update({ where: { id: demoCashier.id }, data: { email: 'cashier@filialhub.tj' } });
+  await ensureDemoEmails(branches[0].id);
 
   console.log('🍔 Меню…');
   const products: Awaited<ReturnType<typeof prisma.product.create>>[] = [];
@@ -306,7 +322,10 @@ async function main() {
   console.log('\nҲисобҳои демо (парол: demo1234):');
   console.log('  👑 Шеф:      chef@filialhub.tj');
   console.log('  🧑‍💼 Менеҷер:  manager1@filialhub.tj … manager5@filialhub.tj');
-  console.log('  🧑‍🍳 Официант: waiter@filialhub.tj');
+  console.log('  🧑‍💼 Официант: waiter@filialhub.tj');
+  console.log('  💵 Кассир:   cashier@filialhub.tj');
+  console.log('  👨‍🍳 Ошпаз:    cook@filialhub.tj');
+  console.log('  🧹 Фаррош:   cleaner@filialhub.tj');
 }
 
 // ---------- CRM: бонусҳо, смена, хароҷот, вазифаҳо, таърих ----------

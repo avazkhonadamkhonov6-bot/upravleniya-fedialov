@@ -16,6 +16,7 @@ export function toUser(u: UserWithBranch): UserDto {
     branchId: u.branchId,
     branch: u.branch ? { id: u.branch.id, name: u.branch.name, city: u.branch.city } : null,
     salary: u.salary,
+    payDay: u.payDay,
     hiredAt: u.hiredAt.toISOString(),
     isActive: u.isActive,
     telegramLinked: !!u.telegramChatId,

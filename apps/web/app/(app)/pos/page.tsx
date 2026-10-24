@@ -101,7 +101,7 @@ function Pos() {
         }
       />
 
-      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_380px]">
+      <div className="grid grid-cols-[minmax(0,1fr)] gap-6 lg:grid-cols-[minmax(0,1fr)_380px]">
         <div>
           <div className="mb-4 flex gap-2 overflow-x-auto pb-1">
             {["", ...categories].map((c) => (

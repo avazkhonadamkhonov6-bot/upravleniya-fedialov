@@ -1,6 +1,7 @@
 "use client";
 
-import { ArrowRight, Banknote, Building2, ChefHat, Crown, Lock, Mail, UserRound } from "lucide-react";
+import { homePath } from "@filialhub/shared";
+import { ArrowRight, Banknote, Brush, Building2, ChefHat, Crown, Lock, Mail, UserRound } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Logo } from "@/components/shell";
@@ -12,8 +13,10 @@ import { tr } from "@/lib/i18n";
 const DEMO = [
   { email: "chef@filialhub.tj", label: "Шеф", desc: "Ҳамаи филиалҳо", icon: Crown },
   { email: "manager1@filialhub.tj", label: "Менеҷер", desc: "Филиали Рӯдакӣ", icon: Building2 },
-  { email: "waiter@filialhub.tj", label: "Официант", desc: "Фурӯш (POS)", icon: UserRound },
   { email: "cashier@filialhub.tj", label: "Кассир", desc: "Касса ва фурӯш", icon: Banknote },
+  { email: "waiter@filialhub.tj", label: "Официант", desc: "Меню", icon: UserRound },
+  { email: "cook@filialhub.tj", label: "Ошпаз", desc: "Профил ва маош", icon: ChefHat },
+  { email: "cleaner@filialhub.tj", label: "Фаррош", desc: "Профил ва маош", icon: Brush },
 ];
 
 export default function LoginPage() {
@@ -25,7 +28,7 @@ export default function LoginPage() {
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
-    if (user) router.replace("/dashboard");
+    if (user) router.replace(homePath(user));
   }, [user, router]);
 
   async function submit(e?: React.FormEvent, creds?: { email: string; password: string }) {
@@ -33,8 +36,8 @@ export default function LoginPage() {
     setBusy(true);
     setError(null);
     try {
-      await login(creds?.email ?? email, creds?.password ?? password);
-      router.replace("/dashboard");
+      const u = await login(creds?.email ?? email, creds?.password ?? password);
+      router.replace(homePath(u));
     } catch (err) {
       setError((err as Error).message);
     } finally {
@@ -109,7 +112,7 @@ export default function LoginPage() {
             <div className="mb-3 flex items-center gap-3 text-xs font-semibold tracking-wide text-muted uppercase">
               <span className="h-px flex-1 bg-line" /> {tr("Вуруди зуди демо")}{" "}<span className="h-px flex-1 bg-line" />
             </div>
-            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
               {DEMO.map((d) => (
                 <button
                   key={d.email}

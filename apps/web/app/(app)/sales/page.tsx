@@ -64,7 +64,7 @@ function History({ branchId }: { branchId?: number }) {
   const maxRev = Math.max(...rows.map((r) => r.revenue), 1);
 
   return (
-    <div className="mb-6 grid gap-6 xl:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]">
+    <div className="mb-6 grid grid-cols-[minmax(0,1fr)] gap-6 xl:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]">
       <Card>
         <CardTitle extra={<Segmented value={g} onChange={setG} options={GRAN} />}>{tr("Графики фурӯш")}</CardTitle>
         <ErrorBox message={error} />

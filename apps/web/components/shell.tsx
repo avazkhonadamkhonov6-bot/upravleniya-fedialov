@@ -1,6 +1,6 @@
 "use client";
 
-import { canSell, POSITION_LABELS, ROLE_LABELS, type User } from "@filialhub/shared";
+import { canAccess, featureOfPath, homePath, POSITION_LABELS, ROLE_LABELS, type Feature, type User } from "@filialhub/shared";
 import {
   BarChart3,
   Building2,
@@ -40,47 +40,48 @@ interface NavItem {
   label: string;
   short: string;
   icon: React.ComponentType<{ className?: string }>;
-  show: (u: User) => boolean;
+  /** Кадом имконият (дастрасӣ аз рӯи нақш — packages/shared canAccess) */
+  feature: Feature;
+  /** Шарти иловагӣ */
+  only?: (u: User) => boolean;
   /** Дар менюи поёни мобилӣ нишон дода шавад */
   primary?: boolean;
 }
-
-const isLead = (u: User) => u.role !== "STAFF";
 
 const NAV: { title: string; items: NavItem[] }[] = [
   {
     title: "Асосӣ",
     items: [
-      { href: "/dashboard", label: "Панели асосӣ", short: "Панел", icon: LayoutDashboard, show: () => true, primary: true },
-      { href: "/branches", label: "Филиалҳо", short: "Филиалҳо", icon: Building2, show: (u) => u.role === "CHEF" },
-      { href: "/branches/view", label: "Филиали ман", short: "Филиал", icon: Building2, show: (u) => u.role === "MANAGER" },
-      { href: "/staff", label: "Кормандон", short: "Кормандон", icon: Users, show: isLead },
+      { href: "/dashboard", label: "Панели асосӣ", short: "Панел", icon: LayoutDashboard, feature: "dashboard", primary: true },
+      { href: "/branches", label: "Филиалҳо", short: "Филиалҳо", icon: Building2, feature: "branches", only: (u) => u.role === "CHEF" },
+      { href: "/branches/view", label: "Филиали ман", short: "Филиал", icon: Building2, feature: "branches", only: (u) => u.role === "MANAGER" },
+      { href: "/staff", label: "Кормандон", short: "Кормандон", icon: Users, feature: "staff" },
     ],
   },
   {
     title: "CRM",
     items: [
-      { href: "/customers", label: "Мизоҷон ва бонус", short: "Мизоҷон", icon: HeartHandshake, show: isLead, primary: true },
-      { href: "/tasks", label: "Вазифаҳо", short: "Вазифа", icon: ClipboardList, show: () => true, primary: true },
-      { href: "/schedule", label: "Ҷадвал ва давомот", short: "Ҷадвал", icon: CalendarClock, show: () => true },
-      { href: "/messages", label: "Паёмҳо", short: "Паём", icon: MessagesSquare, show: () => true },
+      { href: "/customers", label: "Мизоҷон ва бонус", short: "Мизоҷон", icon: HeartHandshake, feature: "customers", primary: true },
+      { href: "/tasks", label: "Вазифаҳо", short: "Вазифа", icon: ClipboardList, feature: "tasks", primary: true },
+      { href: "/schedule", label: "Ҷадвал ва давомот", short: "Ҷадвал", icon: CalendarClock, feature: "schedule" },
+      { href: "/messages", label: "Паёмҳо", short: "Паём", icon: MessagesSquare, feature: "messages" },
     ],
   },
   {
     title: "Фурӯш",
     items: [
-      { href: "/pos", label: "Фурӯши нав", short: "Фурӯш", icon: ShoppingBag, show: canSell, primary: true },
-      { href: "/sales", label: "Таърихи фурӯш", short: "Таърих", icon: BarChart3, show: canSell },
-      { href: "/products", label: "Меню ва нархҳо", short: "Меню", icon: UtensilsCrossed, show: () => true },
+      { href: "/pos", label: "Фурӯши нав", short: "Фурӯш", icon: ShoppingBag, feature: "pos", primary: true },
+      { href: "/sales", label: "Таърихи фурӯш", short: "Таърих", icon: BarChart3, feature: "sales" },
+      { href: "/products", label: "Меню ва нархҳо", short: "Меню", icon: UtensilsCrossed, feature: "products" },
     ],
   },
   {
     title: "Молия ва система",
     items: [
-      { href: "/expenses", label: "Хароҷот ва фоидаи соф", short: "Хароҷот", icon: Wallet, show: isLead },
-      { href: "/integrations", label: "Telegram & WhatsApp", short: "Боти", icon: MessageCircle, show: (u) => u.role === "CHEF" },
-      { href: "/audit", label: "Таърихи амалҳо", short: "Амалҳо", icon: History, show: (u) => u.role === "CHEF" },
-      { href: "/profile", label: "Профил", short: "Профил", icon: UserRound, show: () => true },
+      { href: "/expenses", label: "Хароҷот ва фоидаи соф", short: "Хароҷот", icon: Wallet, feature: "expenses" },
+      { href: "/integrations", label: "Telegram & WhatsApp", short: "Боти", icon: MessageCircle, feature: "integrations" },
+      { href: "/audit", label: "Таърихи амалҳо", short: "Амалҳо", icon: History, feature: "audit" },
+      { href: "/profile", label: "Профил", short: "Профил", icon: UserRound, feature: "profile" },
     ],
   },
 ];
@@ -106,11 +107,12 @@ export function useTheme() {
   return { theme, toggle };
 }
 
-export function Logo({ light }: { light?: boolean }) {
+/** compact — дар телефон танҳо иконка (барои ҷой дар топбар) */
+export function Logo({ light, compact }: { light?: boolean; compact?: boolean }) {
   return (
     <div className="flex items-center gap-2.5">
       <div className="brand-gradient grid size-10 place-items-center rounded-2xl text-xl shadow-lg shadow-red-500/30">🍗</div>
-      <div className="leading-tight">
+      <div className={cn("leading-tight", compact && "hidden sm:block")}>
         <div className={cn("text-lg font-extrabold tracking-tight", light ? "text-white" : "text-ink")}>FilialHub</div>
         <div className={cn("text-[11px] font-medium", light ? "text-white/50" : "hidden text-muted sm:block")}>{tr("CRM · идоракунии филиалҳо")}</div>
       </div>
@@ -150,11 +152,18 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const { theme, toggle } = useTheme();
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [moreOpen, setMoreOpen] = useState(false);
-  const unread = useUnreadMessages(!!user);
+  const unread = useUnreadMessages(!!user && canAccess(user, "messages"));
+  const feature = featureOfPath(pathname);
+  const allowed = !user || !feature || canAccess(user, feature);
 
   useEffect(() => {
     if (!loading && !user) router.replace("/login");
   }, [loading, user, router]);
+
+  // Саҳифае, ки барои нақш/вазифаи корбар баста аст — ба саҳифаи аввали ӯ мебарем.
+  useEffect(() => {
+    if (user && !allowed) router.replace(homePath(user));
+  }, [user, allowed, router]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -167,7 +176,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     return () => window.removeEventListener("keydown", onKey);
   }, []);
 
-  if (loading || !user) {
+  if (loading || !user || !allowed) {
     // Саҳифа рендер мешавад (Next.js онро барои instant navigation месанҷад), вале то санҷиши воридшавӣ пинҳон аст.
     return (
       <>
@@ -179,9 +188,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     );
   }
 
-  const groups = NAV.map((g) => ({ ...g, items: g.items.filter((n) => n.show(user)) })).filter((g) => g.items.length);
+  const groups = NAV.map((g) => ({ ...g, items: g.items.filter((n) => canAccess(user, n.feature) && (!n.only || n.only(user))) })).filter((g) => g.items.length);
+  const canSearch = canAccess(user, "search");
   const all = groups.flatMap((g) => g.items);
-  const primary = all.filter((n) => n.primary).slice(0, 4);
+  // Корманд 1–3 саҳифа дорад — ҳамаашро дар менюи поён нишон медиҳем.
+  const primary = all.length <= 4 ? all : all.filter((n) => n.primary).slice(0, 4);
   const roleLabel = user.position ? tr(POSITION_LABELS[user.position]) : tr(ROLE_LABELS[user.role]);
   const current = all.find((n) => isActive(pathname, n.href));
 
@@ -255,14 +266,15 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
       {/* Top bar */}
       <header className="glass sticky top-0 z-20 border-b border-line">
-        <div className="mx-auto flex h-16 max-w-[1400px] items-center gap-3 px-4 sm:px-6 lg:px-10">
+        <div className="mx-auto flex h-16 max-w-[1400px] items-center gap-2 px-4 sm:gap-3 sm:px-6 lg:px-10">
           <div className="lg:hidden">
-            <Logo />
+            <Logo compact />
           </div>
           <div className="hidden min-w-0 items-center gap-2 text-sm text-muted lg:flex">
             {current && <current.icon className="size-4" />}
             <span className="truncate font-medium text-ink-2">{current ? tr(current.label) : "FilialHub"}</span>
           </div>
+          {canSearch ? (
           <button
             onClick={() => setPaletteOpen(true)}
             className="ml-auto flex h-10 cursor-pointer items-center gap-2 rounded-xl border border-line bg-surface px-3 text-sm text-muted transition hover:border-brand/40 hover:text-ink lg:ml-6 lg:w-80"
@@ -275,9 +287,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               <span className="kbd">K</span>
             </span>
           </button>
+          ) : (
+            <div className="ml-auto" />
+          )}
           <div className="flex items-center gap-1 lg:ml-auto">
-            {user.role !== "CHEF" && <ShiftButton compact />}
-            <AlertsBell />
+            {user.role !== "CHEF" && canAccess(user, "schedule") && <ShiftButton compact />}
+            {canAccess(user, "alerts") && <AlertsBell />}
             <LangSwitcher />
             <button
               onClick={toggle}
@@ -367,7 +382,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </div>
       )}
 
-      <CommandPalette open={paletteOpen} onClose={() => setPaletteOpen(false)} links={all} />
+      {canSearch && <CommandPalette open={paletteOpen} onClose={() => setPaletteOpen(false)} links={all} />}
     </div>
   );
 }

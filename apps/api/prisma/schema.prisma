@@ -70,6 +70,8 @@ model User {
   branchId       Int?
   branch         Branch?    @relation(fields: [branchId], references: [id], onDelete: SetNull)
   salary         Int        @default(0)
+  /// Рӯзи моҳ, ки маош дода мешавад (1–28)
+  payDay         Int        @default(1)
   hiredAt        DateTime   @default(now())
   isActive       Boolean    @default(true)
   telegramChatId String?    @unique

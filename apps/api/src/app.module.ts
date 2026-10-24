@@ -4,6 +4,7 @@ import { ScheduleModule } from '@nestjs/schedule';
 import { AuthModule } from './auth/auth.module';
 import { JwtAuthGuard } from './auth/jwt-auth.guard';
 import { RolesGuard } from './auth/roles.guard';
+import { StaffAccessGuard } from './auth/staff-access.guard';
 import { BranchesModule } from './branches/branches.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { OrdersModule } from './orders/orders';
@@ -41,6 +42,7 @@ import { MessagesModule } from './messages/messages';
   providers: [
     { provide: APP_GUARD, useClass: JwtAuthGuard },
     { provide: APP_GUARD, useClass: RolesGuard },
+    { provide: APP_GUARD, useClass: StaffAccessGuard },
   ],
 })
 export class AppModule {}

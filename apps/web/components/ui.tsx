@@ -48,7 +48,7 @@ export function Card({ className, children }: { className?: string; children: Re
 
 export function CardTitle({ children, extra }: { children: React.ReactNode; extra?: React.ReactNode }) {
   return (
-    <div className="mb-4 flex items-center justify-between gap-3">
+    <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
       <h2 className="flex items-center gap-2 text-base font-semibold text-ink">
         <span className="brand-gradient size-1.5 shrink-0 rounded-full" aria-hidden />
         {children}
@@ -272,7 +272,7 @@ export function Modal({
 
 export function ErrorBox({ message }: { message: string | null | undefined }) {
   if (!message) return null;
-  return <div className="rounded-xl bg-brand-soft px-4 py-3 text-sm font-medium text-brand">{message}</div>;
+  return <div role="alert" className="rounded-xl bg-brand-soft px-4 py-3 text-sm font-medium text-brand">{message}</div>;
 }
 
 export function Empty({ icon, title, text }: { icon?: React.ReactNode; title: string; text?: string }) {

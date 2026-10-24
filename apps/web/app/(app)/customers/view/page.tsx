@@ -105,7 +105,7 @@ function CustomerView() {
         </div>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-[360px_minmax(0,1fr)]">
+      <div className="grid grid-cols-[minmax(0,1fr)] gap-6 lg:grid-cols-[360px_minmax(0,1fr)]">
         <div className="space-y-6">
           <Card>
             <CardTitle

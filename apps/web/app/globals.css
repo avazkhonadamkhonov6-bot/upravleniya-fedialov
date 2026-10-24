@@ -61,6 +61,14 @@
   --shadow-card: var(--shadow);
 }
 
+/* Grid бе grid-cols-* дар телефон як сутуни minmax(0,1fr) дорад — то мундариҷаи дароз (ҷадвал, чипҳо)
+   саҳифаро аз экран васеътар накунад. Дар @layer base аст, бинобар ин md:grid-cols-* ва ғайра онро иваз мекунанд. */
+@layer base {
+  [class~="grid"] {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
 html {
   color-scheme: light;
 }

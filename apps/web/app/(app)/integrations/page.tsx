@@ -115,7 +115,7 @@ export default function IntegrationsPage() {
         </Card>
       </div>
 
-      <div className="mt-6 grid gap-6 xl:grid-cols-[minmax(0,1fr)_1fr]">
+      <div className="mt-6 grid grid-cols-[minmax(0,1fr)] gap-6 xl:grid-cols-[minmax(0,1fr)_1fr]">
         <Card>
           <CardTitle>{tr("Санҷиш")}</CardTitle>
           <div className="flex flex-wrap gap-2">

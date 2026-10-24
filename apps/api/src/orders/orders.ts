@@ -12,7 +12,7 @@ import {
 import { Type } from 'class-transformer';
 import { ArrayMinSize, IsIn, IsInt, IsOptional, Max, Min, ValidateNested } from 'class-validator';
 import { canSell, PAYMENTS, POINTS_RATE, type Order, type Paginated, type Payment } from '@filialhub/shared';
-import { AuthUser, CurrentUser } from '../auth/decorators';
+import { AuthUser, CurrentUser, Feature } from '../auth/decorators';
 import { scopeBranch } from '../common/access';
 import { Prisma } from '../generated/prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
@@ -88,10 +88,10 @@ function forViewer(user: AuthUser, o: Order): Order {
   return { ...o, totalCost: 0, profit: 0, items: o.items.map((i) => ({ ...i, unitCost: 0 })) };
 }
 
-/** Фурӯш метавонад шеф, менеҷер, официант ва кассир сабт кунад. */
+/** Фурӯш метавонад шеф, менеҷер ва кассир сабт кунад. */
 function assertCanSell(user: AuthUser) {
   if (!canSell(user)) {
-    throw new ForbiddenException('Танҳо официант ва кассир фурӯш сабт карда метавонанд');
+    throw new ForbiddenException('Танҳо кассир фурӯш сабт карда метавонад');
   }
 }
 
@@ -106,7 +106,7 @@ export class OrdersService {
     assertCanSell(user);
     const where: Prisma.OrderWhereInput = {
       branchId: scopeBranch(user, q.branchId),
-      // Официант танҳо фармоишҳои худашро мебинад.
+      // Кассир танҳо фармоишҳои худашро мебинад.
       userId: user.role === 'STAFF' ? user.id : undefined,
       createdAt: {
         gte: q.from ? new Date(q.from) : undefined,
@@ -192,6 +192,7 @@ export class OrdersService {
 }
 
 @Controller('orders')
+@Feature('pos', 'sales')
 export class OrdersController {
   constructor(private readonly orders: OrdersService) {}
 

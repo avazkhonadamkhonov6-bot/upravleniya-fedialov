@@ -119,7 +119,7 @@ export default function CustomersPage() {
         })}
       </div>
 
-      <div className="mt-6 grid gap-6 xl:grid-cols-[minmax(0,1fr)_320px]">
+      <div className="mt-6 grid grid-cols-[minmax(0,1fr)] gap-6 xl:grid-cols-[minmax(0,1fr)_320px]">
         <Card className="p-0">
           <div className="flex flex-col gap-3 border-b border-line p-5 sm:flex-row">
             <div className="relative flex-1">
