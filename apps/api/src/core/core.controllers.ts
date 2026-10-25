@@ -57,7 +57,8 @@ export class AuditController {
       this.prisma.auditLog.findMany({
         where,
         include: { user: { select: { fullName: true } } },
-        orderBy: { id: 'desc' },
+        // Аз рӯи вақт (сабтҳои намунавӣ бо санаи гузашта баъдтар сохта мешаванд — id тартибро намедиҳад)
+        orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
         skip: (p - 1) * 30,
         take: 30,
       }),

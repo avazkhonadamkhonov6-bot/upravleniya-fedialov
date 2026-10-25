@@ -1,28 +1,19 @@
 import { Injectable, OnModuleInit } from '@nestjs/common';
-import { MEDIA_MAX_BYTES, phoneDigits, POSITION_LABELS, ROLE_LABELS, type Period } from '@filialhub/shared';
+import { MEDIA_MAX_BYTES } from '@filialhub/shared';
 import { PrismaService } from '../prisma/prisma.service';
-import { escape } from './notifications.service';
+import { BOT_HELP, BotService } from './bot.service';
 import { ChatService } from './chat.service';
-import { ReportService } from './report.service';
+import { escape } from './notifications.service';
 import { verifyTelegramLinkCode } from './telegram-link';
 import { TelegramService, TgMessage } from './telegram.service';
 
-const HELP = [
-  '<b>Командаҳо:</b>',
-  '/today — фурӯш ва фоидаи имрӯз',
-  '/week — омори ин ҳафта',
-  '/month — омори ин моҳ',
-  '/branches — рейтинги филиалҳо (танҳо шеф)',
-  '/me — маълумоти ман',
-].join('\n');
-
-/** Командаҳои бот: пайваст кардани ҳисоб бо рақами телефон ва дидани омор. */
+/** Боти Telegram: пайваст кардани ҳисоб (пайванд аз профил ё рақами телефон), командаҳо ва ҷавобҳо ба чати сайт. */
 @Injectable()
 export class TelegramBotService implements OnModuleInit {
   constructor(
     private readonly telegram: TelegramService,
     private readonly prisma: PrismaService,
-    private readonly reports: ReportService,
+    private readonly bot: BotService,
     private readonly chat: ChatService,
   ) {}
 
@@ -35,12 +26,14 @@ export class TelegramBotService implements OnModuleInit {
 
     if (msg.contact) return this.linkByContact(chatId, msg);
 
-    const command = (msg.text ?? '').trim().split(/[\s@]/)[0].toLowerCase();
-    if (command === '/start') {
+    const text = (msg.text ?? msg.caption ?? '').trim();
+    if (text.split(/[\s@]/)[0].toLowerCase() === '/start') {
       // Пайванд аз профили сайт: /start u12_xxxx — ҳисоб фавран пайваст мешавад.
-      const code = (msg.text ?? '').trim().split(/s+/)[1];
+      const code = text.split(/\s+/)[1];
       const linkedId = code ? verifyTelegramLinkCode(code) : null;
       if (linkedId) return this.linkUser(chatId, linkedId);
+      const known = await this.prisma.user.findUnique({ where: { telegramChatId: chatId } });
+      if (known?.isActive) return this.telegram.send(chatId, `👋 ${escape(known.fullName)}, ҳисоби шумо аллакай пайваст аст.\n\n${BOT_HELP}`);
       return this.telegram.send(
         chatId,
         '👋 Салом! Ин боти <b>FilialHub</b> аст.\nБарои пайваст кардани ҳисоб тугмаи поёнро пахш кунед ва рақами телефонатонро фиристед.',
@@ -59,70 +52,48 @@ export class TelegramBotService implements OnModuleInit {
       return this.telegram.send(chatId, 'Ҳисоби шумо пайваст нест. Аввал /start нависед.');
     }
 
-    if (command === '/me') {
-      const role = user.position ? POSITION_LABELS[user.position] : ROLE_LABELS[user.role];
-      return this.telegram.send(
-        chatId,
-        [
-          `👤 <b>${escape(user.fullName)}</b>`,
-          `Нақш: ${role}`,
-          user.branch ? `Филиал: ${escape(user.branch.name)}` : 'Филиал: ҳама',
-          `📞 ${user.phone}`,
-          `✉️ ${user.email}`,
-        ].join('\n'),
-      );
-    }
-
-    const periods: Record<string, Period> = { '/today': 'day', '/week': 'week', '/month': 'month' };
-    if (periods[command] || command === '/branches') {
-      if (user.role === 'STAFF') return this.telegram.send(chatId, 'Омор танҳо барои шеф ва менеҷер дастрас аст.');
-      if (command === '/branches' && user.role !== 'CHEF') {
-        return this.telegram.send(chatId, 'Рейтинги филиалҳо танҳо барои шеф аст.');
-      }
-      const branchId = user.role === 'CHEF' ? undefined : (user.branchId ?? undefined);
-      return this.telegram.send(chatId, await this.reports.buildReport(periods[command] ?? 'day', branchId));
-    }
-
     // Овоз ё видео аз корманд — ба чати FilialHub.
-    const media = msg.voice ?? msg.audio
-      ? { file: (msg.voice ?? msg.audio)!, kind: 'VOICE' as const, mime: (msg.voice ?? msg.audio)!.mime_type ?? 'audio/ogg' }
-      : msg.video_note ?? msg.video
-        ? { file: (msg.video_note ?? msg.video)!, kind: 'VIDEO_NOTE' as const, mime: msg.video?.mime_type ?? 'video/mp4' }
+    const audio = msg.voice ?? msg.audio;
+    const video = msg.video_note ?? msg.video;
+    const media = audio
+      ? { file: audio, kind: 'VOICE' as const, mime: audio.mime_type ?? 'audio/ogg' }
+      : video
+        ? { file: video, kind: 'VIDEO_NOTE' as const, mime: msg.video?.mime_type ?? 'video/mp4' }
         : null;
     if (media) {
       try {
         const { data } = await this.telegram.download(media.file.file_id);
         if (data.byteLength > MEDIA_MAX_BYTES) return this.telegram.send(chatId, 'Файл хеле калон аст (то 15 МБ).');
-        const to = await this.chat.routeIncomingMedia(user, { data, mime: media.mime }, media.kind, media.file.duration, 'TELEGRAM');
+        const to = await this.chat.routeIncomingMedia(user, { data, mime: media.mime }, media.kind, media.file.duration || 1, 'TELEGRAM');
         return this.telegram.send(chatId, to ? `✅ Фиристода шуд ба <b>${escape(to.fullName)}</b>.` : 'Қабулкунанда ёфт нашуд.');
       } catch {
-        return this.telegram.send(chatId, '❌ Файлро гирифта натавонистем, дубора кӯшиш кунед.');
+        return this.telegram.send(chatId, '❌ Файлро гирифта натавонистем (то 20 МБ), дубора кӯшиш кунед.');
       }
     }
 
+    const reply = await this.bot.command(user, text);
+    if (reply) return this.telegram.send(chatId, reply);
+
     // Матни оддӣ (на команда) — ҷавоб дар чат: ба FilialHub меравад.
-    const text = (msg.text ?? '').trim();
-    if (text && !text.startsWith('/')) {
+    if (text) {
       const to = await this.chat.routeIncoming(user, text.slice(0, 2000), 'TELEGRAM');
       return this.telegram.send(chatId, to ? `✅ Паём ба <b>${escape(to.fullName)}</b> фиристода шуд.` : 'Қабулкунанда ёфт нашуд.');
     }
 
-    return this.telegram.send(chatId, HELP);
+    // Стикер, сурат ва ғайра — ҳоло қабул намешаванд.
+    return this.telegram.send(chatId, `Ин навъи паём ҳоло қабул намешавад — матн, овоз ё видео фиристед.\n\n${BOT_HELP}`);
   }
 
   private async linkUser(chatId: string, userId: number) {
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
     if (!user || !user.isActive) return this.telegram.send(chatId, '❌ Ҳисоб ёфт нашуд.');
-    await this.prisma.$transaction([
-      this.prisma.user.updateMany({ where: { telegramChatId: chatId }, data: { telegramChatId: null } }),
-      this.prisma.user.update({ where: { id: user.id }, data: { telegramChatId: chatId } }),
-    ]);
+    await this.attach(chatId, user.id);
     return this.telegram.send(
       chatId,
       `✅ ${escape(user.fullName)}, Telegram пайваст шуд!
 Акнун паёмҳо, овозҳо ва видеоҳо аз FilialHub ба ин ҷо меоянд. Ҷавоб нависед ё овоз фиристед — он ба сайт меравад.
 
-${HELP}`,
+${BOT_HELP}`,
       { reply_markup: { remove_keyboard: true } },
     );
   }
@@ -130,24 +101,27 @@ ${HELP}`,
   private async linkByContact(chatId: string, msg: TgMessage) {
     const contact = msg.contact!;
     // Танҳо рақами худи фиристанда қабул мешавад (на контакти шахси дигар).
-    if (contact.user_id && contact.user_id !== msg.chat.id) {
-      return this.telegram.send(chatId, 'Лутфан рақами худатонро фиристед.');
+    if (contact.user_id !== msg.from?.id) {
+      return this.telegram.send(chatId, 'Лутфан рақами худатонро бо тугмаи «📱 Фиристодани рақам» фиристед.');
     }
-    const digits = phoneDigits(contact.phone_number).slice(-9);
-    const users = await this.prisma.user.findMany({ where: { isActive: true } });
     // Ҳам рақами телефон, ҳам рақами WhatsApp-и корманд қабул мешавад.
-    const user = users.find((u) => [u.phone, u.whatsapp].some((p) => p && phoneDigits(p).slice(-9) === digits));
+    const user = await this.chat.findByPhone(contact.phone_number);
     if (!user) {
       return this.telegram.send(chatId, '❌ Ин рақам дар системаи FilialHub ёфт нашуд. Ба менеҷер муроҷиат кунед.', {
         reply_markup: { remove_keyboard: true },
       });
     }
-    await this.prisma.$transaction([
-      this.prisma.user.updateMany({ where: { telegramChatId: chatId }, data: { telegramChatId: null } }),
-      this.prisma.user.update({ where: { id: user.id }, data: { telegramChatId: chatId } }),
-    ]);
-    return this.telegram.send(chatId, `✅ ${escape(user.fullName)}, ҳисоби шумо пайваст шуд!\n\n${HELP}`, {
+    await this.attach(chatId, user.id);
+    return this.telegram.send(chatId, `✅ ${escape(user.fullName)}, ҳисоби шумо пайваст шуд!\n\n${BOT_HELP}`, {
       reply_markup: { remove_keyboard: true },
     });
+  }
+
+  /** Як чати Telegram — як ҳисоб: аз ҳисоби пешина ҷудо карда, ба ҳисоби нав мепайвандем. */
+  private attach(chatId: string, userId: number) {
+    return this.prisma.$transaction([
+      this.prisma.user.updateMany({ where: { telegramChatId: chatId }, data: { telegramChatId: null } }),
+      this.prisma.user.update({ where: { id: userId }, data: { telegramChatId: chatId } }),
+    ]);
   }
 }

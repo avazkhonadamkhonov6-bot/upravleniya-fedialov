@@ -21,14 +21,13 @@ export default function AuditPage() {
   const { data, error } = useApi<{ items: AuditEntry[]; total: number }>(`/audit${qs({ entity, page })}`);
   const pages = data ? Math.max(1, Math.ceil(data.total / 30)) : 1;
 
-  // Гурӯҳбандӣ аз рӯи рӯз
-  const groups: { day: string; items: AuditEntry[] }[] = [];
+  // Гурӯҳбандӣ аз рӯи рӯз (сабтҳо на ҳамеша аз рӯи вақт пай дар пай меоянд — як рӯз ду гурӯҳ намешавад)
+  const byDay = new Map<string, AuditEntry[]>();
   for (const e of data?.items ?? []) {
     const day = new Date(e.createdAt).toLocaleDateString(locale(), { weekday: "long", day: "numeric", month: "long" });
-    const g = groups.at(-1);
-    if (g?.day === day) g.items.push(e);
-    else groups.push({ day, items: [e] });
+    byDay.set(day, [...(byDay.get(day) ?? []), e]);
   }
+  const groups = [...byDay].map(([day, items]) => ({ day, items }));
 
   return (
     <>

@@ -3,8 +3,9 @@ import type { SendResult } from './whatsapp.service';
 
 export interface TgMessage {
   chat: { id: number };
-  from?: { first_name?: string };
+  from?: { id: number; first_name?: string };
   text?: string;
+  caption?: string;
   contact?: { phone_number: string; user_id?: number };
   voice?: { file_id: string; duration: number; mime_type?: string };
   audio?: { file_id: string; duration: number; mime_type?: string };
@@ -40,6 +41,8 @@ export class TelegramService implements OnModuleInit, OnModuleDestroy {
     try {
       const me = await this.call<{ username: string }>('getMe');
       this.botUsername = me.username;
+      // Агар пештар webhook гузошта шуда бошад, getUpdates 409 медиҳад — онро хомӯш мекунем.
+      await this.call('deleteWebhook', { drop_pending_updates: false });
       await this.call('setMyCommands', {
         commands: [
           { command: 'today', description: 'Фурӯш ва фоидаи имрӯз' },
@@ -68,7 +71,15 @@ export class TelegramService implements OnModuleInit, OnModuleDestroy {
       return { status: 'DRY_RUN' };
     }
     try {
-      await this.call('sendMessage', { chat_id: chatId, text, parse_mode: 'HTML', ...extra });
+      // Telegram то 4096 аломат дар як паём қабул мекунад — матни дарозро қисм-қисм мефиристем.
+      const parts = text.length > 4000 ? (text.match(/[\s\S]{1,4000}(?=\n|$)|[\s\S]{1,4000}/g) ?? [text]) : [text];
+      for (const [i, part] of parts.entries()) {
+        await this.call('sendMessage', { chat_id: chatId, text: part, parse_mode: 'HTML', ...(i === parts.length - 1 ? extra : {}) }).catch((e: Error) => {
+          // HTML-и нодуруст (масалан тег бурида шуд) — ҳамон матнро бе формат мефиристем.
+          if (!/can't parse entities/i.test(e.message)) throw e;
+          return this.call('sendMessage', { chat_id: chatId, text: part.replace(/<[^>]+>/g, ''), ...(i === parts.length - 1 ? extra : {}) });
+        });
+      }
       return { status: 'SENT' };
     } catch (e) {
       return { status: 'FAILED', error: (e as Error).message };
@@ -102,6 +113,24 @@ export class TelegramService implements OnModuleInit, OnModuleDestroy {
     try {
       const res = await fetch(`https://api.telegram.org/bot${this.token}/${method}`, { method: 'POST', body: form });
       const json = (await res.json()) as { ok: boolean; description?: string };
+      if (!json.ok) {
+        // Видеои мудаввар бояд квадратӣ бошад; агар Telegram қабул накард — ҳамчун видеои оддӣ.
+        if (method === 'sendVideoNote') return this.sendFile(chatId, 'sendVideo', 'video', data, base, `video.${ext}`);
+        throw new Error(json.description ?? 'Telegram error');
+      }
+      return { status: 'SENT' };
+    } catch (e) {
+      return { status: 'FAILED', error: (e as Error).message };
+    }
+  }
+
+  private async sendFile(chatId: string, method: string, field: string, data: Uint8Array<ArrayBuffer>, mime: string, name: string): Promise<SendResult> {
+    const form = new FormData();
+    form.append('chat_id', chatId);
+    form.append(field, new Blob([data], { type: mime }), name);
+    try {
+      const res = await fetch(`https://api.telegram.org/bot${this.token}/${method}`, { method: 'POST', body: form });
+      const json = (await res.json()) as { ok: boolean; description?: string };
       if (!json.ok) throw new Error(json.description ?? 'Telegram error');
       return { status: 'SENT' };
     } catch (e) {
@@ -132,7 +161,9 @@ export class TelegramService implements OnModuleInit, OnModuleDestroy {
           }
         }
       } catch (e) {
-        this.logger.warn(`Polling: ${(e as Error).message}`);
+        const message = (e as Error).message;
+        // 409 — ҳамин бот дар сервери дигар (масалан Render ва компютер якҷоя) низ кор мекунад.
+        this.logger.warn(/conflict/i.test(message) ? `Polling: бот дар ҷои дигар ҳам кор мекунад — танҳо як нусхаро гузоред (${message})` : `Polling: ${message}`);
         await new Promise((r) => setTimeout(r, 5000));
       }
     }

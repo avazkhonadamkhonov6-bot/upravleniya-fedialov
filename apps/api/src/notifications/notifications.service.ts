@@ -3,7 +3,7 @@ import { POSITION_LABELS, ROLE_LABELS, type Channel, type DeliveryStatus } from 
 import type { Branch, User } from '../generated/prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { TelegramService } from './telegram.service';
-import { WhatsAppService } from './whatsapp.service';
+import { htmlToWhatsApp, WhatsAppService } from './whatsapp.service';
 
 type Recipient = Pick<User, 'id' | 'phone' | 'telegramChatId'> & Partial<Pick<User, 'whatsapp'>>;
 
@@ -28,7 +28,7 @@ export class NotificationsService {
     // Агар корманд рақами алоҳидаи WhatsApp дошта бошад — ба он, вагарна ба телефон.
     const wa = user.whatsapp || user.phone;
     if (wa) {
-      const plain = text.replace(/<[^>]+>/g, '');
+      const plain = htmlToWhatsApp(text);
       jobs.push(this.whatsapp.send(wa, plain).then((r) => this.log('WHATSAPP', wa, user.id, plain, r.status, r.error)));
     }
     await Promise.all(jobs);
@@ -57,7 +57,7 @@ export class NotificationsService {
     channels: Channel[],
   ): Promise<{ channel: Channel; status: DeliveryStatus; error?: string }[]> {
     const results: { channel: Channel; status: DeliveryStatus; error?: string }[] = [];
-    const plain = text.replace(/<[^>]+>/g, '');
+    const plain = htmlToWhatsApp(text);
     if (channels.includes('TELEGRAM')) {
       if (!user.telegramChatId) {
         results.push({ channel: 'TELEGRAM', status: 'NOT_LINKED' });
@@ -69,9 +69,12 @@ export class NotificationsService {
     }
     if (channels.includes('WHATSAPP')) {
       const wa = user.whatsapp || user.phone;
-      const r = await this.whatsapp.send(wa, plain);
-      await this.log('WHATSAPP', wa, user.id, plain, r.status, r.error, senderId);
-      results.push({ channel: 'WHATSAPP', ...r });
+      if (!wa) results.push({ channel: 'WHATSAPP', status: 'NOT_LINKED' });
+      else {
+        const r = await this.whatsapp.send(wa, plain);
+        await this.log('WHATSAPP', wa, user.id, plain, r.status, r.error, senderId);
+        results.push({ channel: 'WHATSAPP', ...r });
+      }
     }
     return results;
   }
@@ -97,7 +100,7 @@ export class NotificationsService {
     }
     if (channels.includes('WHATSAPP')) {
       const wa = user.whatsapp || user.phone;
-      const r = await this.whatsapp.sendMedia(wa, kind, media.data, media.mime, caption.replace(/<[^>]+>/g, ''));
+      const r = await this.whatsapp.sendMedia(wa, kind, media.data, media.mime, htmlToWhatsApp(caption));
       await this.log('WHATSAPP', wa, user.id, label, r.status, r.error, senderId);
       results.push({ channel: 'WHATSAPP', ...r });
     }

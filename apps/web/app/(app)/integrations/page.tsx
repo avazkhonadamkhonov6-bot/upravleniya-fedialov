@@ -157,7 +157,14 @@ export default function IntegrationsPage() {
             </li>
             <li>
               <b className="text-ink">4.</b> {tr("Командаҳо:")}{" "}<code className="rounded bg-surface-2 px-1">/today</code> <code className="rounded bg-surface-2 px-1">/week</code>{" "}
-              <code className="rounded bg-surface-2 px-1">/month</code> <code className="rounded bg-surface-2 px-1">/branches</code> <code className="rounded bg-surface-2 px-1">/me</code>
+              <code className="rounded bg-surface-2 px-1">/month</code> <code className="rounded bg-surface-2 px-1">/branches</code> <code className="rounded bg-surface-2 px-1">/me</code>{" "}
+              <code className="rounded bg-surface-2 px-1">/help</code>. {tr("Дар WhatsApp бе «/» ҳам кор мекунад: «имрӯз», «ҳафта», «моҳ», «ман», «кӯмак».")}
+            </li>
+            <li>
+              <b className="text-ink">5. {tr("Боти WhatsApp:")}</b> {tr("Meta → WhatsApp → Configuration → Webhook: Callback URL")}{" "}
+              <code className="rounded bg-surface-2 px-1">https://&lt;api&gt;/api/whatsapp/webhook</code>, Verify token —{" "}
+              <code className="rounded bg-surface-2 px-1">WHATSAPP_VERIFY_TOKEN</code>, {tr("field «messages»-ро обуна кунед. Барои амният")}{" "}
+              <code className="rounded bg-surface-2 px-1">WHATSAPP_APP_SECRET</code> {tr("гузоред. Пас матн, овоз ва видео аз WhatsApp ба чати сайт меоянд.")}
             </li>
           </ol>
         </Card>

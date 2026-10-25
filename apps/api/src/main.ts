@@ -7,7 +7,8 @@ import { AppModule } from './app.module';
 import { PrismaExceptionFilter } from './core/prisma-exception.filter';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  // rawBody — барои санҷиши имзои webhook-и WhatsApp (X-Hub-Signature-256).
+  const app = await NestFactory.create(AppModule, { rawBody: true });
   app.setGlobalPrefix('api');
   // gzip: ҷавобҳои JSON (омор, рӯйхатҳо) 5–10 маротиба хурдтар мешаванд.
   app.use(compression());
