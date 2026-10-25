@@ -96,13 +96,30 @@ const readTheme = (): "light" | "dark" => (document.documentElement.dataset.them
 
 export function useTheme() {
   const theme = useSyncExternalStore(subscribeTheme, readTheme, () => "light" as const);
-  const toggle = () => {
+  /** Мавзӯъро иваз мекунад; агар браузер View Transitions дошта бошад — мавзӯи нав ҳамчун доира аз тугма паҳн мешавад. */
+  const toggle = (e?: React.MouseEvent) => {
     const next = theme === "dark" ? "light" : "dark";
-    document.documentElement.dataset.theme = next;
-    try {
-      localStorage.setItem("fh-theme", next);
-    } catch {}
-    window.dispatchEvent(new Event(THEME_EVENT));
+    const apply = () => {
+      document.documentElement.dataset.theme = next;
+      try {
+        localStorage.setItem("fh-theme", next);
+      } catch {}
+      window.dispatchEvent(new Event(THEME_EVENT));
+    };
+    const doc = document as Document & { startViewTransition?: (cb: () => void) => { ready: Promise<void> } };
+    if (!doc.startViewTransition || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return apply();
+    const x = e?.clientX ?? window.innerWidth - 40;
+    const y = e?.clientY ?? 32;
+    const r = Math.hypot(Math.max(x, window.innerWidth - x), Math.max(y, window.innerHeight - y));
+    doc
+      .startViewTransition(apply)
+      .ready.then(() =>
+        document.documentElement.animate(
+          { clipPath: [`circle(0px at ${x}px ${y}px)`, `circle(${r}px at ${x}px ${y}px)`] },
+          { duration: 550, easing: "cubic-bezier(0.2, 0.7, 0.2, 1)", pseudoElement: "::view-transition-new(root)" },
+        ),
+      )
+      .catch(() => {});
   };
   return { theme, toggle };
 }
@@ -181,7 +198,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     return (
       <>
         <div className="grid min-h-screen place-items-center">
-          <div className="brand-gradient size-12 animate-pulse rounded-2xl" />
+          <div className="relative grid size-20 place-items-center">
+            <div className="spin-ring absolute inset-0" />
+            <div className="pop brand-gradient grid size-12 place-items-center rounded-2xl text-2xl shadow-lg shadow-red-500/30">🍗</div>
+          </div>
         </div>
         <div hidden>{children}</div>
       </>
@@ -216,8 +236,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                     <Link
                       key={n.href}
                       href={n.href}
+                      style={{ animationDelay: `${80 + all.indexOf(n) * 35}ms` }}
                       className={cn(
-                        "group flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition",
+                        "slide-in-left group flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition",
                         active ? "nav-active text-white" : "text-white/55 hover:bg-white/5 hover:text-white",
                       )}
                     >
@@ -231,7 +252,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                       </span>
                       {tr(n.label)}
                       {n.href === "/messages" && unread > 0 && (
-                        <span className="brand-gradient ml-auto grid h-5 min-w-5 place-items-center rounded-full px-1.5 text-[11px] font-bold text-white">
+                        <span key={unread} className="pop brand-gradient ml-auto grid h-5 min-w-5 place-items-center rounded-full px-1.5 text-[11px] font-bold text-white">
                           {unread}
                         </span>
                       )}
@@ -300,12 +321,15 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               aria-label={theme === "dark" ? tr("Мавзӯи равшан") : tr("Мавзӯи торик")}
               title={theme === "dark" ? tr("Равшан") : tr("Торик")}
             >
-              {theme === "dark" ? <Sun className="size-5" /> : <Moon className="size-5" />}
+              <span key={theme} className="pop grid place-items-center">
+                {theme === "dark" ? <Sun className="size-5" /> : <Moon className="size-5" />}
+              </span>
             </button>
           </div>
         </div>
       </header>
 
+      <div key={`progress-${pathname}`} className="route-progress" aria-hidden />
       <main key={pathname} className="page-enter mx-auto max-w-[1400px] px-4 pt-6 pb-28 sm:px-6 lg:px-10 lg:pt-8 lg:pb-12">
         {children}
       </main>
@@ -318,7 +342,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <Link
               key={n.href}
               href={n.href}
-              className={cn("flex flex-1 flex-col items-center gap-1 py-2.5 text-[10px] font-semibold", active ? "text-brand" : "text-muted")}
+              className={cn(
+                "flex flex-1 flex-col items-center gap-1 py-2.5 text-[10px] font-semibold transition-colors",
+                active ? "tab-active text-brand" : "text-muted",
+              )}
             >
               <n.icon className="size-5" />
               {tr(n.short)}

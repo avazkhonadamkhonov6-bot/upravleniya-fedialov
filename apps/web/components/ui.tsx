@@ -2,7 +2,7 @@
 
 import { phoneDigits, telegramLink, whatsappLink } from "@filialhub/shared";
 import { Loader2, Mail, Phone, X } from "lucide-react";
-import { useEffect } from "react";
+import { useEffect, useRef, useState } from "react";
 import { formatMoney, locale, tr } from "@/lib/i18n";
 
 export function cn(...c: (string | false | null | undefined)[]) {
@@ -31,13 +31,13 @@ export function PageHeader({
   return (
     <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
       <div className="flex gap-3">
-        <span className="brand-gradient mt-1 w-1.5 shrink-0 rounded-full sm:mt-1.5" aria-hidden />
-        <div>
+        <span className="bar-grow brand-gradient mt-1 w-1.5 shrink-0 rounded-full sm:mt-1.5" aria-hidden />
+        <div className="title-in">
           <h1 className="text-2xl font-extrabold tracking-tight text-ink sm:text-3xl">{title}</h1>
           {subtitle && <p className="mt-1 text-sm text-muted">{subtitle}</p>}
         </div>
       </div>
-      {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
+      {actions && <div className="rise flex flex-wrap items-center gap-2" style={{ animationDelay: "120ms" }}>{actions}</div>}
     </div>
   );
 }
@@ -278,11 +278,41 @@ export function ErrorBox({ message }: { message: string | null | undefined }) {
 export function Empty({ icon, title, text }: { icon?: React.ReactNode; title: string; text?: string }) {
   return (
     <div className="flex flex-col items-center justify-center py-14 text-center">
-      <div className="mb-3 text-4xl">{icon ?? "🍃"}</div>
+      <div className="empty-float mb-3 text-4xl">{icon ?? "🍃"}</div>
       <p className="font-semibold text-ink">{title}</p>
       {text && <p className="mt-1 max-w-sm text-sm text-muted">{text}</p>}
     </div>
   );
+}
+
+/**
+ * Рақам аз қимати пешина то қимати нав «медавад» (0,9 сония, суст шуда).
+ * Агар корбар аниматсияро хомӯш карда бошад — фавран қимати охирин.
+ */
+export function CountUp({ value, format = money }: { value: number; format?: (n: number) => string }) {
+  const [shown, setShown] = useState(0);
+  const from = useRef(0);
+  useEffect(() => {
+    const start = from.current;
+    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const duration = reduce ? 0 : 900;
+    const t0 = performance.now();
+    let raf = 0;
+    const step = (t: number) => {
+      const p = duration ? Math.min((t - t0) / duration, 1) : 1;
+      const eased = 1 - Math.pow(1 - p, 3);
+      const n = start + (value - start) * eased;
+      setShown(p < 1 ? Math.round(n) : value);
+      if (p < 1) raf = requestAnimationFrame(step);
+      else from.current = value;
+    };
+    raf = requestAnimationFrame(step);
+    return () => {
+      cancelAnimationFrame(raf);
+      from.current = value;
+    };
+  }, [value]);
+  return <>{format(shown)}</>;
 }
 
 export function Skeleton({ className }: { className?: string }) {

@@ -14,7 +14,7 @@ import { useState } from "react";
 import { qs } from "@/lib/api";
 import { useApi } from "@/lib/use-api";
 import { SalesChart } from "./charts-lazy";
-import { Card, CardTitle, Delta, Empty, ErrorBox, money, Segmented, Skeleton } from "./ui";
+import { Card, CardTitle, CountUp, Delta, Empty, ErrorBox, money, Segmented, Skeleton } from "./ui";
 import { tr, locale } from "@/lib/i18n";
 
 const PERIOD_OPTS: { value: Period; label: string }[] = [
@@ -60,14 +60,14 @@ function Kpi({
           {icon}
         </span>
       </div>
-      <div className="relative mt-3 text-2xl font-bold tracking-tight tabular sm:text-[26px]">{money(revenue)}</div>
+      <div className="relative mt-3 text-2xl font-bold tracking-tight tabular sm:text-[26px]"><CountUp value={revenue} /></div>
       <div className="relative mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
         <span className={accent ? "text-white/80" : "text-ink-2"}>
-          {tr("Фоида:")}{" "}<b className="tabular" style={{ color: accent ? "#8db8ff" : "var(--chart-profit)" }}>{money(profit)}</b>
+          {tr("Фоида:")}{" "}<b className="tabular" style={{ color: accent ? "#8db8ff" : "var(--chart-profit)" }}><CountUp value={profit} /></b>
         </span>
         {net !== undefined && (
           <span className={accent ? "text-white/70" : "text-muted"}>
-            {tr("соф:")}{" "}<b className={accent ? "text-white tabular" : "text-ink tabular"}>{money(net)}</b>
+            {tr("соф:")}{" "}<b className={accent ? "text-white tabular" : "text-ink tabular"}><CountUp value={net} /></b>
           </span>
         )}
       </div>
