@@ -88,7 +88,7 @@ export class ProductsService {
         unit: dto.unit?.trim() || defaultUnit(type),
       },
     });
-    this.audit.log(user, 'CREATE', 'product', p.id, `Маҳсулоти нав: ${p.emoji} ${p.name} — ${Number(p.price)} сомонӣ`);
+    this.audit.log(user, 'CREATE', 'product', p.id, `Маҳсулоти нав: ${p.name} — ${Number(p.price)} сомонӣ`);
     return toProduct(p);
   }
 
@@ -101,13 +101,13 @@ export class ProductsService {
       dto.isActive === false && before.isActive && 'пинҳон шуд',
       dto.isActive === true && !before.isActive && 'баргашт',
     ].filter(Boolean);
-    this.audit.log(user, 'UPDATE', 'product', id, `${p.emoji} ${p.name}: ${changes.length ? changes.join(', ') : 'маълумот тағйир ёфт'}`);
+    this.audit.log(user, 'UPDATE', 'product', id, `${p.name}: ${changes.length ? changes.join(', ') : 'маълумот тағйир ёфт'}`);
     return toProduct(p);
   }
 
   async remove(user: AuthUser, id: number) {
     const before = await this.ensure(user, id);
-    this.audit.log(user, 'DELETE', 'product', id, `Маҳсулот хориҷ шуд: ${before.emoji} ${before.name}`);
+    this.audit.log(user, 'DELETE', 'product', id, `Маҳсулот хориҷ шуд: ${before.name}`);
     const used = await this.prisma.orderItem.count({ where: { productId: id } });
     if (used > 0) {
       // Дар таърихи фурӯш ҳаст — танҳо аз меню пинҳон мекунем.

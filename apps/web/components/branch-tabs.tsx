@@ -4,9 +4,7 @@
 // Ҳуқуқ дар API санҷида мешавад (scopeBranch): менеҷер филиали дигарро гирифта наметавонад.
 
 import {
-  EXPENSE_EMOJI,
   EXPENSE_LABELS,
-  POSITION_EMOJI,
   SHIFT_STATE_LABELS,
   TASK_STATUSES,
   TASK_STATUS_LABELS,
@@ -26,6 +24,7 @@ import { Avatar, Badge, Button, Card, CardTitle, Empty, ErrorBox, Skeleton, cn, 
 import { qs } from "@/lib/api";
 import { useApi } from "@/lib/use-api";
 import { tr, locale } from "@/lib/i18n";
+import { ExpenseIcon, PositionIcon } from "./glyph";
 
 function Pager({ page, total, pageSize, onChange }: { page: number; total: number; pageSize: number; onChange: (p: number) => void }) {
   const pages = Math.max(1, Math.ceil(total / pageSize));
@@ -124,7 +123,7 @@ export function BranchMoneyTab({ branchId }: { branchId: number }) {
                   <tr key={e.id} className="border-t border-line hover:bg-surface-2">
                     <td className={cn(td, "whitespace-nowrap text-ink-2 tabular")}>{formatDate(e.date)}</td>
                     <td className={cn(td, "font-semibold whitespace-nowrap text-ink")}>
-                      {EXPENSE_EMOJI[e.category]} {tr(EXPENSE_LABELS[e.category])}
+                      <ExpenseIcon category={e.category} className="mr-1 inline size-4 -mt-0.5 text-muted" />{tr(EXPENSE_LABELS[e.category])}
                     </td>
                     <td className={cn(td, "text-muted")}>{e.note || "—"}</td>
                     <td className={cn(td, "text-right font-bold whitespace-nowrap text-ink tabular")}>{money(e.amount)}</td>
@@ -224,7 +223,7 @@ export function BranchScheduleTab({ branchId }: { branchId: number }) {
                       {new Date(s.startsAt).toLocaleDateString(locale(), { weekday: "short", day: "numeric", month: "short" })}
                     </td>
                     <td className={cn(td, "font-semibold text-ink")}>
-                      {s.position ? POSITION_EMOJI[s.position] : "🧑‍💼"} {s.userName}
+                      <PositionIcon position={s.position} className="mr-1 inline size-4 -mt-0.5 text-muted" />{s.userName}
                     </td>
                     <td className={cn(td, "whitespace-nowrap text-ink-2 tabular")}>
                       {time(s.startsAt)}–{time(s.endsAt)}

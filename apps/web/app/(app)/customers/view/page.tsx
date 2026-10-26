@@ -13,6 +13,7 @@ import { api } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { useApi } from "@/lib/use-api";
 import { tr, locale } from "@/lib/i18n";
+import { Glyph, Iconized, ProductIcon } from "@/components/glyph";
 
 interface Detail {
   customer: Customer;
@@ -97,7 +98,7 @@ function CustomerView() {
               [tr("💳 Чеки миёна"), money(c.avgCheck)],
             ].map(([l, v]) => (
               <div key={l} className="rounded-2xl bg-white/10 p-3 backdrop-blur">
-                <div className="text-xs text-white/60">{l}</div>
+                <div className="flex items-center gap-1 text-xs text-white/60"><Iconized text={l} /></div>
                 <div className="mt-1 text-lg font-bold tabular">{v}</div>
               </div>
             ))}
@@ -137,7 +138,7 @@ function CustomerView() {
               <span className="text-sm font-medium text-ink-2">{tr("Навиштан")}</span>
               <ContactButtons phone={c.phone} email={c.email ?? undefined} name={c.fullName} />
             </div>
-            {c.note && <p className="mt-3 rounded-xl bg-warn-soft p-3 text-sm text-warn">📝 {c.note}</p>}
+            {c.note && <p className="mt-3 rounded-xl bg-warn-soft p-3 text-sm text-warn"><Glyph e="📝" className="mr-1 inline size-4 -mt-0.5" />{c.note}</p>}
           </Card>
           <Card>
             <CardTitle>{tr("❤️ Маҳсулоти дӯстдошта")}</CardTitle>
@@ -147,10 +148,10 @@ function CustomerView() {
               <ul className="space-y-2">
                 {data.favorites.map((f, i) => (
                   <li key={f.name} className="flex items-center gap-3">
-                    <span className="grid size-10 place-items-center rounded-xl bg-surface-2 text-xl">{f.emoji}</span>
+                    <span className="grid size-10 place-items-center rounded-xl bg-surface-2 text-ink-2"><ProductIcon value={f.emoji} className="size-5" /></span>
                     <span className="flex-1 text-sm font-semibold text-ink">{f.name}</span>
                     <span className="text-sm text-muted tabular">{f.qty} {tr("дона")}</span>
-                    {i === 0 && <span className="text-base">🏆</span>}
+                    {i === 0 && <Glyph e="🏆" className="size-4 text-warn" />}
                   </li>
                 ))}
               </ul>
@@ -170,7 +171,7 @@ function CustomerView() {
               <span className="absolute top-8 bottom-8 left-[33px] w-px bg-line" />
               {data.orders.map((o) => (
                 <li key={o.id} className="relative flex gap-4 pb-5 last:pb-0">
-                  <span className="relative z-10 mt-1 grid size-7 shrink-0 place-items-center rounded-full border-2 border-surface bg-brand-soft text-xs">🧾</span>
+                  <span className="relative z-10 mt-1 grid size-7 shrink-0 place-items-center rounded-full border-2 border-surface bg-brand-soft text-brand"><Glyph e="🧾" className="size-3.5" /></span>
                   <div className="min-w-0 flex-1 rounded-2xl border border-line p-3.5">
                     <div className="flex flex-wrap items-center justify-between gap-2">
                       <div className="text-sm font-semibold text-ink">

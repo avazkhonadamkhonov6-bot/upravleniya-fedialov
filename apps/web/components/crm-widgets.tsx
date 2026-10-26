@@ -10,6 +10,7 @@ import { PriorityBadge, SEGMENT_STYLE } from "./crm";
 import { timeOf } from "./shift-button";
 import { Avatar, Card, CardTitle, Empty, Skeleton, cn } from "./ui";
 import { tr, locale } from "@/lib/i18n";
+import { Glyph, Iconized } from "./glyph";
 
 function More({ href, label = tr("Ҳама") }: { href: string; label?: string }) {
   return (
@@ -48,7 +49,7 @@ export function AttendanceWidget({ branchId }: { branchId?: number }) {
               ["🏁", s.done, tr("тамом")],
             ].map(([e, v, l]) => (
               <div key={String(l)} className="rounded-xl bg-surface-2 p-2">
-                <div className="text-sm">{e}</div>
+                <div className="flex justify-center text-muted"><Glyph e={String(e)} className="size-4" /></div>
                 <div className="text-lg font-bold text-ink tabular">{v}</div>
                 <div className="text-[11px] text-muted">{l}</div>
               </div>
@@ -98,7 +99,7 @@ export function TasksWidget({ branchId, mine }: { branchId?: number; mine?: bool
                   <div className="truncate text-sm font-semibold text-ink">{t.title}</div>
                   <div className="truncate text-xs text-muted">
                     {t.assignee?.fullName ?? tr("Бе иҷрокунанда")}
-                    {t.status === "IN_PROGRESS" && tr(" · ⚡ дар раванд")}
+                    {t.status === "IN_PROGRESS" && <Iconized text={tr(" · ⚡ дар раванд")} />}
                   </div>
                 </div>
                 <PriorityBadge priority={t.priority} />
@@ -127,7 +128,7 @@ export function CustomersWidget({ branchId }: { branchId?: number }) {
           <div className="mt-4 grid grid-cols-2 gap-2">
             {(Object.keys(SEGMENT_STYLE) as (keyof typeof SEGMENT_STYLE)[]).map((s) => (
               <div key={s} className="flex items-center gap-2 rounded-xl bg-surface-2 p-2.5">
-                <span className="text-lg">{SEGMENT_STYLE[s].emoji}</span>
+                <span className="text-ink-2"><Glyph e={SEGMENT_STYLE[s].emoji} className="size-4" /></span>
                 <span className="text-lg font-bold text-ink tabular">{data.bySegment[s]}</span>
                 <span className="truncate text-xs text-muted">{s === "VIP" ? "VIP" : s === "REGULAR" ? tr("доимӣ") : s === "NEW" ? tr("нав") : tr("хоб")}</span>
               </div>
@@ -135,7 +136,7 @@ export function CustomersWidget({ branchId }: { branchId?: number }) {
           </div>
           {data.birthdaysThisWeek.length > 0 && (
             <div className="mt-3 rounded-xl bg-warn-soft p-2.5 text-xs font-semibold text-warn">
-              🎂 {data.birthdaysThisWeek.length} {tr("зодрӯз дар 7 рӯз:")}{" "}{data.birthdaysThisWeek.slice(0, 2).map((b) => b.fullName.split(" ")[0]).join(", ")}
+              <Glyph e="🎂" className="mr-1 inline size-3.5 -mt-0.5" />{data.birthdaysThisWeek.length} {tr("зодрӯз дар 7 рӯз:")}{" "}{data.birthdaysThisWeek.slice(0, 2).map((b) => b.fullName.split(" ")[0]).join(", ")}
               {data.birthdaysThisWeek.length > 2 && " …"}
             </div>
           )}

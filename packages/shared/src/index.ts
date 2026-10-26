@@ -72,15 +72,16 @@ export const SUGGESTED_CATEGORIES: Record<BusinessType, readonly string[]> = {
   OTHER: ['Умумӣ'],
 };
 
+/** Иконкаи пешфарзи маҳсулот (номи иконкаи Lucide; дар база "icon:Номи") */
 export const DEFAULT_PRODUCT_EMOJI: Record<BusinessType, string> = {
-  RESTAURANT: '🍗',
-  GROCERY: '🛒',
-  CLOTHING: '👕',
-  PLUMBING: '🚰',
-  ELECTRONICS: '📱',
-  PHARMACY: '💊',
-  BUILDING: '🧱',
-  OTHER: '📦',
+  RESTAURANT: 'icon:Hamburger',
+  GROCERY: 'icon:Apple',
+  CLOTHING: 'icon:Shirt',
+  PLUMBING: 'icon:Droplets',
+  ELECTRONICS: 'icon:Smartphone',
+  PHARMACY: 'icon:Pill',
+  BUILDING: 'icon:BrickWall',
+  OTHER: 'icon:Package',
 };
 
 export interface Organization {
@@ -805,6 +806,8 @@ export interface OnlineOrderItem {
 export interface OnlineOrder {
   id: number;
   status: OnlineOrderStatus;
+  /** Нақд ё корт; пардохт пас аз гирифтани мол */
+  payment: Payment;
   store: { id: number; name: string; type: BusinessType };
   branch: { id: number; name: string } | null;
   client: { id: number; fullName: string; phone: string } | null;

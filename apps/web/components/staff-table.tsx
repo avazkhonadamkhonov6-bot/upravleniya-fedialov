@@ -1,6 +1,6 @@
 "use client";
 
-import { POSITION_EMOJI, POSITION_LABELS, type Branch, type Position, type User } from "@filialhub/shared";
+import { POSITION_LABELS, type Branch, type Position, type User } from "@filialhub/shared";
 import { Pencil, Plus, Search, Send } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
@@ -10,6 +10,7 @@ import { useApi } from "@/lib/use-api";
 import { UserForm } from "./forms";
 import { Avatar, Badge, Button, Card, ContactButtons, Empty, ErrorBox, Input, Modal, money, Select, Skeleton, cn } from "./ui";
 import { tr } from "@/lib/i18n";
+import { PositionIcon } from "./glyph";
 
 export function StaffTable({ fixedBranchId, compact }: { fixedBranchId?: number; compact?: boolean }) {
   const { user: me } = useAuth();
@@ -73,7 +74,7 @@ export function StaffTable({ fixedBranchId, compact }: { fixedBranchId?: number;
                 position === p ? "bg-brand-soft text-brand" : "bg-surface-2 text-ink-2 hover:text-ink",
               )}
             >
-              {POSITION_EMOJI[p]} {tr(POSITION_LABELS[p])} <b className="tabular">{counts[p]}</b>
+              <PositionIcon position={p} className="size-4" /> {tr(POSITION_LABELS[p])} <b className="tabular">{counts[p]}</b>
             </button>
           ))}
           <label className="ml-auto flex cursor-pointer items-center gap-2 text-xs text-muted">
@@ -131,7 +132,7 @@ export function StaffTable({ fixedBranchId, compact }: { fixedBranchId?: number;
                         <Badge tone="brand">{tr("🧑‍💼 Менеҷер")}</Badge>
                       ) : u.position ? (
                         <Badge>
-                          {POSITION_EMOJI[u.position]} {tr(POSITION_LABELS[u.position])}
+                          <PositionIcon position={u.position} className="mr-1 inline size-3.5 -mt-0.5" />{tr(POSITION_LABELS[u.position])}
                         </Badge>
                       ) : (
                         <Badge tone="warn">{tr("👑 Шеф")}</Badge>

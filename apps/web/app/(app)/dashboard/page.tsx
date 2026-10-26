@@ -2,25 +2,25 @@
 
 import {
   canSell,
-  POSITION_EMOJI,
   POSITION_LABELS,
   type Branch,
   type BranchRank,
   type Overview,
   type Period,
 } from "@filialhub/shared";
-import { ArrowUpRight, Building2, Receipt, ShoppingBag, Users, UtensilsCrossed, Wallet } from "lucide-react";
+import { ArrowUpRight, Building2, Receipt, ShoppingBag, Users, UtensilsCrossed, Wallet, Medal } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 import { BranchBars } from "@/components/charts-lazy";
 import { AttendanceWidget, CustomersWidget, MyShiftsWidget, TasksWidget } from "@/components/crm-widgets";
 import { ShiftButton } from "@/components/shift-button";
 import { KpiRow, MiniStat, SalesCard, StaffBreakdown, TopProducts } from "@/components/stats-panel";
-import { Card, CardTitle, ContactButtons, money, PageHeader, Segmented, Select, Skeleton } from "@/components/ui";
+import { Card, CardTitle, ContactButtons, money, PageHeader, Segmented, Select, Skeleton, cn } from "@/components/ui";
 import { qs } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { useApi } from "@/lib/use-api";
 import { tr, locale } from "@/lib/i18n";
+import { PositionIcon, stripEmoji } from "@/components/glyph";
 
 function greeting() {
   const h = new Date().getHours();
@@ -63,7 +63,7 @@ function ManagerDashboard() {
               className="w-60"
               aria-label={tr("Филиал")}
             >
-              <option value="">{tr("🏢 Ҳамаи филиалҳо")}</option>
+              <option value="">{stripEmoji(tr("🏢 Ҳамаи филиалҳо"))}</option>
               {branches?.map((b) => (
                 <option key={b.id} value={b.id}>
                   {b.name}
@@ -119,7 +119,7 @@ function ManagerDashboard() {
 function BranchRanking() {
   const [period, setPeriod] = useState<Period>("day");
   const { data } = useApi<BranchRank[]>(`/stats/branches?period=${period}`);
-  const medals = ["🥇", "🥈", "🥉"];
+  const medals = ["text-amber-500", "text-slate-400", "text-orange-700"];
   const total = data?.reduce((s, r) => ({ rev: s.rev + r.revenue, prof: s.prof + r.profit }), { rev: 0, prof: 0 });
   return (
     <Card>
@@ -166,7 +166,7 @@ function BranchRanking() {
                   <tr key={r.branchId} className="border-t border-line">
                     <td className="px-2 py-3">
                       <Link href={`/branches/view?id=${r.branchId}`} className="flex items-center gap-2 font-semibold text-ink hover:text-brand">
-                        <span className="w-6 text-center">{medals[i] ?? <span className="text-muted">{i + 1}</span>}</span>
+                        <span className="w-6 text-center">{medals[i] ? <Medal className={cn("mx-auto size-5", medals[i])} aria-label={String(i + 1)} /> : <span className="text-muted">{i + 1}</span>}</span>
                         <span>
                           {r.name.replace("FilialHub ", "")}
                           <span className="block text-xs font-normal text-muted">{r.city}</span>
@@ -242,7 +242,7 @@ function StaffHome() {
       <div className="grid grid-cols-[minmax(0,1fr)] gap-6 lg:grid-cols-2">
         <div className="rise relative overflow-hidden rounded-[24px] bg-[#170d0f] p-7 text-white shadow-card">
           <div className="absolute -top-20 -right-20 size-64 rounded-full bg-[#e4002b] opacity-40 blur-3xl" />
-          <div className="relative text-5xl">{u.position ? POSITION_EMOJI[u.position] : "👤"}</div>
+          <div className="relative grid size-16 place-items-center rounded-2xl bg-white/10"><PositionIcon position={u.position} className="size-9" /></div>
           <div className="relative mt-4 text-sm text-white/60">{tr("Вазифаи шумо")}</div>
           <div className="relative text-3xl font-bold">{u.position ? tr(POSITION_LABELS[u.position]) : tr("Корманд")}</div>
           <div className="relative mt-6 grid grid-cols-2 gap-3 text-sm">

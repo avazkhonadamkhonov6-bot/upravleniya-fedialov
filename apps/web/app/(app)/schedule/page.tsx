@@ -1,7 +1,6 @@
 "use client";
 
 import {
-  POSITION_EMOJI,
   POSITION_LABELS,
   SHIFT_STATE_LABELS,
   type AttendanceSummary,
@@ -19,6 +18,7 @@ import { api, qs } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { useApi } from "@/lib/use-api";
 import { tr, locale } from "@/lib/i18n";
+import { Glyph, Iconized, PositionIcon, stripEmoji } from "@/components/glyph";
 
 const DAYS = ["Дш", "Сш", "Чш", "Пш", "Ҷм", "Шб", "Яш"];
 const DAY_NAMES = ["Душанбе", "Сешанбе", "Чоршанбе", "Панҷшанбе", "Ҷумъа", "Шанбе", "Якшанбе"];
@@ -141,7 +141,7 @@ function TeamSchedule() {
         {(
           [
             [tr("Имрӯз смена"), summary?.planned, "🗓", ""],
-            [tr("Дар кор"), summary?.onShift, "🟢", "text-good"],
+            [tr("Дар кор"), summary?.onShift, "✅", "text-good"],
             [tr("Дер омаданд"), summary?.late, "⏰", "text-warn"],
             [tr("Наомаданд"), summary?.absent, "🚫", "text-brand"],
             [tr("Тамом карданд"), summary?.done, "🏁", ""],
@@ -149,7 +149,7 @@ function TeamSchedule() {
         ).map(([label, value, emoji, cls]) => (
           <div key={label} className="card p-4">
             <div className="flex items-center justify-between text-sm text-muted">
-              {label} <span>{emoji}</span>
+              {label} <Glyph e={emoji} className={cn("size-4", cls || "text-muted")} />
             </div>
             <div className={cn("mt-1 text-2xl font-bold text-ink tabular", cls)}>{value ?? "—"}</div>
           </div>
@@ -192,7 +192,7 @@ function TeamSchedule() {
                           <div className="min-w-0">
                             <div className="truncate font-semibold text-ink">{p.fullName}</div>
                             <div className="text-xs text-muted">
-                              {p.position ? `${POSITION_EMOJI[p.position]} ${tr(POSITION_LABELS[p.position])}` : tr("🧑‍💼 Менеҷер")}
+                              <span className="inline-flex items-center gap-1"><PositionIcon position={p.position} className="size-3.5" />{p.position ? tr(POSITION_LABELS[p.position]) : stripEmoji(tr("🧑‍💼 Менеҷер"))}</span>
                             </div>
                           </div>
                         </div>
@@ -214,7 +214,7 @@ function TeamSchedule() {
                                     {timeOf(s.startsAt)}–{timeOf(s.endsAt)}
                                   </div>
                                   <div className="text-[10px] font-medium opacity-80">
-                                    {s.lateMinutes ? tr("⏰ +{0} дақ", s.lateMinutes) : tr(SHIFT_STATE_LABELS[s.state])}
+                                    {s.lateMinutes ? <Iconized text={tr("⏰ +{0} дақ", s.lateMinutes)} /> : tr(SHIFT_STATE_LABELS[s.state])}
                                   </div>
                                 </button>
                               ))
@@ -373,7 +373,7 @@ function ShiftForm({ shift, userId, day, people, onDone }: { shift?: Shift; user
               f.start === t.start && f.end === t.end ? "border-brand bg-brand-soft text-brand" : "border-line text-ink-2 hover:bg-surface-2",
             )}
           >
-            {tr(t.label)} {t.start}–{t.end}
+            <Iconized text={tr(t.label)} /> {t.start}–{t.end}
           </button>
         ))}
       </div>
@@ -436,14 +436,14 @@ function MySchedule() {
                 {!shifts ? (
                   <Skeleton className="h-12" />
                 ) : cell.length === 0 ? (
-                  <div className="rounded-xl bg-surface-2 py-3 text-center text-xs text-muted">{tr("🌴 Истироҳат")}</div>
+                  <div className="rounded-xl bg-surface-2 py-3 text-center text-xs text-muted"><Iconized text={tr("🌴 Истироҳат")} /></div>
                 ) : (
                   cell.map((s) => (
                     <div key={s.id} className={cn("rounded-xl px-2.5 py-2 ring-1", STATE_STYLE[s.state])}>
                       <div className="text-sm font-bold tabular">
                         {timeOf(s.startsAt)}–{timeOf(s.endsAt)}
                       </div>
-                      <div className="text-[11px] font-medium">{s.lateMinutes ? tr("⏰ +{0} дақ", s.lateMinutes) : tr(SHIFT_STATE_LABELS[s.state])}</div>
+                      <div className="text-[11px] font-medium">{s.lateMinutes ? <Iconized text={tr("⏰ +{0} дақ", s.lateMinutes)} /> : tr(SHIFT_STATE_LABELS[s.state])}</div>
                     </div>
                   ))
                 )}

@@ -535,7 +535,7 @@ async function seedCrm(ctx: {
   console.log('🕓 Таърихи амалҳо ва огоҳиномаҳо…');
   const products = await prisma.product.findMany({ where: { organizationId: ORG }, take: 4 });
   const audit = [
-    ...products.map((p, i) => ({ userId: chefId, action: 'UPDATE', entity: 'product', entityId: p.id, summary: `${p.emoji} ${p.name}: нарх: ${Number(p.price) - 2} → ${Number(p.price)}`, createdAt: new Date(now - (i + 2) * DAY) })),
+    ...products.map((p, i) => ({ userId: chefId, action: 'UPDATE', entity: 'product', entityId: p.id, summary: `${p.name}: нарх: ${Number(p.price) - 2} → ${Number(p.price)}`, createdAt: new Date(now - (i + 2) * DAY) })),
     ...branches.map((b, i) => ({ userId: chefId, action: 'UPDATE', entity: 'branch', entityId: b.id, branchId: b.id, summary: `Филиал тағйир ёфт: ${b.name}`, createdAt: new Date(now - (i + 8) * DAY) })),
     ...branches.map((b, i) => ({ userId: managerByBranch.get(b.id)!, action: 'CREATE', entity: 'task', branchId: b.id, summary: 'Вазифаи нав: «Инвентаризатсияи анбор»', createdAt: new Date(now - (i + 1) * 5 * H) })),
   ];
@@ -605,6 +605,7 @@ async function seedMarket(passwordHash: string) {
         organizationId: o.org,
         branchId: o.branch,
         status: o.status,
+        payment: o.status === 'DELIVERING' ? 'CARD' : 'CASH',
         address: client.address,
         phone: client.phone,
         total: Math.round(total * 100) / 100,

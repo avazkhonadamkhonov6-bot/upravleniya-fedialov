@@ -23,6 +23,7 @@ import { qs } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { useApi } from "@/lib/use-api";
 import { tr, locale } from "@/lib/i18n";
+import { Glyph, Iconized } from "@/components/glyph";
 
 const SORTS = [
   { value: "spent", label: "Бештар харид кардааст" },
@@ -108,7 +109,7 @@ export default function CustomersPage() {
               )}
             >
               <div className="flex items-center justify-between">
-                <span className="text-2xl">{SEGMENT_STYLE[s].emoji}</span>
+                <span className="grid size-9 place-items-center rounded-xl bg-surface-2 text-ink-2"><Glyph e={SEGMENT_STYLE[s].emoji} className="size-5" /></span>
                 <span className="text-xs font-semibold text-muted tabular">{pct}%</span>
               </div>
               <div className="mt-2 text-2xl font-bold text-ink tabular">{stats ? count : "—"}</div>
@@ -191,7 +192,7 @@ export default function CustomersPage() {
                         <td className="px-3 py-2.5 text-right font-semibold whitespace-nowrap text-ink tabular">{money(c.totalSpent)}</td>
                         <td className="px-3 py-2.5 text-right text-ink-2 tabular">{c.visits}</td>
                         <td className="px-3 py-2.5 text-right whitespace-nowrap tabular">
-                          <span className="rounded-full bg-warn-soft px-2 py-0.5 text-xs font-bold text-warn">🎁 {c.points}</span>
+                          <span className="rounded-full bg-warn-soft px-2 py-0.5 text-xs font-bold text-warn"><Glyph e="🎁" className="mr-0.5 inline size-3 -mt-0.5" />{c.points}</span>
                         </td>
                         <td className="px-3 py-2.5 whitespace-nowrap text-ink-2">{c.lastVisitAt ? timeAgo(c.lastVisitAt) : "—"}</td>
                         <td className="px-3 py-2.5" onClick={(e) => e.stopPropagation()}>
@@ -245,7 +246,7 @@ export default function CustomersPage() {
             </ul>
           )}
           <p className="mt-4 rounded-xl bg-surface-2 p-3 text-xs text-muted">
-            {tr("💡 Ба мизоҷон дар рӯзи зодрӯз тавассути WhatsApp табрик ва тахфиф фиристед — ин сабаби бозгашти онҳо мешавад.")}
+            <Iconized text={tr("💡 Ба мизоҷон дар рӯзи зодрӯз тавассути WhatsApp табрик ва тахфиф фиристед — ин сабаби бозгашти онҳо мешавад.")} />
           </p>
         </Card>
       </div>

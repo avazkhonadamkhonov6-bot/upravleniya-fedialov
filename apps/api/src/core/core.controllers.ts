@@ -137,7 +137,7 @@ export class SearchController {
       ...products.map((p) => ({
         type: 'product' as const,
         id: p.id,
-        title: `${p.emoji} ${p.name}`,
+        title: p.name,
         subtitle: `${p.category} · ${Number(p.price)} сомонӣ`,
         href: '/products',
       })),

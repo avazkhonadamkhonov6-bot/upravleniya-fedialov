@@ -10,6 +10,7 @@ import { Button, ErrorBox, Field, Input, cn } from "@/components/ui";
 import { useAuth } from "@/lib/auth";
 import { LangSwitcher } from "@/components/lang-switcher";
 import { tr } from "@/lib/i18n";
+import { Glyph } from "@/components/glyph";
 
 const DEMO = [
   { email: "chef@filialhub.tj", label: "Шеф", desc: "Ҳамаи филиалҳо", icon: Crown },
@@ -88,7 +89,9 @@ export default function LoginPage() {
           <div key={emoji} className={cn("pointer-events-none absolute select-none", pos)} aria-hidden>
             <div className="reveal-up" style={{ animationDelay: `${0.4 + delay / 3}s` }}>
               <div className="float-y drop-shadow-[0_12px_24px_rgba(228,0,43,0.35)]" style={{ "--r": `${r}deg`, animationDelay: `${delay}s` } as React.CSSProperties}>
-                {emoji}
+                <span className="grid size-16 place-items-center rounded-2xl border border-white/15 bg-white/10 text-white backdrop-blur-md">
+                  <Glyph e={emoji} className="size-8" />
+                </span>
               </div>
             </div>
           </div>
@@ -120,7 +123,7 @@ export default function LoginPage() {
                 className="reveal-up rounded-2xl border border-white/10 bg-white/5 p-4 backdrop-blur transition duration-300 hover:-translate-y-1 hover:border-white/25 hover:bg-white/10"
                 style={{ animationDelay: `${0.55 + i * 0.1}s` }}
               >
-                <div className="text-2xl">{e}</div>
+                <div className="grid size-10 place-items-center rounded-xl bg-white/10 text-white"><Glyph e={e} className="size-5" /></div>
                 <div className="mt-2 text-sm font-semibold">{t}</div>
                 <div className="text-xs text-white/50">{d}</div>
               </div>
@@ -142,7 +145,7 @@ export default function LoginPage() {
           <div>
             <h2 className="text-3xl font-bold tracking-tight text-ink">
               {hello}
-              {wave && <span className="wave">{wave}</span>}
+              {wave && <span className="wave inline-block align-middle text-brand"><Glyph e={wave} className="size-8" /></span>}
             </h2>
             <p className="mt-2 text-muted">{tr("Барои идома ба ҳисоби худ ворид шавед")}</p>
           </div>

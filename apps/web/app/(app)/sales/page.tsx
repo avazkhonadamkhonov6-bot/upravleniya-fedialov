@@ -1,7 +1,7 @@
 "use client";
 
 import { PAYMENT_LABELS, type Branch, type Order, type Paginated, type Period, type TimePoint } from "@filialhub/shared";
-import { ChevronDown, ChevronLeft, ChevronRight, Plus } from "lucide-react";
+import { Banknote, ChevronDown, ChevronLeft, ChevronRight, CreditCard, Plus } from "lucide-react";
 import Link from "next/link";
 import { Fragment, useState } from "react";
 import { bucketLabel } from "@/components/chart-label";
@@ -11,6 +11,7 @@ import { qs } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { useApi } from "@/lib/use-api";
 import { tr, locale } from "@/lib/i18n";
+import { Glyph, ProductIcon } from "@/components/glyph";
 
 const GRAN: { value: Period; label: string }[] = [
   { value: "day", label: "Рӯзона" },
@@ -177,10 +178,10 @@ function OrdersList({ branchId, showProfit, showBranch }: { branchId?: number; s
                       {showBranch && <td className="px-3 py-3 text-ink-2">{o.branchName.replace("FilialHub ", "")}</td>}
                       <td className="px-3 py-3 text-ink-2">
                         {o.userName}
-                        {o.customerName && <span className="block text-xs font-medium text-warn">🎁 {o.customerName}{o.pointsUsed ? ` · −${o.pointsUsed}` : ""}</span>}
+                        {o.customerName && <span className="block text-xs font-medium text-warn"><Glyph e="🎁" className="mr-0.5 inline size-3 -mt-0.5" />{o.customerName}{o.pointsUsed ? ` · −${o.pointsUsed}` : ""}</span>}
                       </td>
                       <td className="px-3 py-3">
-                        <Badge tone={o.payment === "CARD" ? "blue" : "neutral"}>{o.payment === "CARD" ? "💳" : "💵"} {tr(PAYMENT_LABELS[o.payment])}</Badge>
+                        <Badge tone={o.payment === "CARD" ? "blue" : "neutral"}>{o.payment === "CARD" ? <CreditCard className="size-3" /> : <Banknote className="size-3" />} {tr(PAYMENT_LABELS[o.payment])}</Badge>
                       </td>
                       <td className="px-3 py-3 text-right font-bold whitespace-nowrap text-ink tabular">{money(o.total)}</td>
                       {showProfit && (
@@ -198,7 +199,7 @@ function OrdersList({ branchId, showProfit, showBranch }: { branchId?: number; s
                           <div className="flex flex-wrap gap-2">
                             {o.items.map((i) => (
                               <span key={i.productId} className="rounded-xl bg-surface px-3 py-1.5 text-xs font-medium text-ink ring-1 ring-line">
-                                {i.emoji} {i.name} × {i.qty} {tr(i.unit)} = <b className="tabular">{money(i.unitPrice * i.qty)}</b>
+                                <ProductIcon value={i.emoji} className="mr-1 inline size-3.5 -mt-0.5" />{i.name} × {i.qty} {tr(i.unit)} = <b className="tabular">{money(i.unitPrice * i.qty)}</b>
                               </span>
                             ))}
                           </div>

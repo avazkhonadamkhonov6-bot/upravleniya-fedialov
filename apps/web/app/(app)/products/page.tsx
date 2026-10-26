@@ -8,10 +8,11 @@ import { Badge, Button, Card, Empty, ErrorBox, Modal, money, PageHeader, Skeleto
 import { useAuth, useBusiness } from "@/lib/auth";
 import { useApi } from "@/lib/use-api";
 import { tr } from "@/lib/i18n";
+import { ProductIcon } from "@/components/glyph";
 
 export default function ProductsPage() {
   const { user } = useAuth();
-  const { restaurant } = useBusiness();
+  const { restaurant, type } = useBusiness();
   const isChef = user?.role === "CHEF";
   const showCost = user?.role !== "STAFF";
   const { data, error, reload } = useApi<Product[]>("/products");
@@ -53,7 +54,7 @@ export default function ProductsPage() {
           <div className="card p-5">
             <div className="text-sm text-muted">{tr("Фоиданоктарин (1 дона)")}</div>
             <div className="mt-1 truncate text-xl font-bold text-ink">
-              {best ? `${best.emoji} ${best.name}` : "—"}
+              {best ? best.name : "—"}
             </div>
             {best && <div className="text-sm text-muted">{money(best.profit)}</div>}
           </div>
@@ -108,7 +109,7 @@ export default function ProductsPage() {
                   <tr key={p.id} className={cn("border-t border-line hover:bg-surface-2", !p.isActive && "opacity-45")}>
                     <td className="px-3 py-3">
                       <div className="flex items-center gap-3">
-                        <span className="grid size-10 place-items-center rounded-xl bg-surface-2 text-xl">{p.emoji}</span>
+                        <span className="grid size-10 place-items-center rounded-xl bg-brand-soft text-brand"><ProductIcon value={p.emoji} type={type} className="size-5" /></span>
                         <span className="font-semibold text-ink">{p.name}</span>
                         {!p.isActive && <Badge tone="warn">{tr("пинҳон")}</Badge>}
                       </div>

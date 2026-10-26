@@ -18,11 +18,13 @@ import { ArrayMinSize, IsIn, IsInt, IsNumber, IsOptional, IsString, Max, MaxLeng
 import {
   BUSINESS_TYPES,
   ONLINE_NEXT,
+  PAYMENTS,
   ONLINE_STATUS_LABELS,
   ONLINE_STATUSES,
   type BusinessType,
   type OnlineOrder,
   type OnlineOrderStatus,
+  type Payment,
   type StoreDetail,
   type StoreSummary,
 } from '@filialhub/shared';
@@ -61,6 +63,10 @@ export class PlaceOrderDto {
   @IsOptional() @IsString() @MaxLength(300)
   note?: string;
 
+  /** Нақд ё корт — пул ҳангоми гирифтани мол дода мешавад */
+  @IsIn(PAYMENTS, { message: 'Тарзи пардохтро интихоб кунед' })
+  payment: Payment;
+
   @ValidateNested({ each: true })
   @Type(() => CartItemDto)
   @ArrayMinSize(1, { message: 'Сабад холӣ аст' })
@@ -98,6 +104,7 @@ function toOnline(o: OrderRow): OnlineOrder {
   return {
     id: o.id,
     status: o.status,
+    payment: o.payment,
     store: { id: o.organization.id, name: o.organization.name, type: o.organization.type as BusinessType },
     branch: o.branch,
     client: o.client,
@@ -213,6 +220,7 @@ export class ShopService {
         address: dto.address.trim(),
         phone: dto.phone.trim(),
         note: dto.note?.trim() ?? '',
+        payment: dto.payment,
         total,
         items: { create: items },
       },
@@ -220,7 +228,7 @@ export class ShopService {
     });
     void this.alerts.notifyBranch(
       branch.id,
-      { icon: '🛍️', title: `Фармоиши онлайн #${order.id}`, body: `${client.fullName} · ${total} сомонӣ`, link: '/online' },
+      { icon: '🛍️', title: `Фармоиши онлайн #${order.id}`, body: `${client.fullName} · ${total} сомонӣ · ${dto.payment === 'CARD' ? 'корт' : 'нақд'}`, link: '/online' },
       { includeChefs: true },
     );
     return toOnline(order);
@@ -275,7 +283,7 @@ export class ShopService {
           .map((i) => ({ productId: i.productId!, qty: i.qty, unitPrice: i.unitPrice, unitCost: costs.find((c) => c.id === i.productId)?.cost ?? 0 }));
         const totalCost = r2(lines.reduce((s, l) => s + Number(l.unitCost) * Number(l.qty), 0));
         const sale = await tx.order.create({
-          data: { branchId: o.branchId, userId: user.id, total: o.total, totalCost, payment: 'CASH', items: { create: lines } },
+          data: { branchId: o.branchId, userId: user.id, total: o.total, totalCost, payment: o.payment, items: { create: lines } },
         });
         saleOrderId = sale.id;
       }

@@ -421,6 +421,8 @@ model OnlineOrder {
   branchId       Int?
   branch         Branch?           @relation(fields: [branchId], references: [id], onDelete: SetNull)
   status         OnlineOrderStatus @default(NEW)
+  /// Тарзи пардохт, ки мизоҷ интихоб кард; пул ҳангоми гирифтани мол дода мешавад
+  payment        Payment           @default(CASH)
   address        String
   phone          String
   note           String            @default("")

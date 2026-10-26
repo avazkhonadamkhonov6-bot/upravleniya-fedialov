@@ -8,6 +8,7 @@ import { api } from "@/lib/api";
 import { useApi } from "@/lib/use-api";
 import { cn } from "./ui";
 import { tr, locale } from "@/lib/i18n";
+import { Iconized } from "./glyph";
 
 export function timeAgo(iso: string) {
   const s = Math.max(0, (Date.now() - new Date(iso).getTime()) / 1000);
@@ -79,7 +80,7 @@ export function AlertsBell({ dark }: { dark?: boolean }) {
             )}
           </div>
           <ul className="max-h-[60vh] overflow-y-auto">
-            {!data?.items.length && <li className="px-4 py-10 text-center text-sm text-muted">{tr("📭 Огоҳинома нест")}</li>}
+            {!data?.items.length && <li className="px-4 py-10 text-center text-sm text-muted"><Iconized text={tr("📭 Огоҳинома нест")} /></li>}
             {data?.items.map((a) => (
               <li key={a.id}>
                 <button

@@ -2,7 +2,6 @@
 
 import {
   EXPENSE_CATEGORIES,
-  EXPENSE_EMOJI,
   EXPENSE_LABELS,
   type Branch,
   type Expense,
@@ -19,6 +18,7 @@ import { api, qs } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { useApi } from "@/lib/use-api";
 import { tr } from "@/lib/i18n";
+import { ExpenseIcon, Glyph } from "@/components/glyph";
 
 const MONTHS = ["Январ", "Феврал", "Март", "Апрел", "Май", "Июн", "Июл", "Август", "Сентябр", "Октябр", "Ноябр", "Декабр"];
 const monthLabel = (m: string) => `${tr(MONTHS[Number(m.slice(5, 7)) - 1])} ${m.slice(0, 4)}`;
@@ -107,7 +107,7 @@ export default function ExpensesPage() {
             ).map(([label, value, emoji, cls], i) => (
               <div key={label} className="rise card p-5" style={{ animationDelay: `${i * 50}ms` }}>
                 <div className="flex items-center justify-between text-sm text-muted">
-                  {label} <span className="text-lg">{emoji}</span>
+                  {label} <span className="grid size-8 place-items-center rounded-lg bg-surface-2 text-ink-2"><Glyph e={emoji} className="size-4" /></span>
                 </div>
                 <div className={cn("mt-2 text-xl font-bold text-ink tabular", cls)}>{money(value)}</div>
               </div>
@@ -115,7 +115,7 @@ export default function ExpensesPage() {
             <div className="rise relative overflow-hidden rounded-[20px] bg-[#170d0f] p-5 text-white shadow-card" style={{ animationDelay: "200ms" }}>
               <div className="absolute -top-12 -right-12 size-40 rounded-full bg-[#2563eb] opacity-40 blur-3xl" />
               <div className="relative flex items-center justify-between text-sm text-white/60">
-                {tr("Фоидаи соф")}{" "}<span className="text-lg">🏆</span>
+                {tr("Фоидаи соф")}{" "}<Glyph e="🏆" className="size-5" />
               </div>
               <div className={cn("relative mt-2 text-2xl font-extrabold tabular", sel.netProfit < 0 ? "text-[#ff8a8a]" : "text-[#8db8ff]")}>{money(sel.netProfit)}</div>
               <div className="relative text-xs text-white/50">
@@ -172,7 +172,7 @@ export default function ExpensesPage() {
                       <li key={c}>
                         <div className="flex items-center justify-between text-sm">
                           <span className="font-semibold text-ink">
-                            {EXPENSE_EMOJI[c]} {tr(EXPENSE_LABELS[c])}
+                            <ExpenseIcon category={c} className="size-4 shrink-0" /> {tr(EXPENSE_LABELS[c])}
                           </span>
                           <span className="text-ink tabular">
                             {money(sel.byCategory[c])} <span className="text-xs text-muted">· {pct.toFixed(0)}%</span>
@@ -217,7 +217,7 @@ export default function ExpensesPage() {
                   category === c ? "bg-brand-soft text-brand" : "bg-surface-2 text-ink-2 hover:text-ink",
                 )}
               >
-                {c ? `${EXPENSE_EMOJI[c]} ${tr(EXPENSE_LABELS[c])}` : tr("Ҳама")}
+                {c ? <><ExpenseIcon category={c} className="size-3.5" /> {tr(EXPENSE_LABELS[c])}</> : tr("Ҳама")}
               </button>
             ))}
           </div>
@@ -246,7 +246,7 @@ export default function ExpensesPage() {
                     <tr key={e.id} className="border-t border-line hover:bg-surface-2">
                       <td className="px-3 py-3 whitespace-nowrap text-ink-2 tabular">{formatDate(e.date)}</td>
                       <td className="px-3 py-3 font-semibold whitespace-nowrap text-ink">
-                        {EXPENSE_EMOJI[e.category]} {tr(EXPENSE_LABELS[e.category])}
+                        <ExpenseIcon category={e.category} className="mr-1 inline size-4 -mt-0.5 text-muted" />{tr(EXPENSE_LABELS[e.category])}
                       </td>
                       {isChef && !branchId && <td className="px-3 py-3 text-ink-2">{e.branchName.replace("FilialHub ", "")}</td>}
                       <td className="px-3 py-3 text-muted">
@@ -354,7 +354,7 @@ function ExpenseForm({ expense, branches, defaultBranchId, onDone }: { expense?:
                 f.category === c ? "border-brand bg-brand-soft text-brand" : "border-line bg-surface-2 text-ink-2",
               )}
             >
-              <span className="mr-1">{EXPENSE_EMOJI[c]}</span> {tr(EXPENSE_LABELS[c])}
+              <ExpenseIcon category={c} className="mr-1 inline size-4 -mt-0.5" /> {tr(EXPENSE_LABELS[c])}
             </button>
           ))}
         </div>

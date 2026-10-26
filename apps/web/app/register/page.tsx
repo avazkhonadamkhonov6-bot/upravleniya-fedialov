@@ -1,6 +1,6 @@
 "use client";
 
-import { BUSINESS_TYPE_EMOJI, BUSINESS_TYPE_LABELS, BUSINESS_TYPES, type BusinessType } from "@filialhub/shared";
+import { BUSINESS_TYPE_LABELS, BUSINESS_TYPES, type BusinessType } from "@filialhub/shared";
 import { ArrowLeft, ArrowRight, Crown, ShoppingCart } from "lucide-react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -10,6 +10,7 @@ import { Logo } from "@/components/shell";
 import { Button, ErrorBox, Field, Input, cn } from "@/components/ui";
 import { useAuth } from "@/lib/auth";
 import { tr } from "@/lib/i18n";
+import { BusinessIcon } from "@/components/glyph";
 
 type Role = "chef" | "client";
 
@@ -86,6 +87,7 @@ function Register() {
           ).map((r) => (
             <button
               key={r.value}
+              data-tilt="10"
               type="button"
               role="tab"
               aria-selected={role === r.value}
@@ -94,7 +96,7 @@ function Register() {
                 setError(null);
               }}
               className={cn(
-                "card flex cursor-pointer flex-col items-start gap-2 p-4 text-left transition hover:-translate-y-0.5",
+                "card flex cursor-pointer flex-col items-start gap-2 p-4 text-left",
                 role === r.value && "border-brand ring-4 ring-brand/15",
               )}
             >
@@ -123,7 +125,7 @@ function Register() {
                       type === t && "border-brand ring-4 ring-brand/15",
                     )}
                   >
-                    <span className="text-2xl">{BUSINESS_TYPE_EMOJI[t]}</span>
+                    <span className="grid size-10 place-items-center rounded-xl bg-brand-soft text-brand"><BusinessIcon type={t} className="size-5" /></span>
                     <span className="text-sm font-semibold text-ink">{tr(BUSINESS_TYPE_LABELS[t])}</span>
                   </button>
                 ))}

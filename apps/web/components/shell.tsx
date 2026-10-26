@@ -1,7 +1,6 @@
 "use client";
 
 import {
-  BUSINESS_TYPE_EMOJI,
   BUSINESS_TYPE_LABELS,
   canAccess,
   featureOfPath,
@@ -28,6 +27,7 @@ import {
   MessagesSquare,
   Moon,
   Package,
+  Store,
   Search,
   ShoppingBag,
   Sun,
@@ -39,7 +39,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useState, useSyncExternalStore } from "react";
+import { useEffect, useState, useSyncExternalStore, ViewTransition } from "react";
 import { api } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { AlertsBell } from "./alerts-bell";
@@ -48,6 +48,7 @@ import { LangSwitcher } from "./lang-switcher";
 import { ShiftButton } from "./shift-button";
 import { Avatar, cn } from "./ui";
 import { tr } from "@/lib/i18n";
+import { BusinessIcon } from "./glyph";
 
 interface NavItem {
   href: string;
@@ -144,7 +145,7 @@ export function Logo({ light, compact, org }: { light?: boolean; compact?: boole
   return (
     <div className="flex min-w-0 items-center gap-2.5">
       <div className="brand-gradient grid size-10 shrink-0 place-items-center rounded-2xl text-xl shadow-lg shadow-red-500/30">
-        {org ? BUSINESS_TYPE_EMOJI[org.type] : "🍗"}
+        <BusinessIcon type={org?.type ?? "RESTAURANT"} className="size-5 text-white" />
       </div>
       <div className={cn("min-w-0 leading-tight", compact && "hidden sm:block")}>
         <div className={cn("truncate text-lg font-extrabold tracking-tight", light ? "text-white" : "text-ink")}>{org?.name ?? "FilialHub"}</div>
@@ -220,7 +221,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         <div className="grid min-h-screen place-items-center">
           <div className="relative grid size-20 place-items-center">
             <div className="spin-ring absolute inset-0" />
-            <div className="pop brand-gradient grid size-12 place-items-center rounded-2xl text-2xl shadow-lg shadow-red-500/30">🍗</div>
+            <div className="pop brand-gradient grid size-12 place-items-center rounded-2xl text-white shadow-lg shadow-red-500/30"><Store className="size-6" /></div>
           </div>
         </div>
         <div hidden>{children}</div>
@@ -354,9 +355,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       </header>
 
       <div key={`progress-${pathname}`} className="route-progress" aria-hidden />
-      <main key={pathname} className="page-enter mx-auto max-w-[1400px] px-4 pt-6 pb-28 sm:px-6 lg:px-10 lg:pt-8 lg:pb-12">
-        {children}
-      </main>
+      <div className="aurora" aria-hidden />
+      {/* Гузариши саҳифа: кӯҳна бо blur мебарояд, нав аз поён бо blur медарояд (React ViewTransition) */}
+      <ViewTransition key={pathname} enter="page-swap" exit="page-swap" default="none">
+        <main className="page-enter mx-auto max-w-[1400px] px-4 pt-6 pb-28 sm:px-6 lg:px-10 lg:pt-8 lg:pb-12">{children}</main>
+      </ViewTransition>
 
       {/* Mobile bottom nav */}
       <nav className="glass fixed inset-x-0 bottom-0 z-30 flex border-t border-line px-1 pb-[env(safe-area-inset-bottom)] lg:hidden">

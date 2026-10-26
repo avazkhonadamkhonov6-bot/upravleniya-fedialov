@@ -1,8 +1,9 @@
 "use client";
 
-import { ClipboardList, LogIn, ShoppingCart, Store, UserRound } from "lucide-react";
+import { ClipboardList, LogIn, Moon, ShoppingBag, ShoppingCart, Store, Sun, UserRound } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { ViewTransition } from "react";
 import { useAuth } from "@/lib/auth";
 import { CartProvider, useCart } from "@/lib/cart";
 import { tr } from "@/lib/i18n";
@@ -41,7 +42,7 @@ function Frame({ children }: { children: React.ReactNode }) {
       <header className="sticky top-0 z-30 border-b border-line bg-surface/85 backdrop-blur-xl">
         <div className="mx-auto flex h-16 max-w-6xl items-center gap-3 px-4">
           <Link href="/shop" className="flex items-center gap-2.5">
-            <span className="brand-gradient grid size-9 place-items-center rounded-xl text-lg shadow-lg shadow-red-500/20">🛍️</span>
+            <span className="brand-gradient grid size-9 place-items-center rounded-xl text-lg shadow-lg shadow-red-500/20 transition duration-500 text-white hover:rotate-[-12deg] hover:scale-110"><ShoppingBag className="size-5" /></span>
             <span className="leading-tight">
               <span className="block text-base font-extrabold tracking-tight text-ink">FilialHub</span>
               <span className="block text-[11px] font-medium text-muted">{tr("Бозори онлайн")}</span>
@@ -57,7 +58,10 @@ function Frame({ children }: { children: React.ReactNode }) {
                   active(pathname, t.href) ? "bg-brand-soft text-brand" : "text-ink-2 hover:bg-surface-2 hover:text-ink",
                 )}
               >
-                <t.icon className="size-4" /> {tr(t.label)}
+                <span data-cart-target={t.href === "/shop/cart" ? "" : undefined} className="inline-flex">
+                  <t.icon className="size-4" />
+                </span>{" "}
+                {tr(t.label)}
                 {t.href === "/shop/cart" && count > 0 && (
                   <span className="brand-gradient grid min-w-5 place-items-center rounded-full px-1.5 text-[11px] font-bold text-white">{count}</span>
                 )}
@@ -71,7 +75,7 @@ function Frame({ children }: { children: React.ReactNode }) {
               className="grid size-9 cursor-pointer place-items-center rounded-xl text-ink-2 hover:bg-surface-2"
               aria-label={theme === "dark" ? tr("Мавзӯи равшан") : tr("Мавзӯи торик")}
             >
-              {theme === "dark" ? "☀️" : "🌙"}
+              {theme === "dark" ? <Sun className="size-4" /> : <Moon className="size-4" />}
             </button>
             {!loading && !client && (
               <Link
@@ -85,7 +89,10 @@ function Frame({ children }: { children: React.ReactNode }) {
         </div>
       </header>
 
-      <main className="mx-auto max-w-6xl px-4 py-6">{children}</main>
+      <div className="aurora" aria-hidden />
+      <ViewTransition key={pathname} enter="page-swap" exit="page-swap" default="none">
+        <main className="mx-auto max-w-6xl px-4 py-6">{children}</main>
+      </ViewTransition>
 
       {/* Менюи поён: телефон ва планшет */}
       <nav className="fixed inset-x-0 bottom-0 z-30 border-t border-line bg-surface/95 pb-[env(safe-area-inset-bottom)] backdrop-blur-xl md:hidden">
@@ -94,7 +101,7 @@ function Frame({ children }: { children: React.ReactNode }) {
             const on = active(pathname, t.href);
             return (
               <Link key={t.href} href={t.href} className={cn("relative flex flex-col items-center gap-1 py-2.5 text-[11px] font-semibold", on ? "text-brand" : "text-muted")}>
-                <span className={cn("grid h-7 w-12 place-items-center rounded-full transition", on && "bg-brand-soft")}>
+                <span data-cart-target={t.href === "/shop/cart" ? "" : undefined} className={cn("grid h-7 w-12 place-items-center rounded-full transition", on && "bg-brand-soft")}>
                   <t.icon className="size-5" />
                 </span>
                 {tr(t.label)}
@@ -115,11 +122,11 @@ function Frame({ children }: { children: React.ReactNode }) {
 /** Барои саҳифаҳое, ки ҳисоби мизоҷ лозим аст */
 export function NeedClient({ children }: { children: React.ReactNode }) {
   const { client, user, loading } = useAuth();
-  if (loading) return <div className="h-48 animate-pulse rounded-3xl bg-surface-2" />;
+  if (loading) return <div className="h-48 skeleton rounded-3xl" />;
   if (client) return <>{children}</>;
   return (
     <div className="card mx-auto max-w-md p-8 text-center">
-      <div className="text-5xl">🛍️</div>
+      <div className="mx-auto grid size-16 place-items-center rounded-2xl bg-brand-soft text-brand"><ShoppingBag className="size-8" /></div>
       <h2 className="mt-4 text-xl font-bold text-ink">{tr("Барои фармоиш ворид шавед")}</h2>
       <p className="mt-2 text-sm text-muted">
         {user ? tr("Шумо ҳамчун корманди ширкат ворид шудаед. Барои харид ҳисоби мизоҷ лозим аст.") : tr("Сабти ном як дақиқа вақт мегирад.")}

@@ -14,7 +14,7 @@ interface Channels {
 }
 
 const RESULT: Record<DeliveryStatus, string> = {
-  SENT: "расид ✅",
+  SENT: "расид",
   DRY_RUN: "сервер токен надорад — фиристода нашуд",
   FAILED: "хатогӣ",
   NOT_LINKED: "пайваст нест",

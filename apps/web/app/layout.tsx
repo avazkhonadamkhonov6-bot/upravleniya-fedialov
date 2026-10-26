@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
+import { MotionFX } from "@/components/motion-fx";
 import { ToastProvider } from "@/components/toast";
 import { AuthProvider } from "@/lib/auth";
 import { LangProvider } from "@/lib/i18n";
@@ -55,7 +56,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body className="min-h-full">
         <ToastProvider>
           <AuthProvider>
-            <LangProvider>{children}</LangProvider>
+            <LangProvider>
+              {children}
+              <MotionFX />
+            </LangProvider>
           </AuthProvider>
         </ToastProvider>
       </body>

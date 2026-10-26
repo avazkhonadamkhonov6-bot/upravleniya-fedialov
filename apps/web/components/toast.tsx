@@ -4,6 +4,7 @@ import { CheckCircle2, Info, X, XCircle } from "lucide-react";
 import { createContext, useCallback, useContext, useMemo, useRef, useState } from "react";
 import { cn } from "./ui";
 import { tr } from "@/lib/i18n";
+import { iconize } from "./glyph";
 
 type Tone = "success" | "error" | "info";
 interface ToastItem {
@@ -65,8 +66,8 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
               {t.tone === "success" ? <CheckCircle2 className="size-5" /> : t.tone === "error" ? <XCircle className="size-5" /> : <Info className="size-5" />}
             </span>
             <div className="min-w-0 flex-1">
-              <div className="text-sm font-semibold text-ink">{t.title}</div>
-              {t.text && <div className="mt-0.5 text-xs text-muted">{t.text}</div>}
+              <div className="text-sm font-semibold text-ink">{iconize(t.title)}</div>
+              {t.text && <div className="mt-0.5 text-xs text-muted">{iconize(t.text)}</div>}
             </div>
             <button onClick={() => dismiss(t.id)} className="cursor-pointer text-muted hover:text-ink" aria-label={tr("Пӯшидан")}>
               <X className="size-4" />

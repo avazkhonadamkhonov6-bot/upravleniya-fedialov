@@ -8,6 +8,7 @@ import { Avatar, Badge, Button, Card, Empty, ErrorBox, formatDate, PageHeader, S
 import { qs } from "@/lib/api";
 import { useApi } from "@/lib/use-api";
 import { tr, locale } from "@/lib/i18n";
+import { Glyph } from "@/components/glyph";
 
 const ACTION: Record<AuditEntry["action"], { label: string; tone: "good" | "blue" | "brand"; emoji: string }> = {
   CREATE: { label: "Сохт", tone: "good", emoji: "➕" },
@@ -68,12 +69,12 @@ export default function AuditPage() {
                         <span className="absolute top-2 -left-[33px] grid size-4 place-items-center rounded-full border-2 border-surface bg-brand" />
                         <div className="flex flex-col gap-2 rounded-2xl border border-line p-3.5 sm:flex-row sm:items-center">
                           <div className="flex min-w-0 flex-1 items-start gap-3">
-                            {e.userName ? <Avatar name={e.userName} size={34} /> : <span className="grid size-[34px] place-items-center rounded-full bg-surface-2">⚙️</span>}
+                            {e.userName ? <Avatar name={e.userName} size={34} /> : <span className="grid size-[34px] place-items-center rounded-full bg-surface-2 text-muted"><Glyph e="⚙️" className="size-4" /></span>}
                             <div className="min-w-0">
                               <div className="flex flex-wrap items-center gap-1.5 text-sm">
                                 <b className="text-ink">{e.userName ?? tr("Система")}</b>
                                 <Badge tone={a.tone}>
-                                  {a.emoji} {tr(a.label)}
+                                  <Glyph e={a.emoji} className="size-3.5" /> {tr(a.label)}
                                 </Badge>
                                 <Badge>{tr(AUDIT_ENTITY_LABELS[e.entity]) ?? e.entity}</Badge>
                               </div>

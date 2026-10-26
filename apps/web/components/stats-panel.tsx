@@ -1,7 +1,6 @@
 "use client";
 
 import {
-  POSITION_EMOJI,
   POSITION_LABELS,
   type Overview,
   type Period,
@@ -16,6 +15,7 @@ import { useApi } from "@/lib/use-api";
 import { SalesChart } from "./charts-lazy";
 import { Card, CardTitle, CountUp, Delta, Empty, ErrorBox, money, Segmented, Skeleton } from "./ui";
 import { tr, locale } from "@/lib/i18n";
+import { PositionIcon, ProductIcon } from "./glyph";
 
 const PERIOD_OPTS: { value: Period; label: string }[] = [
   { value: "day", label: "Рӯзона" },
@@ -46,9 +46,10 @@ function Kpi({
 }) {
   return (
     <div
+      data-tilt="6"
       className={
         accent
-          ? "rise relative overflow-hidden rounded-[20px] bg-[#170d0f] p-5 text-white shadow-card"
+          ? "rise glow-border relative overflow-hidden rounded-[20px] bg-[#170d0f] p-5 text-white shadow-card"
           : "rise card p-5"
       }
       style={{ animationDelay: `${delay}ms` }}
@@ -157,7 +158,7 @@ export function TopProducts({ branchId }: { branchId?: number }) {
         <ul className="space-y-3">
           {data.map((p) => (
             <li key={p.productId} className="flex items-center gap-3">
-              <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-surface-2 text-xl">{p.emoji}</span>
+              <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-brand-soft text-brand"><ProductIcon value={p.emoji} className="size-5" /></span>
               <div className="min-w-0 flex-1">
                 <div className="flex items-baseline justify-between gap-2">
                   <span className="truncate text-sm font-semibold text-ink">{p.name}</span>
@@ -190,13 +191,13 @@ export function StaffBreakdown({ overview }: { overview?: Overview }) {
       </CardTitle>
       <div className="space-y-4">
         <div className="flex items-center gap-3">
-          <span className="grid size-10 place-items-center rounded-xl bg-surface-2 text-xl">🧑‍💼</span>
+          <span className="grid size-10 place-items-center rounded-xl bg-surface-2 text-ink-2"><PositionIcon position={null} className="size-5" /></span>
           <div className="flex-1 text-sm font-semibold text-ink">{tr("Менеҷерҳо")}</div>
           <span className="text-sm font-bold text-ink tabular">{overview.managers}</span>
         </div>
         {positions.map((p) => (
           <div key={p} className="flex items-center gap-3">
-            <span className="grid size-10 place-items-center rounded-xl bg-surface-2 text-xl">{POSITION_EMOJI[p]}</span>
+            <span className="grid size-10 place-items-center rounded-xl bg-surface-2 text-ink-2"><PositionIcon position={p} className="size-5" /></span>
             <div className="flex-1">
               <div className="flex justify-between text-sm">
                 <span className="font-semibold text-ink">{tr(POSITION_LABELS[p])}</span>

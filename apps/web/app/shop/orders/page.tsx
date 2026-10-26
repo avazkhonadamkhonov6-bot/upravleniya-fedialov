@@ -1,6 +1,7 @@
 "use client";
 
-import { BUSINESS_TYPE_EMOJI, ONLINE_STATUS_EMOJI, ONLINE_STATUS_LABELS, type OnlineOrder, type OnlineOrderStatus } from "@filialhub/shared";
+import { Banknote, CreditCard, MapPin, Package } from "lucide-react";
+import { ONLINE_STATUS_LABELS, type OnlineOrder, type OnlineOrderStatus } from "@filialhub/shared";
 import { useEffect, useState } from "react";
 import { NeedClient } from "@/components/shop-shell";
 import { useToast } from "@/components/toast";
@@ -9,6 +10,7 @@ import { api } from "@/lib/api";
 import { tr } from "@/lib/i18n";
 import { storeTheme } from "@/lib/store-theme";
 import { useApi } from "@/lib/use-api";
+import { BusinessIcon, ProductIcon, StatusIcon } from "@/components/glyph";
 
 const STEPS: OnlineOrderStatus[] = ["NEW", "ACCEPTED", "DELIVERING", "DELIVERED"];
 const FILTERS = [
@@ -60,10 +62,10 @@ function Orders() {
       </div>
       <ErrorBox message={error} />
       {!data ? (
-        <div className="mt-6 h-40 animate-pulse rounded-3xl bg-surface-2" />
+        <div className="mt-6 h-40 skeleton rounded-3xl" />
       ) : list.length === 0 ? (
         <div className="card mt-6 p-10 text-center text-muted">
-          <div className="text-5xl">📦</div>
+          <div className="mx-auto grid size-16 place-items-center rounded-2xl bg-brand-soft text-brand"><Package className="size-8" /></div>
           <p className="mt-3">{tr("Фармоиш нест")}</p>
         </div>
       ) : (
@@ -98,11 +100,11 @@ function OrderCard({ order: o, onChange }: { order: OnlineOrder; onChange: () =>
   }
 
   return (
-    <article className="rise overflow-hidden border border-line bg-surface shadow-card" style={{ borderRadius: th.radius }}>
+    <article data-reveal className="overflow-hidden border border-line bg-surface shadow-card" style={{ borderRadius: th.radius }}>
       <div className="flex items-start justify-between gap-3 p-4">
         <div className="min-w-0">
           <div className="truncate font-bold text-ink">
-            {BUSINESS_TYPE_EMOJI[o.store.type]} {o.store.name}
+            <span className="inline-flex items-center gap-1.5"><BusinessIcon type={o.store.type} className="size-4" /> {o.store.name}</span>
           </div>
           <div className="text-xs text-muted">
             #{o.id} · {formatDate(o.createdAt, true)}
@@ -115,7 +117,7 @@ function OrderCard({ order: o, onChange }: { order: OnlineOrder; onChange: () =>
             o.status === "DELIVERED" ? "bg-good-soft text-good" : o.status === "CANCELLED" ? "bg-surface-2 text-muted" : "bg-warn-soft text-warn",
           )}
         >
-          {ONLINE_STATUS_EMOJI[o.status]} {tr(ONLINE_STATUS_LABELS[o.status])}
+          <span className="inline-flex items-center gap-1"><StatusIcon status={o.status} className="size-3.5" /> {tr(ONLINE_STATUS_LABELS[o.status])}</span>
         </span>
       </div>
 
@@ -123,7 +125,14 @@ function OrderCard({ order: o, onChange }: { order: OnlineOrder; onChange: () =>
         <ol className="flex items-center gap-1 px-4" aria-label={tr("Ҳолати фармоиш")}>
           {STEPS.map((s, i) => (
             <li key={s} className="flex flex-1 flex-col items-center gap-1">
-              <span className="h-1.5 w-full rounded-full" style={{ background: i <= stepIdx ? th.accent : "var(--line)" }} />
+              <span className="relative h-1.5 w-full overflow-hidden rounded-full bg-line">
+                {i <= stepIdx && (
+                  <span className="bar-fill absolute inset-0 rounded-full" style={{ background: th.accent, animationDelay: `${i * 180}ms` }} />
+                )}
+              </span>
+              {i === stepIdx && o.status !== "DELIVERED" && (
+                <span className="step-pulse -mt-2.5 size-2.5 rounded-full" style={{ background: th.accent, "--step": th.accent } as React.CSSProperties} />
+              )}
               <span className={cn("text-[10px] font-semibold sm:text-[11px]", i <= stepIdx ? "text-ink" : "text-muted")}>{tr(ONLINE_STATUS_LABELS[s])}</span>
             </li>
           ))}
@@ -134,15 +143,19 @@ function OrderCard({ order: o, onChange }: { order: OnlineOrder; onChange: () =>
         {o.items.map((i, k) => (
           <li key={k} className="flex justify-between gap-2">
             <span className="truncate text-ink-2">
-              {i.emoji} {i.name} × {i.qty} {tr(i.unit)}
+              <ProductIcon value={i.emoji} type={o.store.type} className="mr-1 inline size-4 -mt-0.5" />{i.name} × {i.qty} {tr(i.unit)}
             </span>
             <span className="shrink-0 text-ink tabular">{money(i.unitPrice * i.qty)}</span>
           </li>
         ))}
       </ul>
       <div className="mt-3 flex items-center justify-between gap-3 border-t border-line px-4 py-3">
-        <div className="min-w-0 text-xs text-muted">
-          <div className="truncate">📍 {o.address}</div>
+        <div className="min-w-0 space-y-0.5 text-xs text-muted">
+          <div className="flex items-center gap-1">
+            {o.payment === "CARD" ? <CreditCard className="size-3.5 shrink-0" /> : <Banknote className="size-3.5 shrink-0" />}
+            {o.payment === "CARD" ? tr("Корт") : tr("Нақд")} · {o.status === "DELIVERED" ? tr("пардохт шуд") : tr("пардохт ҳангоми гирифтан")}
+          </div>
+          <div className="flex items-center gap-1 truncate"><MapPin className="size-3.5 shrink-0" /> {o.address}</div>
         </div>
         <div className="flex shrink-0 items-center gap-3">
           {o.status === "NEW" && (

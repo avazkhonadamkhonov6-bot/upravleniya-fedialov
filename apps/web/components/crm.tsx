@@ -12,6 +12,7 @@ import { api } from "@/lib/api";
 import { useToast } from "./toast";
 import { Badge, Button, ErrorBox, Field, Input } from "./ui";
 import { tr } from "@/lib/i18n";
+import { Glyph } from "./glyph";
 
 export const SEGMENT_STYLE: Record<Segment, { emoji: string; tone: "brand" | "good" | "blue" | "warn" }> = {
   VIP: { emoji: "👑", tone: "brand" },
@@ -24,7 +25,7 @@ export function SegmentBadge({ segment }: { segment: Segment }) {
   const s = SEGMENT_STYLE[segment];
   return (
     <Badge tone={s.tone}>
-      {s.emoji} {tr(SEGMENT_LABELS[segment])}
+      <Glyph e={s.emoji} className="size-3" /> {tr(SEGMENT_LABELS[segment])}
     </Badge>
   );
 }

@@ -241,7 +241,7 @@ export class CustomersService {
         discount: Number(o.discount),
         pointsEarned: o.pointsEarned,
         pointsUsed: o.pointsUsed,
-        items: o.items.map((i) => `${i.product.emoji} ${i.product.name} × ${i.qty}`),
+        items: o.items.map((i) => `${i.product.name} × ${Number(i.qty)}`),
       })),
     };
   }

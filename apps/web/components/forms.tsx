@@ -15,9 +15,11 @@ import { Trash2 } from "lucide-react";
 import { useState } from "react";
 import { api, ApiError } from "@/lib/api";
 import { useAuth, useBusiness } from "@/lib/auth";
+import { PRODUCT_ICONS, ProductIcon } from "./glyph";
 import { useToast } from "./toast";
 import { Button, ErrorBox, Field, Input, Select } from "./ui";
 import { tr } from "@/lib/i18n";
+import { Iconized } from "./glyph";
 
 function useSubmit(onDone: () => void) {
   const toast = useToast();
@@ -265,7 +267,7 @@ export function UserForm({
       )}
       {!user && (
         <p className="rounded-xl bg-surface-2 p-3 text-xs text-muted">
-          {tr("📩 Пас аз сабт ба корманд паёми хуш омадед тавассути WhatsApp/Telegram фиристода мешавад, ва менеҷери филиал огоҳ карда мешавад.")}
+          <Iconized text={tr("📩 Пас аз сабт ба корманд паёми хуш омадед тавассути WhatsApp/Telegram фиристода мешавад, ва менеҷери филиал огоҳ карда мешавад.")} />
         </p>
       )}
       <ErrorBox message={error} />
@@ -296,6 +298,7 @@ export function ProductForm({ product, onDone }: { product?: Product; onDone: ()
     isActive: product?.isActive ?? true,
   });
   const { busy, error, run } = useSubmit(onDone);
+  const [picking, setPicking] = useState(false);
   const set = (k: keyof typeof f) => (e: React.ChangeEvent<HTMLInputElement>) => setF({ ...f, [k]: e.target.value });
   const price = Number(f.price) || 0;
   const cost = Number(f.cost) || 0;
@@ -313,14 +316,43 @@ export function ProductForm({ product, onDone }: { product?: Product; onDone: ()
 
   return (
     <form onSubmit={save} className="space-y-4">
-      <div className="grid grid-cols-[80px_1fr] gap-4">
-        <Field label={tr("Эмоҷи")}>
-          <Input value={f.emoji} onChange={set("emoji")} className="text-center text-xl" maxLength={4} />
-        </Field>
+      <div className="grid grid-cols-[64px_1fr] items-end gap-4">
+        <button
+          type="button"
+          onClick={() => setPicking((v) => !v)}
+          className="grid size-16 cursor-pointer place-items-center rounded-2xl bg-brand-soft text-brand ring-brand/30 transition hover:ring-4"
+          aria-label={tr("Иконкаро интихоб кунед")}
+          aria-expanded={picking}
+        >
+          <ProductIcon value={f.emoji} type={type} className="size-8" />
+        </button>
         <Field label={tr("Ном")}>
           <Input required value={f.name} onChange={set("name")} />
         </Field>
       </div>
+      {picking && (
+        <div className="pop grid max-h-56 grid-cols-6 gap-1.5 overflow-y-auto rounded-2xl border border-line bg-surface-2 p-2 sm:grid-cols-8" role="listbox" aria-label={tr("Иконкаҳо")}>
+          {Object.entries(PRODUCT_ICONS).map(([name, Icon]) => {
+            const on = f.emoji === `icon:${name}`;
+            return (
+              <button
+                key={name}
+                type="button"
+                role="option"
+                aria-selected={on}
+                aria-label={name}
+                onClick={() => {
+                  setF({ ...f, emoji: `icon:${name}` });
+                  setPicking(false);
+                }}
+                className={`grid aspect-square cursor-pointer place-items-center rounded-xl transition hover:scale-110 ${on ? "bg-brand text-white" : "bg-surface text-ink-2 hover:text-brand"}`}
+              >
+                <Icon className="size-5" />
+              </button>
+            );
+          })}
+        </div>
+      )}
       <div className="grid grid-cols-[1fr_140px] gap-4">
         <Field label={tr("Категория")}>
           <Input required value={f.category} onChange={set("category")} list="categories" />

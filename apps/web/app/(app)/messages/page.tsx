@@ -3,7 +3,6 @@
 import {
   telegramLink,
   whatsappLink,
-  POSITION_EMOJI,
   POSITION_LABELS,
   ROLE_LABELS,
   type Channel,
@@ -25,6 +24,7 @@ import { useAuth } from "@/lib/auth";
 import { useApi } from "@/lib/use-api";
 import { locale, tr } from "@/lib/i18n";
 import { mediaSupported, type Recording } from "@/lib/media";
+import { Glyph, Iconized, stripEmoji } from "@/components/glyph";
 
 interface ContactsResponse {
   contacts: ChatContact[];
@@ -45,7 +45,7 @@ const CH = {
 } as const;
 
 const roleOf = (c: Pick<ChatContact, "position" | "role">) =>
-  c.position ? `${POSITION_EMOJI[c.position]} ${tr(POSITION_LABELS[c.position])}` : tr(ROLE_LABELS[c.role]);
+  c.position ? tr(POSITION_LABELS[c.position]) : tr(ROLE_LABELS[c.role]);
 
 function timeShort(iso: string) {
   const d = new Date(iso);
@@ -110,7 +110,7 @@ function Chat() {
       <ErrorBox message={error} />
       {data && (!data.configured.whatsapp || !data.configured.telegram) && (
         <p className="mb-4 rounded-xl border border-line bg-surface-2 px-4 py-3 text-sm text-muted">
-          {tr("💡 Нусха ба WhatsApp/Telegram танҳо пас аз гузоштани токенҳо дар сервер меравад. Ҳоло паёмҳо дар сайт сабт мешаванд.")}{" "}
+          <Iconized text={tr("💡 Нусха ба WhatsApp/Telegram танҳо пас аз гузоштани токенҳо дар сервер меравад. Ҳоло паёмҳо дар сайт сабт мешаванд.")} />{" "}
           {!data.configured.telegram && <b className="text-ink-2">Telegram: {tr("токен нест")}.</b>}{" "}
           {!data.configured.whatsapp && <b className="text-ink-2">WhatsApp: {tr("токен нест")}.</b>}
         </p>
@@ -161,7 +161,7 @@ function Chat() {
           ) : (
             <div className="grid h-full place-items-center p-8 text-center">
               <div>
-                <div className="mb-3 text-5xl">💬</div>
+                <div className="mb-3 grid size-16 place-items-center rounded-2xl bg-brand-soft text-brand"><Glyph e="💬" className="size-8" /></div>
                 <div className="font-semibold text-ink">{tr("Суҳбатро интихоб кунед")}</div>
                 <p className="mt-1 text-sm text-muted">{tr("Аз рӯйхати чап касеро интихоб кунед, то ба ӯ нависед.")}</p>
               </div>
@@ -583,7 +583,7 @@ function ContactInfoView({ id }: { id: number }) {
     {
       icon: <TelegramIcon className="size-4" />,
       label: "Telegram",
-      value: `${data.telegram ? (/^[a-z]/i.test(data.telegram) ? "@" + data.telegram : data.telegram) : data.phone}${data.telegramLinked ? " · " + tr("бот пайваст ✅") : ""}`,
+      value: `${data.telegram ? (/^[a-z]/i.test(data.telegram) ? "@" + data.telegram : data.telegram) : data.phone}${data.telegramLinked ? " · " + stripEmoji(tr("бот пайваст ✅")) : ""}`,
       href: telegramLink(data.telegram || data.phone),
       color: "#229ed9",
     },

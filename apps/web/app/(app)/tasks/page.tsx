@@ -21,6 +21,7 @@ import { api, qs } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { useApi } from "@/lib/use-api";
 import { tr, locale } from "@/lib/i18n";
+import { Glyph } from "@/components/glyph";
 
 const COLUMN_STYLE: Record<TaskStatus, { emoji: string; ring: string; head: string }> = {
   TODO: { emoji: "📥", ring: "ring-[var(--chart-profit)]/30", head: "bg-blue-500/10 text-blue-600 dark:text-blue-400" },
@@ -143,7 +144,7 @@ export default function TasksPage() {
               >
                 <header className="mb-3 flex items-center justify-between px-1">
                   <span className={cn("rounded-full px-3 py-1 text-sm font-bold", style.head)}>
-                    {style.emoji} {tr(TASK_STATUS_LABELS[status])}
+                    <Glyph e={style.emoji} className="size-4" /> {tr(TASK_STATUS_LABELS[status])}
                   </span>
                   <span className="text-sm font-bold text-muted tabular">{col.length}</span>
                 </header>
@@ -205,7 +206,7 @@ export default function TasksPage() {
                           )}
                         </div>
                         {isChef && !branchId && t.branchName && (
-                          <div className="mt-2 text-[11px] text-muted">🏪 {t.branchName.replace("FilialHub ", "")}</div>
+                          <div className="mt-2 flex items-center gap-1 text-[11px] text-muted"><Glyph e="🏪" className="size-3" /> {t.branchName.replace("FilialHub ", "")}</div>
                         )}
                         {/* Тугмаҳо барои телефон (drag дар экрани ламсӣ кор намекунад) */}
                         <div className="mt-3 flex gap-1.5 border-t border-line pt-2.5">
@@ -341,7 +342,7 @@ function TaskForm({
                 f.priority === p ? "border-brand bg-brand-soft text-brand" : "border-line bg-surface-2 text-ink-2",
               )}
             >
-              {p === "HIGH" ? "🔥 " : p === "MEDIUM" ? "⚡ " : "🌿 "}
+              <Glyph e={p === "HIGH" ? "🔥" : p === "MEDIUM" ? "⚡" : "🌿"} className="mr-1 inline size-4 -mt-0.5" />
               {tr(PRIORITY_LABELS[p])}
             </button>
           ))}

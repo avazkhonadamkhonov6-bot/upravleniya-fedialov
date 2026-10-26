@@ -1,9 +1,10 @@
 "use client";
 
 import { phoneDigits, telegramLink, whatsappLink } from "@filialhub/shared";
-import { Loader2, Mail, Phone, X } from "lucide-react";
+import { Leaf, Loader2, Mail, Phone, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { formatMoney, locale, tr } from "@/lib/i18n";
+import { Glyph, iconize } from "./glyph";
 
 export function cn(...c: (string | false | null | undefined)[]) {
   return c.filter(Boolean).join(" ");
@@ -33,7 +34,7 @@ export function PageHeader({
       <div className="flex gap-3">
         <span className="bar-grow brand-gradient mt-1 w-1.5 shrink-0 rounded-full sm:mt-1.5" aria-hidden />
         <div className="title-in">
-          <h1 className="text-2xl font-extrabold tracking-tight text-ink sm:text-3xl">{title}</h1>
+          <h1 className="text-2xl font-extrabold tracking-tight text-ink sm:text-3xl">{iconize(title)}</h1>
           {subtitle && <p className="mt-1 text-sm text-muted">{subtitle}</p>}
         </div>
       </div>
@@ -51,7 +52,7 @@ export function CardTitle({ children, extra }: { children: React.ReactNode; extr
     <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
       <h2 className="flex items-center gap-2 text-base font-semibold text-ink">
         <span className="brand-gradient size-1.5 shrink-0 rounded-full" aria-hidden />
-        {children}
+        {iconize(children)}
       </h2>
       {extra}
     </div>
@@ -68,7 +69,7 @@ export function Button({ variant = "primary", size = "md", loading, className, c
   return (
     <button
       className={cn(
-        "inline-flex cursor-pointer items-center justify-center gap-2 rounded-xl font-semibold transition-all duration-150 active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-50",
+        "fx-btn inline-flex cursor-pointer items-center justify-center gap-2 rounded-xl font-semibold transition-all duration-150 active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-50",
         size === "sm" ? "h-9 px-3 text-sm" : "h-11 px-4 text-sm",
         variant === "primary" &&
           "brand-gradient text-white shadow-[0_8px_20px_-8px_var(--brand)] hover:-translate-y-px hover:shadow-[0_14px_28px_-10px_var(--brand)] hover:brightness-110",
@@ -128,7 +129,7 @@ export function Badge({
         className,
       )}
     >
-      {children}
+      {iconize(children)}
     </span>
   );
 }
@@ -278,7 +279,10 @@ export function ErrorBox({ message }: { message: string | null | undefined }) {
 export function Empty({ icon, title, text }: { icon?: React.ReactNode; title: string; text?: string }) {
   return (
     <div className="flex flex-col items-center justify-center py-14 text-center">
-      <div className="empty-float mb-3 text-4xl">{icon ?? "🍃"}</div>
+      {/* Эмоҷии кӯҳна ҳамчун сатр меояд — ба иконкаи аслӣ табдил медиҳем */}
+      <div className="empty-float mb-4 grid size-16 place-items-center rounded-2xl bg-brand-soft text-brand shadow-[0_12px_30px_-14px_var(--brand)]">
+        {typeof icon === "string" ? <Glyph e={icon} className="size-7" /> : (icon ?? <Leaf className="size-7" />)}
+      </div>
       <p className="font-semibold text-ink">{title}</p>
       {text && <p className="mt-1 max-w-sm text-sm text-muted">{text}</p>}
     </div>

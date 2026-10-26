@@ -1,6 +1,6 @@
 "use client";
 
-import { POSITION_EMOJI, POSITION_LABELS, type Branch, type BranchRank, type Period } from "@filialhub/shared";
+import { POSITION_LABELS, type Branch, type BranchRank, type Period } from "@filialhub/shared";
 import { ArrowUpRight, MapPin, Pencil, Plus } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
@@ -10,6 +10,7 @@ import { qs } from "@/lib/api";
 import { useBusiness } from "@/lib/auth";
 import { useApi } from "@/lib/use-api";
 import { tr } from "@/lib/i18n";
+import { PositionIcon } from "@/components/glyph";
 
 export default function BranchesPage() {
   const { positions } = useBusiness();
@@ -99,7 +100,7 @@ export default function BranchesPage() {
       ) : (
         <div className="stagger grid gap-5 md:grid-cols-2 xl:grid-cols-3">
           {data.map((b, i) => (
-            <div key={b.id} className="rise card group flex flex-col overflow-hidden" style={{ animationDelay: `${i * 50}ms` }}>
+            <div key={b.id} data-tilt="5" className="rise card group flex flex-col overflow-hidden" style={{ animationDelay: `${i * 50}ms` }}>
               <div className="relative h-24 overflow-hidden bg-[#170d0f] px-5 pt-4">
                 <div className="absolute -top-10 -right-6 size-40 rounded-full bg-[#e4002b] opacity-50 blur-2xl" />
                 <div className="absolute -bottom-12 left-10 size-32 rounded-full bg-[#ff5a36] opacity-30 blur-2xl" />
@@ -119,7 +120,7 @@ export default function BranchesPage() {
                 <div className="mt-4 grid grid-cols-4 gap-2">
                   {positions.map((p) => (
                     <div key={p} className="rounded-xl bg-surface-2 p-2.5 text-center">
-                      <div className="text-lg">{POSITION_EMOJI[p]}</div>
+                      <div className="flex justify-center text-ink-2"><PositionIcon position={p} className="size-5" /></div>
                       <div className="text-lg font-bold text-ink tabular">{b.staffByPosition?.[p] ?? 0}</div>
                       <div className="text-[11px] text-muted">{tr(POSITION_LABELS[p])}</div>
                     </div>

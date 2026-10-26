@@ -1,6 +1,6 @@
 "use client";
 
-import { BUSINESS_TYPE_EMOJI, BUSINESS_TYPE_LABELS, BUSINESS_TYPES, type BusinessType, type Organization, type User } from "@filialhub/shared";
+import { BUSINESS_TYPE_LABELS, BUSINESS_TYPES, type BusinessType, type Organization, type User } from "@filialhub/shared";
 import { Check, Plus } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
@@ -10,6 +10,7 @@ import { tr } from "@/lib/i18n";
 import { useApi } from "@/lib/use-api";
 import { useToast } from "./toast";
 import { Button, Card, CardTitle, ErrorBox, Field, Input, Modal, Select, cn } from "./ui";
+import { BusinessIcon } from "./glyph";
 
 /**
  * «Бизнеси ман»: ном, навъи кор, тавсиф ва намоиш дар бозори онлайн (танҳо шеф иваз мекунад).
@@ -61,7 +62,7 @@ export function OrganizationCard() {
     <>
       <Card>
         <CardTitle>
-          {BUSINESS_TYPE_EMOJI[org.type]} {tr("Бизнеси ман")}
+          <BusinessIcon type={org.type} className="size-4 text-brand" /> {tr("Бизнеси ман")}
         </CardTitle>
         {!isChef ? (
           <div className="text-sm">
@@ -77,7 +78,7 @@ export function OrganizationCard() {
               <Select value={type} onChange={(e) => setType(e.target.value as BusinessType)}>
                 {BUSINESS_TYPES.map((t) => (
                   <option key={t} value={t}>
-                    {BUSINESS_TYPE_EMOJI[t]} {tr(BUSINESS_TYPE_LABELS[t])}
+                    {tr(BUSINESS_TYPE_LABELS[t])}
                   </option>
                 ))}
               </Select>
@@ -110,7 +111,7 @@ export function OrganizationCard() {
                       b.current ? "border-brand/40 bg-brand-soft" : "border-line hover:bg-surface-2",
                     )}
                   >
-                    <span className="text-xl">{BUSINESS_TYPE_EMOJI[b.type]}</span>
+                    <span className="grid size-9 place-items-center rounded-xl bg-surface-2 text-ink-2"><BusinessIcon type={b.type} className="size-4" /></span>
                     <span className="min-w-0 flex-1">
                       <span className="block truncate font-semibold text-ink">{b.name}</span>
                       <span className="block text-xs text-muted">{tr(BUSINESS_TYPE_LABELS[b.type])}</span>
@@ -168,7 +169,7 @@ function NewBusinessForm() {
             aria-pressed={type === t}
             className={cn("flex cursor-pointer flex-col items-start gap-1 rounded-xl border p-2.5 text-left text-xs font-semibold transition", type === t ? "border-brand bg-brand-soft text-brand" : "border-line text-ink-2")}
           >
-            <span className="text-xl">{BUSINESS_TYPE_EMOJI[t]}</span>
+            <BusinessIcon type={t} className="size-5" />
             {tr(BUSINESS_TYPE_LABELS[t])}
           </button>
         ))}

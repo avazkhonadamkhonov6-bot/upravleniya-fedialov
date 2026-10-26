@@ -10,6 +10,7 @@ import { Avatar, Badge, Button, Card, CardTitle, ErrorBox, Field, Input, PageHea
 import { api } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { tr, locale } from "@/lib/i18n";
+import { Iconized } from "@/components/glyph";
 
 export default function ProfilePage() {
   const { user, setUser } = useAuth();
@@ -152,7 +153,7 @@ export default function ProfilePage() {
               </div>
             </Section>
             <ErrorBox message={error} />
-            {ok && <div className="rounded-xl bg-good-soft px-4 py-3 text-sm font-medium text-good">{tr("Маълумот захира шуд ✅")}</div>}
+            {ok && <div className="rounded-xl bg-good-soft px-4 py-3 text-sm font-medium text-good"><Iconized text={tr("Маълумот захира шуд ✅")} /></div>}
             <Button type="submit" loading={busy} className="w-full sm:w-auto sm:px-8">
               {tr("Захира кардан")}
             </Button>

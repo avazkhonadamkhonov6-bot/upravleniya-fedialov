@@ -1,7 +1,7 @@
 "use client";
 
 import { VIDEO_NOTE_MAX_SECONDS, VOICE_MAX_SECONDS } from "@filialhub/shared";
-import { Loader2, Mic, Pause, Play, Send, Trash2, Video, X } from "lucide-react";
+import { Loader2, Mic, Pause, Play, Send, Trash2, TriangleAlert, Video, VolumeX, X } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { tr } from "@/lib/i18n";
 import { clock, mediaError, pickMime, useMediaUrl, useRecorder, type Recording } from "@/lib/media";
@@ -132,11 +132,11 @@ export function VideoNoteBubble({ mediaId, seconds }: { mediaId: number; seconds
             }}
           />
         ) : (
-          <div className="grid size-full place-items-center text-white/70">{error ? "⚠️" : <Loader2 className="size-6 animate-spin" />}</div>
+          <div className="grid size-full place-items-center text-white/70">{error ? <TriangleAlert className="size-6" /> : <Loader2 className="size-6 animate-spin" />}</div>
         )}
       </div>
       <span className="absolute bottom-3 left-1/2 -translate-x-1/2 rounded-full bg-black/55 px-2 py-0.5 text-[11px] text-white tabular backdrop-blur">
-        {withSound ? clock(progress * seconds) : `🔇 ${clock(seconds)}`}
+        {withSound ? clock(progress * seconds) : <><VolumeX className="mr-1 inline size-3 -mt-0.5" />{clock(seconds)}</>}
       </span>
     </button>
   );
