@@ -3,6 +3,12 @@ import type { Feature as FeatureName, Position, Role } from '@filialhub/shared';
 
 export interface AuthUser {
   id: number;
+  /** Ширкати корбар — ҳамаи маълумот танҳо дар дохили он */
+  organizationId: number;
+  /** Навъи кори ширкат (BusinessType) */
+  businessType: string;
+  /** ID-ҳои ҳамаи филиалҳои ширкат */
+  branchIds: number[];
   role: Role;
   branchId: number | null;
   position: Position | null;
@@ -21,6 +27,19 @@ export const Roles = (...roles: Role[]) => SetMetadata(ROLES_KEY, roles);
  */
 export const FEATURE_KEY = 'feature';
 export const Feature = (...features: FeatureName[]) => SetMetadata(FEATURE_KEY, features);
+
+/** Маршрут танҳо барои мизоҷони онлайн (токени kind: 'client') */
+export const CLIENT_ONLY = 'clientOnly';
+export const ClientOnly = () => SetMetadata(CLIENT_ONLY, true);
+
+export interface AuthClient {
+  id: number;
+  fullName: string;
+}
+
+export const CurrentClient = createParamDecorator((_: unknown, ctx: ExecutionContext): AuthClient => {
+  return ctx.switchToHttp().getRequest().client;
+});
 
 export const CurrentUser = createParamDecorator((_: unknown, ctx: ExecutionContext): AuthUser => {
   return ctx.switchToHttp().getRequest().user;

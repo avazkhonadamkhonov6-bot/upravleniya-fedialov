@@ -7,10 +7,11 @@ import { useAuth } from "@/lib/auth";
 
 /** Агар корбар аллакай ворид шуда бошад — аз саҳифаи асосӣ ба саҳифаи кории ӯ мебарад. */
 export function AuthRedirect() {
-  const { user } = useAuth();
+  const { user, client } = useAuth();
   const router = useRouter();
   useEffect(() => {
     if (user) router.replace(homePath(user));
-  }, [user, router]);
+    else if (client) router.replace("/shop");
+  }, [user, client, router]);
   return null;
 }

@@ -3,8 +3,96 @@
 export const ROLES = ['CHEF', 'MANAGER', 'STAFF'] as const;
 export type Role = (typeof ROLES)[number];
 
-export const POSITIONS = ['COOK', 'WAITER', 'CASHIER', 'CLEANER'] as const;
+export const POSITIONS = ['COOK', 'WAITER', 'CASHIER', 'CLEANER', 'SELLER', 'STOREKEEPER'] as const;
 export type Position = (typeof POSITIONS)[number];
+
+// ---------- Навъи кор (ширкат) ----------
+
+/** Ҳар ширкат (соҳибкор) навъи кори худро дорад: тарабхона, мағозаи хӯрокворӣ, либос, сантехника… */
+export const BUSINESS_TYPES = ['RESTAURANT', 'GROCERY', 'CLOTHING', 'PLUMBING', 'ELECTRONICS', 'PHARMACY', 'BUILDING', 'OTHER'] as const;
+export type BusinessType = (typeof BUSINESS_TYPES)[number];
+
+export const BUSINESS_TYPE_LABELS: Record<BusinessType, string> = {
+  RESTAURANT: 'Тарабхона / кафе',
+  GROCERY: 'Мағозаи хӯрокворӣ',
+  CLOTHING: 'Мағозаи либос',
+  PLUMBING: 'Мағозаи сантехника',
+  ELECTRONICS: 'Мағозаи техника',
+  PHARMACY: 'Дорухона',
+  BUILDING: 'Маводи сохтмонӣ',
+  OTHER: 'Дигар',
+};
+
+export const BUSINESS_TYPE_EMOJI: Record<BusinessType, string> = {
+  RESTAURANT: '🍔',
+  GROCERY: '🛒',
+  CLOTHING: '👕',
+  PLUMBING: '🚰',
+  ELECTRONICS: '📱',
+  PHARMACY: '💊',
+  BUILDING: '🧱',
+  OTHER: '🏪',
+};
+
+export function isRestaurant(type: BusinessType | null | undefined): boolean {
+  return type === 'RESTAURANT';
+}
+
+/** Вазифаҳои кормандон аз рӯи навъи кор */
+export function positionsFor(type: BusinessType | null | undefined): readonly Position[] {
+  return isRestaurant(type) ? ['COOK', 'WAITER', 'CASHIER', 'CLEANER'] : ['SELLER', 'CASHIER', 'STOREKEEPER', 'CLEANER'];
+}
+
+/** Номи саҳифаи маҳсулот: «Меню» барои тарабхона, «Маҳсулот» барои мағоза */
+export function catalogLabel(type: BusinessType | null | undefined): string {
+  return isRestaurant(type) ? 'Меню' : 'Маҳсулот';
+}
+
+/** Воҳидҳои ченак барои маҳсулот */
+export const UNITS = ['дона', 'кг', 'грамм', 'литр', 'метр', 'м²', 'қуттӣ', 'ҷуфт', 'халта', 'порция'] as const;
+
+/** Воҳидҳое, ки бо миқдори касрӣ фурӯхта мешаванд (1,5 кг, 2,3 метр) */
+export function isFractionalUnit(unit: string | null | undefined): boolean {
+  return ['кг', 'литр', 'метр', 'м²'].includes((unit ?? '').trim());
+}
+
+export function defaultUnit(type: BusinessType | null | undefined): string {
+  return isRestaurant(type) ? 'порция' : 'дона';
+}
+
+/** Категорияҳои пешниҳодшуда барои маҳсулот (корбар метавонад категорияи худро ҳам нависад) */
+export const SUGGESTED_CATEGORIES: Record<BusinessType, readonly string[]> = {
+  RESTAURANT: ['Таомҳо', 'Бургерҳо', 'Нӯшокиҳо', 'Ширинӣ', 'Газакҳо'],
+  GROCERY: ['Нон ва орд', 'Шир ва панир', 'Гӯшт', 'Мева ва сабзавот', 'Нӯшокиҳо', 'Ширинӣ', 'Хоҷагӣ'],
+  CLOTHING: ['Мардона', 'Занона', 'Кӯдакона', 'Пойафзол', 'Аксессуарҳо'],
+  PLUMBING: ['Қубурҳо', 'Кран ва смеситель', 'Унитаз ва раковина', 'Душ ва ванна', 'Фитингҳо', 'Асбобҳо'],
+  ELECTRONICS: ['Телефонҳо', 'Ноутбукҳо', 'Телевизорҳо', 'Аксессуарҳо', 'Техникаи хонагӣ'],
+  PHARMACY: ['Доруҳо', 'Витаминҳо', 'Гигиена', 'Тиббӣ'],
+  BUILDING: ['Семент ва гаҷ', 'Ранг', 'Асбобҳо', 'Барқ', 'Тахта ва фанер'],
+  OTHER: ['Умумӣ'],
+};
+
+export const DEFAULT_PRODUCT_EMOJI: Record<BusinessType, string> = {
+  RESTAURANT: '🍗',
+  GROCERY: '🛒',
+  CLOTHING: '👕',
+  PLUMBING: '🚰',
+  ELECTRONICS: '📱',
+  PHARMACY: '💊',
+  BUILDING: '🧱',
+  OTHER: '📦',
+};
+
+export interface Organization {
+  id: number;
+  name: string;
+  type: BusinessType;
+  /** Тавсиф барои мизоҷони бозори онлайн */
+  description: string;
+  /** Дар бозори онлайн нишон дода мешавад */
+  isPublic: boolean;
+  createdAt: string;
+}
 
 export const PAYMENTS = ['CASH', 'CARD'] as const;
 export type Payment = (typeof PAYMENTS)[number];
@@ -20,6 +108,8 @@ export const POSITION_LABELS: Record<Position, string> = {
   WAITER: 'Официант',
   CASHIER: 'Кассир',
   CLEANER: 'Фаррош',
+  SELLER: 'Фурӯшанда',
+  STOREKEEPER: 'Анбордор',
 };
 
 export const POSITION_EMOJI: Record<Position, string> = {
@@ -27,10 +117,12 @@ export const POSITION_EMOJI: Record<Position, string> = {
   WAITER: '🧑‍💼',
   CASHIER: '💵',
   CLEANER: '🧹',
+  SELLER: '🛍️',
+  STOREKEEPER: '📦',
 };
 
 /** Вазифаҳое, ки фурӯш (POS) сабт карда метавонанд. */
-export const SELLER_POSITIONS: readonly Position[] = ['CASHIER'];
+export const SELLER_POSITIONS: readonly Position[] = ['CASHIER', 'SELLER'];
 
 /** Шеф, менеҷер ва кассир фурӯш сабт карда метавонанд. */
 export function canSell(u: { role: Role; position: Position | null }): boolean {
@@ -58,6 +150,8 @@ export const FEATURES = [
   /** Қабули занг (ҳама); занг задан — танҳо онҳое, ки «messages» доранд */
   'calls',
   'profile',
+  /** Фармоишҳои онлайни мизоҷон */
+  'online',
 ] as const;
 export type Feature = (typeof FEATURES)[number];
 
@@ -67,10 +161,13 @@ export type Feature = (typeof FEATURES)[number];
  * ошпаз ва фаррош — танҳо профил (бо маош ва рӯзи гирифтани он).
  */
 export const STAFF_FEATURES: Record<Position, readonly Feature[]> = {
-  CASHIER: ['pos', 'sales', 'profile', 'calls'],
+  CASHIER: ['pos', 'sales', 'online', 'profile', 'calls'],
   WAITER: ['products', 'profile', 'calls'],
   COOK: ['profile', 'calls'],
   CLEANER: ['profile', 'calls'],
+  // Мағоза: фурӯшанда мол мефурӯшад ва рӯйхати молро мебинад; анбордор — рӯйхати мол
+  SELLER: ['pos', 'sales', 'online', 'products', 'profile', 'calls'],
+  STOREKEEPER: ['products', 'profile', 'calls'],
 };
 
 type Who = { role: Role; position: Position | null };
@@ -84,8 +181,8 @@ export function canAccess(u: Who, feature: Feature): boolean {
 /** Саҳифаи аввал пас аз воридшавӣ */
 export function homePath(u: Who): string {
   if (u.role !== 'STAFF') return '/dashboard';
-  if (u.position === 'CASHIER') return '/pos';
-  if (u.position === 'WAITER') return '/products';
+  if (u.position === 'CASHIER' || u.position === 'SELLER') return '/pos';
+  if (u.position === 'WAITER' || u.position === 'STOREKEEPER') return '/products';
   return '/profile';
 }
 
@@ -107,6 +204,7 @@ export function featureOfPath(pathname: string): Feature | null {
     integrations: 'integrations',
     audit: 'audit',
     profile: 'profile',
+    online: 'online',
   };
   return map[seg] ?? null;
 }
@@ -195,6 +293,8 @@ export interface User {
   hiredAt: string;
   isActive: boolean;
   telegramLinked: boolean;
+  /** Ширкате, ки корбар дар он кор мекунад */
+  organization?: Organization | null;
 }
 
 export interface Product {
@@ -202,6 +302,8 @@ export interface Product {
   name: string;
   category: string;
   emoji: string;
+  /** Воҳиди ченак: дона, кг, литр, метр… */
+  unit: string;
   price: number;
   cost: number;
   profit: number;
@@ -213,6 +315,9 @@ export interface OrderItem {
   productId: number;
   name: string;
   emoji: string;
+  /** Воҳиди ченак (дона, кг…) */
+  unit: string;
+  /** Касрӣ ҳам мешавад (1,5 кг) */
   qty: number;
   unitPrice: number;
   unitCost: number;
@@ -629,4 +734,85 @@ export interface TelegramLinkInfo {
   /** https://t.me/<bot>?start=<код> — бо як пахш ҳисоб пайваст мешавад */
   link: string | null;
   linked: boolean;
+}
+
+// ---------- Бозори онлайн (мизоҷон) ----------
+
+export const ONLINE_STATUSES = ['NEW', 'ACCEPTED', 'DELIVERING', 'DELIVERED', 'CANCELLED'] as const;
+export type OnlineOrderStatus = (typeof ONLINE_STATUSES)[number];
+
+export const ONLINE_STATUS_LABELS: Record<OnlineOrderStatus, string> = {
+  NEW: 'Нав',
+  ACCEPTED: 'Қабул шуд',
+  DELIVERING: 'Дар роҳ',
+  DELIVERED: 'Гирифта шуд',
+  CANCELLED: 'Бекор шуд',
+};
+
+export const ONLINE_STATUS_EMOJI: Record<OnlineOrderStatus, string> = {
+  NEW: '🆕',
+  ACCEPTED: '👨‍🍳',
+  DELIVERING: '🛵',
+  DELIVERED: '✅',
+  CANCELLED: '✖️',
+};
+
+/** Ҳолати навбатӣ, ки корманд метавонад гузорад */
+export const ONLINE_NEXT: Record<OnlineOrderStatus, readonly OnlineOrderStatus[]> = {
+  NEW: ['ACCEPTED', 'CANCELLED'],
+  ACCEPTED: ['DELIVERING', 'CANCELLED'],
+  DELIVERING: ['DELIVERED', 'CANCELLED'],
+  DELIVERED: [],
+  CANCELLED: [],
+};
+
+export interface Client {
+  id: number;
+  fullName: string;
+  email: string;
+  phone: string;
+  address: string;
+  createdAt: string;
+}
+
+/** Мағоза дар рӯйхати бозор */
+export interface StoreSummary {
+  id: number;
+  name: string;
+  type: BusinessType;
+  description: string;
+  products: number;
+  branches: number;
+  cities: string[];
+  /** То 4 эмоҷии маҳсулот — барои пешнамоиш */
+  preview: string[];
+}
+
+export interface StoreDetail extends StoreSummary {
+  branchList: Pick<Branch, 'id' | 'name' | 'city' | 'address' | 'phone'>[];
+  catalog: Pick<Product, 'id' | 'name' | 'category' | 'emoji' | 'unit' | 'price'>[];
+}
+
+export interface OnlineOrderItem {
+  productId: number | null;
+  name: string;
+  emoji: string;
+  unit: string;
+  qty: number;
+  unitPrice: number;
+}
+
+export interface OnlineOrder {
+  id: number;
+  status: OnlineOrderStatus;
+  store: { id: number; name: string; type: BusinessType };
+  branch: { id: number; name: string } | null;
+  client: { id: number; fullName: string; phone: string } | null;
+  address: string;
+  phone: string;
+  note: string;
+  total: number;
+  items: OnlineOrderItem[];
+  createdAt: string;
+  updatedAt: string;
 }

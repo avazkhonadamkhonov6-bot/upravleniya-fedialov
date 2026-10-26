@@ -1,16 +1,18 @@
 "use client";
 
-import { POSITION_EMOJI, POSITION_LABELS, POSITIONS, type Branch, type BranchRank, type Period } from "@filialhub/shared";
+import { POSITION_EMOJI, POSITION_LABELS, type Branch, type BranchRank, type Period } from "@filialhub/shared";
 import { ArrowUpRight, MapPin, Pencil, Plus } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 import { BranchForm } from "@/components/forms";
-import { Badge, Button, Card, ContactButtons, Empty, ErrorBox, Modal, money, PageHeader, Segmented, Skeleton, cn } from "@/components/ui";
+import { Badge, Button, Card, ContactButtons, ErrorBox, Modal, money, PageHeader, Segmented, Skeleton, cn } from "@/components/ui";
 import { qs } from "@/lib/api";
+import { useBusiness } from "@/lib/auth";
 import { useApi } from "@/lib/use-api";
 import { tr } from "@/lib/i18n";
 
 export default function BranchesPage() {
+  const { positions } = useBusiness();
   const { data, error, reload } = useApi<Branch[]>("/branches");
   const [editing, setEditing] = useState<Branch | "new" | null>(null);
   const [period, setPeriod] = useState<Period>("month");
@@ -69,7 +71,31 @@ export default function BranchesPage() {
           ))}
         </div>
       ) : data.length === 0 ? (
-        <Empty icon="🏪" title={tr("Ҳоло филиал нест")} text={tr("Филиали аввалинро илова кунед.")} />
+        <Card className="rise">
+          <h2 className="text-xl font-bold text-ink">{tr("Хуш омадед! Ширкати худро дар 3 қадам омода кунед")}</h2>
+          <ol className="mt-5 grid gap-3 md:grid-cols-3">
+            {[
+              { n: 1, title: tr("Филиал илова кунед"), text: tr("Мағоза, нуқта ё тарабхонаи аввалин"), action: () => setEditing("new") },
+              { n: 2, title: tr("Маҳсулотро илова кунед"), text: tr("Ном, нарх, арзиши аслӣ ва воҳид (дона, кг…)"), href: "/products" },
+              { n: 3, title: tr("Кормандонро илова кунед"), text: tr("Менеҷер, фурӯшанда, кассир — ҳар кас бо ҳисоби худ"), href: "/staff" },
+            ].map((step) => (
+              <li key={step.n} className="rounded-2xl border border-line bg-surface-2 p-4">
+                <div className="brand-gradient grid size-8 place-items-center rounded-full text-sm font-bold text-white">{step.n}</div>
+                <div className="mt-3 font-semibold text-ink">{step.title}</div>
+                <div className="mt-1 text-sm text-muted">{step.text}</div>
+                {step.action ? (
+                  <Button size="sm" className="mt-3" onClick={step.action}>
+                    <Plus className="size-4" /> {tr("Филиали нав")}
+                  </Button>
+                ) : (
+                  <Link href={step.href!} className="mt-3 inline-flex items-center gap-1 text-sm font-semibold text-brand hover:underline">
+                    {tr("Гузаштан")} <ArrowUpRight className="size-4" />
+                  </Link>
+                )}
+              </li>
+            ))}
+          </ol>
+        </Card>
       ) : (
         <div className="stagger grid gap-5 md:grid-cols-2 xl:grid-cols-3">
           {data.map((b, i) => (
@@ -91,7 +117,7 @@ export default function BranchesPage() {
                 <BranchMoney rank={rankOf(b.id)} loading={!ranks} />
 
                 <div className="mt-4 grid grid-cols-4 gap-2">
-                  {POSITIONS.map((p) => (
+                  {positions.map((p) => (
                     <div key={p} className="rounded-xl bg-surface-2 p-2.5 text-center">
                       <div className="text-lg">{POSITION_EMOJI[p]}</div>
                       <div className="text-lg font-bold text-ink tabular">{b.staffByPosition?.[p] ?? 0}</div>

@@ -5,12 +5,13 @@ import { Pencil, Plus } from "lucide-react";
 import { useState } from "react";
 import { ProductForm } from "@/components/forms";
 import { Badge, Button, Card, Empty, ErrorBox, Modal, money, PageHeader, Skeleton, cn } from "@/components/ui";
-import { useAuth } from "@/lib/auth";
+import { useAuth, useBusiness } from "@/lib/auth";
 import { useApi } from "@/lib/use-api";
 import { tr } from "@/lib/i18n";
 
 export default function ProductsPage() {
   const { user } = useAuth();
+  const { restaurant } = useBusiness();
   const isChef = user?.role === "CHEF";
   const showCost = user?.role !== "STAFF";
   const { data, error, reload } = useApi<Product[]>("/products");
@@ -26,8 +27,8 @@ export default function ProductsPage() {
   return (
     <>
       <PageHeader
-        title={tr("Меню ва нархҳо")}
-        subtitle={isChef ? tr("Нархҳо барои ҳамаи филиалҳо як хел аст. Фоида = нарх − арзиши аслӣ.") : tr("Нархҳои менюи шабака")}
+        title={restaurant ? tr("Меню ва нархҳо") : tr("Маҳсулот ва нархҳо")}
+        subtitle={isChef ? tr("Нархҳо барои ҳамаи филиалҳо як хел аст. Фоида = нарх − арзиши аслӣ.") : tr("Нархҳои ҳамаи филиалҳо")}
         actions={
           isChef && (
             <Button onClick={() => setEditing("new")}>
@@ -40,7 +41,7 @@ export default function ProductsPage() {
       {showCost && data && (
         <div className="mb-6 grid gap-4 sm:grid-cols-3">
           <div className="card p-5">
-            <div className="text-sm text-muted">{tr("Маҳсулот дар меню")}</div>
+            <div className="text-sm text-muted">{tr("Маҳсулоти фаъол")}</div>
             <div className="mt-1 text-3xl font-bold text-ink tabular">{active.length}</div>
           </div>
           <div className="card p-5">
@@ -83,7 +84,7 @@ export default function ProductsPage() {
             ))}
           </div>
         ) : list.length === 0 ? (
-          <Empty icon="🍽" title={tr("Меню холӣ аст")} />
+          <Empty icon={restaurant ? "🍽" : "📦"} title={tr("Ҳоло маҳсулот нест")} text={isChef ? tr("«Маҳсулоти нав»-ро пахш карда, моли худро илова кунед.") : undefined} />
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full min-w-[640px] text-sm">
@@ -113,7 +114,10 @@ export default function ProductsPage() {
                       </div>
                     </td>
                     <td className="px-3 py-3 text-ink-2">{tr(p.category)}</td>
-                    <td className="px-3 py-3 text-right font-bold whitespace-nowrap text-ink tabular">{money(p.price)}</td>
+                    <td className="px-3 py-3 text-right font-bold whitespace-nowrap text-ink tabular">
+                      {money(p.price)}
+                      <span className="block text-[11px] font-medium text-muted">/ {tr(p.unit)}</span>
+                    </td>
                     {showCost && (
                       <>
                         <td className="px-3 py-3 text-right whitespace-nowrap text-muted tabular">{money(p.cost)}</td>

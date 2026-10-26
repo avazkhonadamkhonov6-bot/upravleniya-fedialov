@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Param, ParseIntPipe, Patch, Post } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, ParseIntPipe, Patch, Post, Query } from '@nestjs/common';
 import { AuthUser, CurrentUser, Roles } from '../auth/decorators';
 import { BranchesService } from './branches.service';
 import { CreateBranchDto, UpdateBranchDto } from './dto';
@@ -31,7 +31,7 @@ export class BranchesController {
 
   @Delete(':id')
   @Roles('CHEF')
-  remove(@CurrentUser() user: AuthUser, @Param('id', ParseIntPipe) id: number) {
-    return this.branches.remove(user, id);
+  remove(@CurrentUser() user: AuthUser, @Param('id', ParseIntPipe) id: number, @Query('force') force?: string) {
+    return this.branches.remove(user, id, force === 'true');
   }
 }

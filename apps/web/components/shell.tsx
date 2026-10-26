@@ -1,12 +1,25 @@
 "use client";
 
-import { canAccess, featureOfPath, homePath, POSITION_LABELS, ROLE_LABELS, type Feature, type User } from "@filialhub/shared";
+import {
+  BUSINESS_TYPE_EMOJI,
+  BUSINESS_TYPE_LABELS,
+  canAccess,
+  featureOfPath,
+  homePath,
+  isRestaurant,
+  POSITION_LABELS,
+  ROLE_LABELS,
+  type Feature,
+  type Organization,
+  type User,
+} from "@filialhub/shared";
 import {
   BarChart3,
   Building2,
   CalendarClock,
   ClipboardList,
   HeartHandshake,
+  Globe,
   History,
   LayoutDashboard,
   LogOut,
@@ -14,6 +27,7 @@ import {
   MessageCircle,
   MessagesSquare,
   Moon,
+  Package,
   Search,
   ShoppingBag,
   Sun,
@@ -71,6 +85,7 @@ const NAV: { title: string; items: NavItem[] }[] = [
     title: "Фурӯш",
     items: [
       { href: "/pos", label: "Фурӯши нав", short: "Фурӯш", icon: ShoppingBag, feature: "pos", primary: true },
+      { href: "/online", label: "Фармоишҳои онлайн", short: "Онлайн", icon: Globe, feature: "online" },
       { href: "/sales", label: "Таърихи фурӯш", short: "Таърих", icon: BarChart3, feature: "sales" },
       { href: "/products", label: "Меню ва нархҳо", short: "Меню", icon: UtensilsCrossed, feature: "products" },
     ],
@@ -124,14 +139,18 @@ export function useTheme() {
   return { theme, toggle };
 }
 
-/** compact — дар телефон танҳо иконка (барои ҷой дар топбар) */
-export function Logo({ light, compact }: { light?: boolean; compact?: boolean }) {
+/** compact — дар телефон танҳо иконка (барои ҷой дар топбар); org — номи ширкати корбар ва иконаи навъи кор */
+export function Logo({ light, compact, org }: { light?: boolean; compact?: boolean; org?: Organization | null }) {
   return (
-    <div className="flex items-center gap-2.5">
-      <div className="brand-gradient grid size-10 place-items-center rounded-2xl text-xl shadow-lg shadow-red-500/30">🍗</div>
-      <div className={cn("leading-tight", compact && "hidden sm:block")}>
-        <div className={cn("text-lg font-extrabold tracking-tight", light ? "text-white" : "text-ink")}>FilialHub</div>
-        <div className={cn("text-[11px] font-medium", light ? "text-white/50" : "hidden text-muted sm:block")}>{tr("CRM · идоракунии филиалҳо")}</div>
+    <div className="flex min-w-0 items-center gap-2.5">
+      <div className="brand-gradient grid size-10 shrink-0 place-items-center rounded-2xl text-xl shadow-lg shadow-red-500/30">
+        {org ? BUSINESS_TYPE_EMOJI[org.type] : "🍗"}
+      </div>
+      <div className={cn("min-w-0 leading-tight", compact && "hidden sm:block")}>
+        <div className={cn("truncate text-lg font-extrabold tracking-tight", light ? "text-white" : "text-ink")}>{org?.name ?? "FilialHub"}</div>
+        <div className={cn("truncate text-[11px] font-medium", light ? "text-white/50" : "hidden text-muted sm:block")}>
+          {org ? `${tr(BUSINESS_TYPE_LABELS[org.type])} · FilialHub` : tr("CRM · идоракунии филиалҳо")}
+        </div>
       </div>
     </div>
   );
@@ -163,7 +182,7 @@ function isActive(pathname: string, href: string) {
 }
 
 export function AppShell({ children }: { children: React.ReactNode }) {
-  const { user, loading, logout } = useAuth();
+  const { user, client, loading, logout } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
   const { theme, toggle } = useTheme();
@@ -174,8 +193,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const allowed = !user || !feature || canAccess(user, feature);
 
   useEffect(() => {
-    if (!loading && !user) router.replace("/login");
-  }, [loading, user, router]);
+    // Мизоҷи онлайн панели ширкатро намебинад — ба бозор
+    if (!loading && !user) router.replace(client ? "/shop" : "/login");
+  }, [loading, user, client, router]);
 
   // Саҳифае, ки барои нақш/вазифаи корбар баста аст — ба саҳифаи аввали ӯ мебарем.
   useEffect(() => {
@@ -208,7 +228,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     );
   }
 
-  const groups = NAV.map((g) => ({ ...g, items: g.items.filter((n) => canAccess(user, n.feature) && (!n.only || n.only(user))) })).filter((g) => g.items.length);
+  // Мағоза «Меню» надорад — «Маҳсулот»
+  const shop = !isRestaurant(user.organization?.type);
+  const relabel = (n: NavItem): NavItem =>
+    shop && n.href === "/products" ? { ...n, label: "Маҳсулот ва нархҳо", short: "Маҳсулот", icon: Package } : n;
+  const groups = NAV.map((g) => ({ ...g, items: g.items.filter((n) => canAccess(user, n.feature) && (!n.only || n.only(user))).map(relabel) })).filter((g) => g.items.length);
   const canSearch = canAccess(user, "search");
   const all = groups.flatMap((g) => g.items);
   // Корманд 1–3 саҳифа дорад — ҳамаашро дар менюи поён нишон медиҳем.
@@ -223,7 +247,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         <div className="pointer-events-none absolute inset-x-0 top-0 h-72 bg-[radial-gradient(ellipse_at_top_left,rgba(228,0,43,0.38),transparent_65%)]" />
         <div className="pointer-events-none absolute -bottom-24 -left-16 size-72 rounded-full bg-[#ff5a36] opacity-10 blur-3xl" />
         <div className="relative px-5 pt-5">
-          <Logo light />
+          <Logo light org={user.organization} />
         </div>
         <nav className="scrollbar-none relative mt-6 flex-1 space-y-5 overflow-y-auto px-3 pb-4">
           {groups.map((g) => (
@@ -289,7 +313,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       <header className="glass sticky top-0 z-20 border-b border-line">
         <div className="mx-auto flex h-16 max-w-[1400px] items-center gap-2 px-4 sm:gap-3 sm:px-6 lg:px-10">
           <div className="lg:hidden">
-            <Logo compact />
+            <Logo compact org={user.organization} />
           </div>
           <div className="hidden min-w-0 items-center gap-2 text-sm text-muted lg:flex">
             {current && <current.icon className="size-4" />}

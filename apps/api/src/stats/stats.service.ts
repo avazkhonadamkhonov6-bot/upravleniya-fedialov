@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { POSITIONS } from '@filialhub/shared';
 import type {
   BranchRank,
   Overview,
@@ -14,13 +15,20 @@ import { PrismaService } from '../prisma/prisma.service';
 
 export type Granularity = 'day' | 'week' | 'month';
 
+/** Як филиал ё ҳамаи филиалҳои ширкат (Prisma: branchId: 5 ё { in: [...] }) */
+export type BranchScope = number | { in: number[] };
+
+function ids(scope: BranchScope): number[] {
+  return typeof scope === 'number' ? [scope] : scope.in;
+}
+
 const DAY = 24 * 60 * 60 * 1000;
 
 @Injectable()
 export class StatsService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async periodStats(branchId: number | undefined, from: Date, to?: Date): Promise<PeriodStats> {
+  async periodStats(branchId: BranchScope, from: Date, to?: Date): Promise<PeriodStats> {
     const range = { gte: from, ...(to ? { lt: to } : {}) };
     const [agg, exp] = await Promise.all([
       this.prisma.order.aggregate({
@@ -45,25 +53,25 @@ export class StatsService {
     };
   }
 
-  async employeesByPosition(branchId?: number): Promise<Record<Position, number>> {
+  async employeesByPosition(branchId: BranchScope): Promise<Record<Position, number>> {
     const rows = await this.prisma.user.groupBy({
       by: ['position'],
       where: { role: 'STAFF', isActive: true, branchId },
       _count: true,
     });
-    const result: Record<Position, number> = { COOK: 0, WAITER: 0, CASHIER: 0, CLEANER: 0 };
+    const result = Object.fromEntries(POSITIONS.map((p) => [p, 0])) as Record<Position, number>;
     for (const r of rows) if (r.position) result[r.position] = r._count;
     return result;
   }
 
-  async overview(branchId?: number): Promise<Overview> {
+  async overview(branchId: BranchScope): Promise<Overview> {
     const today = startOfLocalDay();
     const [todayStats, yesterday, week, month, branches, byPosition, managers] = await Promise.all([
       this.periodStats(branchId, today),
       this.periodStats(branchId, startOfLocalDay(new Date(), -1), today),
       this.periodStats(branchId, startOfLocalWeek()),
       this.periodStats(branchId, startOfLocalMonth()),
-      branchId ? Promise.resolve(1) : this.prisma.branch.count({ where: { isActive: true } }),
+      typeof branchId === 'number' ? Promise.resolve(1) : this.prisma.branch.count({ where: { isActive: true, id: branchId } }),
       this.employeesByPosition(branchId),
       this.prisma.user.count({ where: { role: 'MANAGER', isActive: true, branchId } }),
     ]);
@@ -79,7 +87,7 @@ export class StatsService {
     };
   }
 
-  async timeseries(branchId: number | undefined, granularity: Granularity, points: number): Promise<TimePoint[]> {
+  async timeseries(branchId: BranchScope, granularity: Granularity, points: number): Promise<TimePoint[]> {
     const keys = bucketKeys(granularity, points);
     const from = bucketStart(granularity, points);
     const rows = await this.prisma.$queryRaw<{ date: string; revenue: number; profit: number; orders: number }[]>(
@@ -90,7 +98,7 @@ export class StatsService {
                COUNT(*)::int AS orders
         FROM "Order"
         WHERE "createdAt" >= ${from}
-          AND (${branchId ?? null}::int IS NULL OR "branchId" = ${branchId ?? null}::int)
+          AND "branchId" = ANY(${ids(branchId)}::int[])
         GROUP BY 1
         ORDER BY 1`,
     );
@@ -101,18 +109,18 @@ export class StatsService {
     });
   }
 
-  async branchRanking(period: Period): Promise<BranchRank[]> {
+  async branchRanking(branchIds: number[], period: Period): Promise<BranchRank[]> {
     const from = periodStart(period);
     const [branches, sums, staff, exps] = await Promise.all([
-      this.prisma.branch.findMany({ where: { isActive: true }, orderBy: { id: 'asc' } }),
+      this.prisma.branch.findMany({ where: { isActive: true, id: { in: branchIds } }, orderBy: { id: 'asc' } }),
       this.prisma.order.groupBy({
         by: ['branchId'],
-        where: { createdAt: { gte: from } },
+        where: { createdAt: { gte: from }, branchId: { in: branchIds } },
         _sum: { total: true, totalCost: true },
         _count: true,
       }),
-      this.prisma.user.groupBy({ by: ['branchId'], where: { isActive: true, role: 'STAFF' }, _count: true }),
-      this.prisma.expense.groupBy({ by: ['branchId'], where: { date: { gte: from } }, _sum: { amount: true } }),
+      this.prisma.user.groupBy({ by: ['branchId'], where: { isActive: true, role: 'STAFF', branchId: { in: branchIds } }, _count: true }),
+      this.prisma.expense.groupBy({ by: ['branchId'], where: { date: { gte: from }, branchId: { in: branchIds } }, _sum: { amount: true } }),
     ]);
     return branches
       .map((b) => {
@@ -135,18 +143,18 @@ export class StatsService {
       .sort((a, b) => b.profit - a.profit);
   }
 
-  async topProducts(branchId: number | undefined, period: Period, limit = 8): Promise<ProductRank[]> {
+  async topProducts(branchId: BranchScope, period: Period, limit = 8): Promise<ProductRank[]> {
     const from = periodStart(period);
     const rows = await this.prisma.$queryRaw<ProductRank[]>(Prisma.sql`
       SELECT p.id AS "productId", p.name, p.emoji,
-             SUM(oi.qty)::int AS qty,
+             SUM(oi.qty)::float AS qty,
              SUM(oi.qty * oi."unitPrice")::float AS revenue,
              SUM(oi.qty * (oi."unitPrice" - oi."unitCost"))::float AS profit
       FROM "OrderItem" oi
       JOIN "Order" o ON o.id = oi."orderId"
       JOIN "Product" p ON p.id = oi."productId"
       WHERE o."createdAt" >= ${from}
-        AND (${branchId ?? null}::int IS NULL OR o."branchId" = ${branchId ?? null}::int)
+        AND o."branchId" = ANY(${ids(branchId)}::int[])
       GROUP BY p.id
       ORDER BY revenue DESC
       LIMIT ${limit}`);

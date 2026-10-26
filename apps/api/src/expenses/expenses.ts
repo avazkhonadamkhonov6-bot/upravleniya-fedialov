@@ -24,7 +24,7 @@ import {
   type ProfitAndLoss,
 } from '@filialhub/shared';
 import { AuthUser, CurrentUser, Roles } from '../auth/decorators';
-import { scopeBranch } from '../common/access';
+import { branchIdList, branchWhere, scopeBranch } from '../common/access';
 import { startOfLocalMonth, TZ } from '../common/time';
 import { AuditService } from '../core/audit.service';
 import { Prisma } from '../generated/prisma/client';
@@ -94,7 +94,7 @@ export class ExpensesService {
     q: { branchId?: number; category?: ExpenseCategory; from?: string; to?: string; page: number },
   ): Promise<Paginated<ExpenseDto> & { sum: number }> {
     const where: Prisma.ExpenseWhereInput = {
-      branchId: scopeBranch(user, q.branchId),
+      branchId: branchWhere(user, q.branchId),
       category: q.category,
       date: { gte: q.from ? new Date(q.from) : undefined, lt: q.to ? new Date(q.to) : undefined },
     };
@@ -108,7 +108,7 @@ export class ExpensesService {
 
   /** Ҳисоботи фоида ва зарар моҳ ба моҳ. */
   async pnl(user: AuthUser, branchId: number | undefined, months: number): Promise<ProfitAndLoss[]> {
-    const b = scopeBranch(user, branchId) ?? null;
+    const b = branchIdList(user, branchId);
     const start = startOfLocalMonth();
     const local = new Date(start.getTime() + 5 * 3600000);
     local.setUTCMonth(local.getUTCMonth() - (months - 1));
@@ -119,13 +119,13 @@ export class ExpensesService {
         SELECT to_char(date_trunc('month', ("createdAt" AT TIME ZONE 'UTC') AT TIME ZONE ${TZ}), 'YYYY-MM') AS month,
                COALESCE(SUM("total"), 0)::float AS revenue, COALESCE(SUM("totalCost"), 0)::float AS cost
         FROM "Order"
-        WHERE "createdAt" >= ${from} AND (${b}::int IS NULL OR "branchId" = ${b}::int)
+        WHERE "createdAt" >= ${from} AND "branchId" = ANY(${b}::int[])
         GROUP BY 1`),
       this.prisma.$queryRaw<{ month: string; category: ExpenseCategory; amount: number }[]>(Prisma.sql`
         SELECT to_char(date_trunc('month', ("date" AT TIME ZONE 'UTC') AT TIME ZONE ${TZ}), 'YYYY-MM') AS month,
                "category", COALESCE(SUM("amount"), 0)::float AS amount
         FROM "Expense"
-        WHERE "date" >= ${from} AND (${b}::int IS NULL OR "branchId" = ${b}::int)
+        WHERE "date" >= ${from} AND "branchId" = ANY(${b}::int[])
         GROUP BY 1, 2`),
     ]);
 

@@ -25,9 +25,12 @@ export class AlertsService {
 
   /** Ба менеҷерони филиал (ва ихтиёрӣ ба шефҳо). */
   async notifyBranch(branchId: number, alert: AlertInput, opts: { includeChefs?: boolean; exceptUserId?: number } = {}) {
+    const branch = await this.prisma.branch.findUnique({ where: { id: branchId }, select: { organizationId: true } });
+    if (!branch) return;
     const users = await this.prisma.user.findMany({
       where: {
         isActive: true,
+        organizationId: branch.organizationId,
         OR: [{ role: 'MANAGER', branchId }, ...(opts.includeChefs ? [{ role: 'CHEF' as const }] : [])],
       },
       select: { id: true },

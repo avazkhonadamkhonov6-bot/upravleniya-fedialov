@@ -1,7 +1,15 @@
-import type { Branch as BranchDto, Product as ProductDto, User as UserDto } from '@filialhub/shared';
-import type { Branch, Product, User } from '../generated/prisma/client';
+import type { BusinessType, Branch as BranchDto, Client as ClientDto, Organization as OrganizationDto, Product as ProductDto, User as UserDto } from '@filialhub/shared';
+import type { Branch, Client, Organization, Product, User } from '../generated/prisma/client';
 
-type UserWithBranch = User & { branch?: Pick<Branch, 'id' | 'name' | 'city'> | null };
+type UserWithBranch = User & { branch?: Pick<Branch, 'id' | 'name' | 'city'> | null; organization?: Organization | null };
+
+export function toClient(c: Client): ClientDto {
+  return { id: c.id, fullName: c.fullName, email: c.email, phone: c.phone, address: c.address, createdAt: c.createdAt.toISOString() };
+}
+
+export function toOrganization(o: Organization): OrganizationDto {
+  return { id: o.id, name: o.name, type: o.type as BusinessType, description: o.description, isPublic: o.isPublic, createdAt: o.createdAt.toISOString() };
+}
 
 export function toUser(u: UserWithBranch): UserDto {
   return {
@@ -20,6 +28,7 @@ export function toUser(u: UserWithBranch): UserDto {
     hiredAt: u.hiredAt.toISOString(),
     isActive: u.isActive,
     telegramLinked: !!u.telegramChatId,
+    organization: u.organization ? toOrganization(u.organization) : undefined,
   };
 }
 
@@ -45,6 +54,7 @@ export function toProduct(p: Product, hideCost = false): ProductDto {
     name: p.name,
     category: p.category,
     emoji: p.emoji,
+    unit: p.unit,
     price,
     cost,
     profit: Math.round(profit * 100) / 100,

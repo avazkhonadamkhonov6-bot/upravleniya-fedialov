@@ -127,7 +127,9 @@ export class ChatService {
     if (!targetId && from.role === 'STAFF' && from.branchId) {
       targetId = (await this.prisma.user.findFirst({ where: { branchId: from.branchId, role: 'MANAGER', isActive: true } }))?.id;
     }
-    if (!targetId) targetId = (await this.prisma.user.findFirst({ where: { role: 'CHEF', isActive: true, id: { not: from.id } } }))?.id;
+    if (!targetId) {
+      targetId = (await this.prisma.user.findFirst({ where: { role: 'CHEF', isActive: true, organizationId: from.organizationId, id: { not: from.id } } }))?.id;
+    }
     return targetId;
   }
 

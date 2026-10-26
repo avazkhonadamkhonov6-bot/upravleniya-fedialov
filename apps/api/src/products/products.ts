@@ -12,7 +12,8 @@ import {
   Post,
 } from '@nestjs/common';
 import { Type } from 'class-transformer';
-import { IsBoolean, IsNumber, IsOptional, IsString, Min, MinLength } from 'class-validator';
+import { DEFAULT_PRODUCT_EMOJI, defaultUnit, type BusinessType } from '@filialhub/shared';
+import { IsBoolean, IsNumber, IsOptional, IsString, MaxLength, Min, MinLength } from 'class-validator';
 import { AuthUser, CurrentUser, Feature, Roles } from '../auth/decorators';
 import { toProduct } from '../common/serializers';
 import { AuditService } from '../core/audit.service';
@@ -27,6 +28,9 @@ export class CreateProductDto {
 
   @IsOptional() @IsString()
   emoji?: string;
+
+  @IsOptional() @IsString() @MaxLength(20)
+  unit?: string;
 
   @Type(() => Number) @IsNumber() @Min(0, { message: 'Нарх манфӣ буда наметавонад' })
   price: number;
@@ -44,6 +48,9 @@ export class UpdateProductDto {
 
   @IsOptional() @IsString()
   emoji?: string;
+
+  @IsOptional() @IsString() @MaxLength(20)
+  unit?: string;
 
   @IsOptional() @Type(() => Number) @IsNumber() @Min(0)
   price?: number;
@@ -64,7 +71,7 @@ export class ProductsService {
 
   async list(user: AuthUser) {
     const products = await this.prisma.product.findMany({
-      where: user.role === 'CHEF' ? undefined : { isActive: true },
+      where: { organizationId: user.organizationId, isActive: user.role === 'CHEF' ? undefined : true },
       orderBy: [{ category: 'asc' }, { name: 'asc' }],
     });
     // Кормандон арзиши аслӣ ва фоидаро намебинанд.
@@ -72,27 +79,35 @@ export class ProductsService {
   }
 
   async create(user: AuthUser, dto: CreateProductDto) {
-    const p = await this.prisma.product.create({ data: { ...dto, emoji: dto.emoji || '🍗' } });
+    const type = user.businessType as BusinessType;
+    const p = await this.prisma.product.create({
+      data: {
+        ...dto,
+        organizationId: user.organizationId,
+        emoji: dto.emoji || DEFAULT_PRODUCT_EMOJI[type] || '📦',
+        unit: dto.unit?.trim() || defaultUnit(type),
+      },
+    });
     this.audit.log(user, 'CREATE', 'product', p.id, `Маҳсулоти нав: ${p.emoji} ${p.name} — ${Number(p.price)} сомонӣ`);
     return toProduct(p);
   }
 
   async update(user: AuthUser, id: number, dto: UpdateProductDto) {
-    const before = await this.ensure(id);
+    const before = await this.ensure(user, id);
     const p = await this.prisma.product.update({ where: { id }, data: dto });
     const changes = [
       dto.price !== undefined && Number(before.price) !== dto.price && `нарх: ${Number(before.price)} → ${dto.price}`,
       dto.cost !== undefined && Number(before.cost) !== dto.cost && `арзиши аслӣ: ${Number(before.cost)} → ${dto.cost}`,
-      dto.isActive === false && before.isActive && 'аз меню пинҳон шуд',
-      dto.isActive === true && !before.isActive && 'ба меню баргашт',
+      dto.isActive === false && before.isActive && 'пинҳон шуд',
+      dto.isActive === true && !before.isActive && 'баргашт',
     ].filter(Boolean);
     this.audit.log(user, 'UPDATE', 'product', id, `${p.emoji} ${p.name}: ${changes.length ? changes.join(', ') : 'маълумот тағйир ёфт'}`);
     return toProduct(p);
   }
 
   async remove(user: AuthUser, id: number) {
-    const before = await this.ensure(id);
-    this.audit.log(user, 'DELETE', 'product', id, `Маҳсулот аз меню хориҷ шуд: ${before.emoji} ${before.name}`);
+    const before = await this.ensure(user, id);
+    this.audit.log(user, 'DELETE', 'product', id, `Маҳсулот хориҷ шуд: ${before.emoji} ${before.name}`);
     const used = await this.prisma.orderItem.count({ where: { productId: id } });
     if (used > 0) {
       // Дар таърихи фурӯш ҳаст — танҳо аз меню пинҳон мекунем.
@@ -103,9 +118,9 @@ export class ProductsService {
     return { ok: true, archived: false };
   }
 
-  private async ensure(id: number) {
+  private async ensure(user: AuthUser, id: number) {
     const p = await this.prisma.product.findUnique({ where: { id } });
-    if (!p) throw new NotFoundException('Маҳсулот ёфт нашуд');
+    if (!p || p.organizationId !== user.organizationId) throw new NotFoundException('Маҳсулот ёфт нашуд');
     return p;
   }
 }

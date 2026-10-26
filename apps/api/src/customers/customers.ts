@@ -18,7 +18,7 @@ import { Type } from 'class-transformer';
 import { IsDateString, IsEmail, IsInt, IsOptional, IsString, MaxLength, MinLength, ValidateIf } from 'class-validator';
 import { canSell, SEGMENTS, type Customer as CustomerDto, type CustomerStats, type Paginated, type Segment } from '@filialhub/shared';
 import { AuthUser, CurrentUser, Feature, Roles } from '../auth/decorators';
-import { scopeBranch } from '../common/access';
+import { branchWhere, scopeBranch } from '../common/access';
 import { startOfLocalDay, startOfLocalMonth } from '../common/time';
 import { AuditService } from '../core/audit.service';
 import { Prisma, type Branch, type Customer } from '../generated/prisma/client';
@@ -132,7 +132,7 @@ export class CustomersService {
     user: AuthUser,
     q: { branchId?: number; search?: string; segment?: Segment; sort?: string; page: number; pageSize: number },
   ): Promise<Paginated<CustomerDto>> {
-    const and: Prisma.CustomerWhereInput[] = [{ branchId: scopeBranch(user, q.branchId) }];
+    const and: Prisma.CustomerWhereInput[] = [this.scope(user, q.branchId)];
     if (q.segment) and.push(segmentWhere(q.segment));
     if (q.search?.trim()) {
       const t = q.search.trim();
@@ -168,14 +168,14 @@ export class CustomersService {
   }
 
   async stats(user: AuthUser, branchId?: number): Promise<CustomerStats> {
-    const b = scopeBranch(user, branchId);
-    const counts = await Promise.all(SEGMENTS.map((s) => this.prisma.customer.count({ where: { AND: [{ branchId: b }, segmentWhere(s)] } })));
+    const b = this.scope(user, branchId);
+    const counts = await Promise.all(SEGMENTS.map((s) => this.prisma.customer.count({ where: { AND: [b, segmentWhere(s)] } })));
     const [total, newThisMonth, points, withBirthday] = await Promise.all([
-      this.prisma.customer.count({ where: { branchId: b } }),
-      this.prisma.customer.count({ where: { branchId: b, createdAt: { gte: startOfLocalMonth() } } }),
-      this.prisma.customer.aggregate({ where: { branchId: b }, _sum: { points: true } }),
+      this.prisma.customer.count({ where: b }),
+      this.prisma.customer.count({ where: { ...b, createdAt: { gte: startOfLocalMonth() } } }),
+      this.prisma.customer.aggregate({ where: b, _sum: { points: true } }),
       this.prisma.customer.findMany({
-        where: { branchId: b, birthday: { not: null } },
+        where: { ...b, birthday: { not: null } },
         select: { id: true, fullName: true, phone: true, birthday: true },
       }),
     ]);
@@ -202,22 +202,31 @@ export class CustomersService {
     };
   }
 
-  /** Ҷустуҷӯ аз рӯи рақам дар POS — бонус дар тамоми шабака кор мекунад. */
-  async lookup(phone: string) {
-    const c = await this.prisma.customer.findUnique({ where: { phone: normalizePhone(phone) }, include: { branch: true } });
+  /** Шеф бе филиал — ҳамаи мизоҷони ширкат (бе филиал ҳам); дигарон — филиали худ. */
+  private scope(user: AuthUser, branchId?: number): Prisma.CustomerWhereInput {
+    if (user.role === 'CHEF' && !branchId) return { organizationId: user.organizationId };
+    return { organizationId: user.organizationId, branchId: branchWhere(user, branchId) };
+  }
+
+  /** Ҷустуҷӯ аз рӯи рақам дар POS — бонус дар тамоми филиалҳои ширкат кор мекунад. */
+  async lookup(user: AuthUser, phone: string) {
+    const c = await this.prisma.customer.findUnique({
+      where: { organizationId_phone: { organizationId: user.organizationId, phone: normalizePhone(phone) } },
+      include: { branch: true },
+    });
     return c ? toCustomer(c) : null;
   }
 
   async get(user: AuthUser, id: number) {
     const c = await this.ensureAccess(user, id);
     const orders = await this.prisma.order.findMany({
-      where: { customerId: id, branchId: user.role === 'CHEF' ? undefined : (user.branchId ?? -1) },
+      where: { customerId: id, branchId: branchWhere(user) },
       include: { branch: { select: { name: true } }, items: { include: { product: { select: { name: true, emoji: true } } } } },
       orderBy: { createdAt: 'desc' },
       take: 30,
     });
     const favorites = await this.prisma.$queryRaw<{ name: string; emoji: string; qty: number }[]>(Prisma.sql`
-      SELECT p.name, p.emoji, SUM(oi.qty)::int AS qty
+      SELECT p.name, p.emoji, SUM(oi.qty)::float AS qty
       FROM "OrderItem" oi JOIN "Order" o ON o.id = oi."orderId" JOIN "Product" p ON p.id = oi."productId"
       WHERE o."customerId" = ${id}
       GROUP BY p.id ORDER BY qty DESC LIMIT 5`);
@@ -240,10 +249,10 @@ export class CustomersService {
   async create(user: AuthUser, dto: CreateCustomerDto) {
     const phone = normalizePhone(dto.phone);
     if (phone.length < 11) throw new ConflictException('Рақами телефон нодуруст аст');
-    if (await this.prisma.customer.findUnique({ where: { phone } })) {
+    if (await this.prisma.customer.findUnique({ where: { organizationId_phone: { organizationId: user.organizationId, phone } } })) {
       throw new ConflictException('Мизоҷ бо ин рақам аллакай ҳаст');
     }
-    const branchId = user.role === 'CHEF' ? (dto.branchId ?? null) : user.branchId;
+    const branchId = user.role === 'CHEF' ? (scopeBranch(user, dto.branchId) ?? null) : user.branchId;
     const c = await this.prisma.customer.create({
       data: {
         fullName: dto.fullName.trim(),
@@ -252,6 +261,7 @@ export class CustomersService {
         birthday: dto.birthday ? new Date(dto.birthday) : null,
         note: dto.note ?? '',
         branchId,
+        organizationId: user.organizationId,
       },
       include: { branch: true },
     });
@@ -263,7 +273,7 @@ export class CustomersService {
     await this.ensureAccess(user, id);
     const phone = dto.phone ? normalizePhone(dto.phone) : undefined;
     if (phone) {
-      const other = await this.prisma.customer.findUnique({ where: { phone } });
+      const other = await this.prisma.customer.findUnique({ where: { organizationId_phone: { organizationId: user.organizationId, phone } } });
       if (other && other.id !== id) throw new ConflictException('Мизоҷ бо ин рақам аллакай ҳаст');
     }
     const c = await this.prisma.customer.update({
@@ -290,7 +300,7 @@ export class CustomersService {
 
   private async ensureAccess(user: AuthUser, id: number) {
     const c = await this.prisma.customer.findUnique({ where: { id }, include: { branch: true } });
-    if (!c) throw new NotFoundException('Мизоҷ ёфт нашуд');
+    if (!c || c.organizationId !== user.organizationId) throw new NotFoundException('Мизоҷ ёфт нашуд');
     if (user.role !== 'CHEF' && c.branchId !== user.branchId) {
       throw new ForbiddenException('Ин мизоҷ ба филиали шумо тааллуқ надорад');
     }
@@ -333,7 +343,7 @@ export class CustomersController {
   @Roles('CHEF', 'MANAGER', 'STAFF')
   lookup(@CurrentUser() user: AuthUser, @Query('phone') phone = '') {
     if (!canSell(user)) throw new ForbiddenException('Танҳо кассир');
-    return this.customers.lookup(phone);
+    return this.customers.lookup(user, phone);
   }
 
   @Get(':id')

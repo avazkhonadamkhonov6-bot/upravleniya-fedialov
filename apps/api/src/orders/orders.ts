@@ -10,10 +10,10 @@ import {
   Query,
 } from '@nestjs/common';
 import { Type } from 'class-transformer';
-import { ArrayMinSize, IsIn, IsInt, IsOptional, Max, Min, ValidateNested } from 'class-validator';
+import { ArrayMinSize, IsIn, IsInt, IsNumber, IsOptional, Max, Min, ValidateNested } from 'class-validator';
 import { canSell, PAYMENTS, POINTS_RATE, type Order, type Paginated, type Payment } from '@filialhub/shared';
 import { AuthUser, CurrentUser, Feature } from '../auth/decorators';
-import { scopeBranch } from '../common/access';
+import { branchWhere, scopeBranch } from '../common/access';
 import { Prisma } from '../generated/prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 
@@ -21,7 +21,8 @@ class OrderItemDto {
   @Type(() => Number) @IsInt()
   productId: number;
 
-  @Type(() => Number) @IsInt() @Min(1) @Max(100)
+  /** Касрӣ ҳам мешавад (1,5 кг); то 3 рақам пас аз вергул */
+  @Type(() => Number) @IsNumber({ maxDecimalPlaces: 3 }) @Min(0.001, { message: 'Миқдор нодуруст аст' }) @Max(100000)
   qty: number;
 }
 
@@ -48,7 +49,7 @@ const include = {
   branch: { select: { name: true } },
   user: { select: { fullName: true } },
   customer: { select: { fullName: true } },
-  items: { include: { product: { select: { name: true, emoji: true } } } },
+  items: { include: { product: { select: { name: true, emoji: true, unit: true } } } },
 } satisfies Prisma.OrderInclude;
 
 type OrderRow = Prisma.OrderGetPayload<{ include: typeof include }>;
@@ -75,7 +76,8 @@ function toOrder(o: OrderRow): Order {
       productId: i.productId,
       name: i.product.name,
       emoji: i.product.emoji,
-      qty: i.qty,
+      unit: i.product.unit,
+      qty: Number(i.qty),
       unitPrice: Number(i.unitPrice),
       unitCost: Number(i.unitCost),
     })),
@@ -105,7 +107,7 @@ export class OrdersService {
   ): Promise<Paginated<Order>> {
     assertCanSell(user);
     const where: Prisma.OrderWhereInput = {
-      branchId: scopeBranch(user, q.branchId),
+      branchId: branchWhere(user, q.branchId),
       // Кассир танҳо фармоишҳои худашро мебинад.
       userId: user.role === 'STAFF' ? user.id : undefined,
       createdAt: {
@@ -135,8 +137,8 @@ export class OrdersService {
     if (!branch?.isActive) throw new BadRequestException('Филиал ғайрифаъол аст');
 
     const ids = [...new Set(dto.items.map((i) => i.productId))];
-    const products = await this.prisma.product.findMany({ where: { id: { in: ids }, isActive: true } });
-    if (products.length !== ids.length) throw new BadRequestException('Баъзе маҳсулот дар меню нест');
+    const products = await this.prisma.product.findMany({ where: { id: { in: ids }, isActive: true, organizationId: user.organizationId } });
+    if (products.length !== ids.length) throw new BadRequestException('Баъзе маҳсулот дар рӯйхат нест');
 
     // Нарх ва арзиш аз база гирифта мешаванд, на аз клиент.
     const lines = dto.items.map((i) => {
@@ -150,7 +152,7 @@ export class OrdersService {
     let pointsUsed = 0;
     if (dto.customerId) {
       const customer = await this.prisma.customer.findUnique({ where: { id: dto.customerId } });
-      if (!customer) throw new BadRequestException('Мизоҷ ёфт нашуд');
+      if (!customer || customer.organizationId !== user.organizationId) throw new BadRequestException('Мизоҷ ёфт нашуд');
       pointsUsed = Math.min(dto.usePoints ?? 0, customer.points, Math.floor(subtotal));
     } else if (dto.usePoints) {
       throw new BadRequestException('Барои истифодаи бонус мизоҷро интихоб кунед');

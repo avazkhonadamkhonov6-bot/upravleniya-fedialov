@@ -3,7 +3,6 @@
 import {
   POSITION_EMOJI,
   POSITION_LABELS,
-  POSITIONS,
   type Overview,
   type Period,
   type ProductRank,
@@ -12,6 +11,7 @@ import {
 import { CalendarDays, CalendarRange, Receipt, TrendingUp, Wallet } from "lucide-react";
 import { useState } from "react";
 import { qs } from "@/lib/api";
+import { useBusiness } from "@/lib/auth";
 import { useApi } from "@/lib/use-api";
 import { SalesChart } from "./charts-lazy";
 import { Card, CardTitle, CountUp, Delta, Empty, ErrorBox, money, Segmented, Skeleton } from "./ui";
@@ -180,8 +180,9 @@ export function TopProducts({ branchId }: { branchId?: number }) {
 }
 
 export function StaffBreakdown({ overview }: { overview?: Overview }) {
+  const { positions } = useBusiness();
   if (!overview) return <Skeleton className="h-56" />;
-  const max = Math.max(...POSITIONS.map((p) => overview.employeesByPosition[p]), 1);
+  const max = Math.max(...positions.map((p) => overview.employeesByPosition[p]), 1);
   return (
     <Card>
       <CardTitle extra={<span className="text-2xl font-bold text-ink tabular">{overview.employees + overview.managers}</span>}>
@@ -193,7 +194,7 @@ export function StaffBreakdown({ overview }: { overview?: Overview }) {
           <div className="flex-1 text-sm font-semibold text-ink">{tr("Менеҷерҳо")}</div>
           <span className="text-sm font-bold text-ink tabular">{overview.managers}</span>
         </div>
-        {POSITIONS.map((p) => (
+        {positions.map((p) => (
           <div key={p} className="flex items-center gap-3">
             <span className="grid size-10 place-items-center rounded-xl bg-surface-2 text-xl">{POSITION_EMOJI[p]}</span>
             <div className="flex-1">

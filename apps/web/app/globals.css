@@ -867,3 +867,15 @@ main tbody tr,
     transform: none;
   }
 }
+
+/* Бозор: ороиши шинокунанда дар сарлавҳаи мағоза */
+@keyframes float-y {
+  0%, 100% { transform: translateY(0) rotate(-4deg); }
+  50% { transform: translateY(-10px) rotate(4deg); }
+}
+.float-y {
+  animation: float-y 4s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .float-y { animation: none; }
+}

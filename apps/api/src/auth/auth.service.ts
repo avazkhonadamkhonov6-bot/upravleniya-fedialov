@@ -1,10 +1,11 @@
-import { BadRequestException, ConflictException, Injectable, UnauthorizedException } from '@nestjs/common';
+import { BadRequestException, ConflictException, ForbiddenException, Injectable, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcryptjs';
 import { normalizeTelegram } from '@filialhub/shared';
-import { toUser } from '../common/serializers';
+import { toClient, toOrganization, toUser } from '../common/serializers';
 import { PrismaService } from '../prisma/prisma.service';
-import { LoginDto, UpdateMeDto } from './dto';
+import type { AuthUser } from './decorators';
+import { CreateBusinessDto, LoginDto, RegisterClientDto, RegisterDto, UpdateMeDto, UpdateOrganizationDto } from './dto';
 
 @Injectable()
 export class AuthService {
@@ -13,21 +14,116 @@ export class AuthService {
     private readonly jwt: JwtService,
   ) {}
 
+  /** Як даромадан барои ҳама: аввал шеф/кормандон, баъд мизоҷони онлайн. */
   async login(dto: LoginDto) {
+    const email = dto.email.toLowerCase().trim();
     const user = await this.prisma.user.findUnique({
-      where: { email: dto.email.toLowerCase().trim() },
-      include: { branch: true },
+      where: { email },
+      include: { branch: true, organization: true },
     });
-    if (!user || !(await bcrypt.compare(dto.password, user.passwordHash))) {
+    if (!user) {
+      const client = await this.prisma.client.findUnique({ where: { email } });
+      if (!client || !(await bcrypt.compare(dto.password, client.passwordHash))) {
+        throw new UnauthorizedException('Почта ё парол нодуруст аст');
+      }
+      return { kind: 'client' as const, token: await this.clientToken(client.id), client: toClient(client) };
+    }
+    if (!(await bcrypt.compare(dto.password, user.passwordHash))) {
       throw new UnauthorizedException('Почта ё парол нодуруст аст');
     }
     if (!user.isActive) throw new UnauthorizedException('Ҳисоби шумо ғайрифаъол аст');
     const token = await this.jwt.signAsync({ sub: user.id, role: user.role });
-    return { token, user: toUser(user) };
+    return { kind: 'staff' as const, token, user: toUser(user) };
+  }
+
+  private clientToken(id: number) {
+    return this.jwt.signAsync({ sub: id, kind: 'client' }, { expiresIn: '30d' });
+  }
+
+  private async emailTaken(email: string) {
+    return !!((await this.prisma.user.findUnique({ where: { email } })) || (await this.prisma.client.findUnique({ where: { email } })));
+  }
+
+  /** Мизоҷи онлайн: худаш сабти ном мекунад ва аз ҳар мағоза фармоиш медиҳад. */
+  async registerClient(dto: RegisterClientDto) {
+    const email = dto.email.toLowerCase().trim();
+    if (await this.emailTaken(email)) throw new ConflictException('Ин почтаи электронӣ аллакай истифода шудааст');
+    const client = await this.prisma.client.create({
+      data: {
+        fullName: dto.fullName.trim(),
+        email,
+        phone: dto.phone.trim(),
+        address: dto.address?.trim() ?? '',
+        passwordHash: await bcrypt.hash(dto.password, 10),
+      },
+    });
+    return { kind: 'client' as const, token: await this.clientToken(client.id), client: toClient(client) };
+  }
+
+  /** Бизнесҳои шеф (ҳамаашон ба ӯ тааллуқ доранд) */
+  async businesses(actor: AuthUser) {
+    const rows = await this.prisma.organization.findMany({
+      where: { OR: [{ ownerId: actor.id }, { id: actor.organizationId }] },
+      orderBy: { id: 'asc' },
+    });
+    return rows.map((o) => ({ ...toOrganization(o), current: o.id === actor.organizationId }));
+  }
+
+  /** Бизнеси нав барои ҳамон шеф — фавран ба он мегузарад */
+  async createBusiness(actor: AuthUser, dto: CreateBusinessDto) {
+    const org = await this.prisma.organization.create({ data: { name: dto.name.trim(), type: dto.type, ownerId: actor.id } });
+    return this.switchBusiness(actor, org.id);
+  }
+
+  async switchBusiness(actor: AuthUser, organizationId: number) {
+    const org = await this.prisma.organization.findUnique({ where: { id: organizationId } });
+    if (!org || (org.ownerId !== actor.id && org.id !== actor.organizationId)) {
+      throw new ForbiddenException('Ин бизнес ба шумо тааллуқ надорад');
+    }
+    const user = await this.prisma.user.update({
+      where: { id: actor.id },
+      data: { organizationId: org.id, branchId: null },
+      include: { branch: true, organization: true },
+    });
+    return toUser(user);
+  }
+
+  /** Соҳибкори нав: ширкат ва ҳисоби шеф якҷоя сохта мешаванд. */
+  async register(dto: RegisterDto) {
+    const email = dto.email.toLowerCase().trim();
+    if (await this.emailTaken(email)) {
+      throw new ConflictException('Ин почтаи электронӣ аллакай истифода шудааст');
+    }
+    const user = await this.prisma.user.create({
+      data: {
+        fullName: dto.fullName.trim(),
+        email,
+        phone: dto.phone.trim(),
+        passwordHash: await bcrypt.hash(dto.password, 10),
+        role: 'CHEF',
+        organization: { create: { name: dto.businessName.trim(), type: dto.businessType } },
+      },
+      include: { branch: true, organization: true },
+    });
+    await this.prisma.organization.update({ where: { id: user.organizationId }, data: { ownerId: user.id } });
+    const token = await this.jwt.signAsync({ sub: user.id, role: user.role });
+    return { kind: 'staff' as const, token, user: toUser(user) };
+  }
+
+  async organization(organizationId: number) {
+    return toOrganization(await this.prisma.organization.findUniqueOrThrow({ where: { id: organizationId } }));
+  }
+
+  async updateOrganization(organizationId: number, dto: UpdateOrganizationDto) {
+    const o = await this.prisma.organization.update({
+      where: { id: organizationId },
+      data: { name: dto.name?.trim(), type: dto.type, description: dto.description?.trim(), isPublic: dto.isPublic },
+    });
+    return toOrganization(o);
   }
 
   async me(id: number) {
-    const user = await this.prisma.user.findUniqueOrThrow({ where: { id }, include: { branch: true } });
+    const user = await this.prisma.user.findUniqueOrThrow({ where: { id }, include: { branch: true, organization: true } });
     return toUser(user);
   }
 
@@ -52,7 +148,7 @@ export class AuthService {
       data.email = email;
     }
     if (dto.newPassword) data.passwordHash = await bcrypt.hash(dto.newPassword, 10);
-    const user = await this.prisma.user.update({ where: { id }, data, include: { branch: true } });
+    const user = await this.prisma.user.update({ where: { id }, data, include: { branch: true, organization: true } });
     return toUser(user);
   }
 }

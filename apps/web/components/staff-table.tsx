@@ -1,11 +1,11 @@
 "use client";
 
-import { POSITION_EMOJI, POSITION_LABELS, POSITIONS, type Branch, type Position, type User } from "@filialhub/shared";
+import { POSITION_EMOJI, POSITION_LABELS, type Branch, type Position, type User } from "@filialhub/shared";
 import { Pencil, Plus, Search, Send } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 import { qs } from "@/lib/api";
-import { useAuth } from "@/lib/auth";
+import { useAuth, useBusiness } from "@/lib/auth";
 import { useApi } from "@/lib/use-api";
 import { UserForm } from "./forms";
 import { Avatar, Badge, Button, Card, ContactButtons, Empty, ErrorBox, Input, Modal, money, Select, Skeleton, cn } from "./ui";
@@ -13,6 +13,7 @@ import { tr } from "@/lib/i18n";
 
 export function StaffTable({ fixedBranchId, compact }: { fixedBranchId?: number; compact?: boolean }) {
   const { user: me } = useAuth();
+  const { positions } = useBusiness();
   const isChef = me?.role === "CHEF";
   const [branchId, setBranchId] = useState<number | undefined>(fixedBranchId);
   const [position, setPosition] = useState<Position | "">("");
@@ -26,7 +27,7 @@ export function StaffTable({ fixedBranchId, compact }: { fixedBranchId?: number;
     `/users${qs({ branchId: fixedBranchId ?? branchId, position, search: search.trim() || undefined, includeInactive: inactive || undefined })}`,
   );
 
-  const counts = POSITIONS.reduce(
+  const counts = positions.reduce(
     (acc, p) => ({ ...acc, [p]: data?.filter((u) => u.position === p && u.isActive).length ?? 0 }),
     {} as Record<Position, number>,
   );
@@ -50,7 +51,7 @@ export function StaffTable({ fixedBranchId, compact }: { fixedBranchId?: number;
         )}
         <Select value={position} onChange={(e) => setPosition(e.target.value as Position | "")} className="w-full lg:w-44" aria-label={tr("Вазифа|position")}>
           <option value="">{tr("Ҳамаи вазифаҳо")}</option>
-          {POSITIONS.map((p) => (
+          {positions.map((p) => (
             <option key={p} value={p}>
               {tr(POSITION_LABELS[p])}
             </option>
@@ -63,7 +64,7 @@ export function StaffTable({ fixedBranchId, compact }: { fixedBranchId?: number;
 
       {!compact && (
         <div className="flex flex-wrap items-center gap-2 border-b border-line px-5 py-3 text-sm">
-          {POSITIONS.map((p) => (
+          {positions.map((p) => (
             <button
               key={p}
               onClick={() => setPosition(position === p ? "" : p)}

@@ -5,10 +5,10 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { normalizeTelegram, POSITION_LABELS, ROLE_LABELS, type Position, type Role } from '@filialhub/shared';
+import { normalizeTelegram, POSITION_LABELS, positionsFor, ROLE_LABELS, type BusinessType, type Position, type Role } from '@filialhub/shared';
 import * as bcrypt from 'bcryptjs';
 import type { AuthUser } from '../auth/decorators';
-import { scopeBranch } from '../common/access';
+import { branchWhere, scopeBranch } from '../common/access';
 import { toUser } from '../common/serializers';
 import { Prisma } from '../generated/prisma/client';
 import { AlertsService } from '../core/alerts.service';
@@ -35,9 +35,10 @@ export class UsersService {
   ) {}
 
   async list(actor: AuthUser, f: UserFilters) {
-    const branchId = scopeBranch(actor, f.branchId);
+    // Шеф бе филтр — ҳамаи одамони ширкат (шефҳо ва кормандони бе филиал ҳам)
     const where: Prisma.UserWhereInput = {
-      branchId,
+      organizationId: actor.organizationId,
+      branchId: actor.role === 'CHEF' && !f.branchId ? undefined : branchWhere(actor, f.branchId),
       role: f.role ?? (actor.role === 'MANAGER' ? { in: ['MANAGER', 'STAFF'] } : undefined),
       position: f.position,
       isActive: f.includeInactive ? undefined : true,
@@ -60,7 +61,7 @@ export class UsersService {
 
   async get(actor: AuthUser, id: number) {
     const user = await this.prisma.user.findUnique({ where: { id }, include: { branch: true } });
-    if (!user) throw new NotFoundException('Корманд ёфт нашуд');
+    if (!user || user.organizationId !== actor.organizationId) throw new NotFoundException('Корманд ёфт нашуд');
     if (actor.role !== 'CHEF' && user.id !== actor.id) {
       if (user.role === 'CHEF') throw new ForbiddenException('Шумо ҳуқуқ надоред');
       scopeBranch(actor, user.branchId ?? -1);
@@ -73,7 +74,7 @@ export class UsersService {
       if (dto.role !== 'STAFF') throw new ForbiddenException('Менеҷер танҳо корманд илова карда метавонад');
       dto.branchId = actor.branchId!;
     }
-    await this.validateShape(dto.role, dto.position, dto.branchId);
+    await this.validateShape(actor, dto.role, dto.position, dto.branchId);
     if (dto.role === 'MANAGER') await this.ensureNoOtherManager(dto.branchId!);
 
     const email = dto.email.toLowerCase().trim();
@@ -89,6 +90,7 @@ export class UsersService {
         whatsapp: dto.whatsapp?.trim() ?? '',
         telegram: dto.telegram ? normalizeTelegram(dto.telegram) : '',
         passwordHash: await bcrypt.hash(dto.password, 10),
+        organizationId: actor.organizationId,
         role: dto.role,
         position: dto.role === 'STAFF' ? dto.position : null,
         branchId: dto.branchId,
@@ -126,7 +128,7 @@ export class UsersService {
     const role = dto.role ?? (target.role as 'MANAGER' | 'STAFF');
     const position = role === 'STAFF' ? (dto.position ?? target.position ?? undefined) : undefined;
     const branchId = dto.branchId ?? target.branchId ?? undefined;
-    await this.validateShape(role, position, branchId);
+    await this.validateShape(actor, role, position, branchId);
     if (role === 'MANAGER' && (target.role !== 'MANAGER' || branchId !== target.branchId)) {
       await this.ensureNoOtherManager(branchId!, id);
     }
@@ -193,7 +195,7 @@ export class UsersService {
 
   private async ensureEditable(actor: AuthUser, id: number) {
     const target = await this.prisma.user.findUnique({ where: { id } });
-    if (!target) throw new NotFoundException('Корманд ёфт нашуд');
+    if (!target || target.organizationId !== actor.organizationId) throw new NotFoundException('Корманд ёфт нашуд');
     if (target.role === 'CHEF') throw new ForbiddenException('Профили шефро аз саҳифаи «Профил» тағйир диҳед');
     if (actor.role === 'MANAGER') {
       if (target.role !== 'STAFF' || target.branchId !== actor.branchId) {
@@ -203,11 +205,14 @@ export class UsersService {
     return target;
   }
 
-  private async validateShape(role: Role, position?: Position, branchId?: number) {
+  private async validateShape(actor: AuthUser, role: Role, position?: Position, branchId?: number) {
     if (!branchId) throw new BadRequestException('Филиалро интихоб кунед');
     if (role === 'STAFF' && !position) throw new BadRequestException('Вазифаи кормандро интихоб кунед');
+    if (role === 'STAFF' && position && !positionsFor(actor.businessType as BusinessType).includes(position)) {
+      throw new BadRequestException('Ин вазифа барои навъи кори шумо нест');
+    }
     const branch = await this.prisma.branch.findUnique({ where: { id: branchId } });
-    if (!branch) throw new BadRequestException('Филиал ёфт нашуд');
+    if (!branch || branch.organizationId !== actor.organizationId) throw new BadRequestException('Филиал ёфт нашуд');
   }
 
   private async ensureNoOtherManager(branchId: number, exceptId?: number) {

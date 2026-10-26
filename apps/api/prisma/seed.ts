@@ -64,6 +64,9 @@ const latin = (s: string) => [...s.toLowerCase()].map((c) => LATIN[c] ?? c).join
 
 const CASHIERS_PER_BRANCH = 2;
 
+/** Ширкати демо (тарабхона) — ID пас аз сохтан */
+let ORG = 0;
+
 const usedEmails = new Set<string>();
 function makePerson(female = false) {
   const first = pick(female ? FIRST_F : FIRST);
@@ -79,7 +82,10 @@ function makePerson(female = false) {
 /** Барои базаи кӯҳна: ба ҳар филиале, ки камтар аз 2 кассир дорад, кассир илова мекунад (такроран бехатар). */
 async function ensureCashiers() {
   const passwordHash = await bcrypt.hash(DEMO_PASSWORD, 10);
-  const branches = await prisma.branch.findMany({ orderBy: { id: 'asc' } });
+  // Танҳо филиалҳои ширкати демо (ширкатҳои воқеии корбарон дахл карда намешаванд)
+  const demoChef = await prisma.user.findUnique({ where: { email: 'chef@filialhub.tj' } });
+  if (!demoChef) return;
+  const branches = await prisma.branch.findMany({ where: { organizationId: demoChef.organizationId }, orderBy: { id: 'asc' } });
   let added = 0;
   for (const b of branches) {
     const have = await prisma.user.count({ where: { branchId: b.id, position: 'CASHIER' } });
@@ -87,7 +93,7 @@ async function ensureCashiers() {
       let p = makePerson(rand() > 0.5);
       while (await prisma.user.findUnique({ where: { email: p.email } })) p = makePerson(rand() > 0.5);
       await prisma.user.create({
-        data: { ...p, passwordHash, role: 'STAFF', position: 'CASHIER', branchId: b.id, salary: 2000 + int(0, 6) * 100, hiredAt: new Date() },
+        data: { ...p, passwordHash, organizationId: b.organizationId, role: 'STAFF', position: 'CASHIER', branchId: b.id, salary: 2000 + int(0, 6) * 100, hiredAt: new Date() },
       });
       added++;
     }
@@ -117,7 +123,9 @@ async function main() {
   // --if-empty: барои сервер (Render) — танҳо агар база холӣ бошад, маълумоти намунавӣ сохта мешавад.
   // Seed-и нопурра (масалан сервер дар миёна афтод): ҳисоби демои шеф ҳаст, вале огоҳиномаҳо (қадами охирин) нестанд.
   const unfinishedDemo =
-    !!(await prisma.user.findUnique({ where: { email: 'chef@filialhub.tj' } })) && (await prisma.alert.count()) === 0;
+    !!(await prisma.user.findUnique({ where: { email: 'chef@filialhub.tj' } })) &&
+    (await prisma.alert.count({ where: { user: { email: 'chef@filialhub.tj' } } })) === 0 &&
+    (await prisma.organization.count()) <= 2;
   if (unfinishedDemo) console.log('⚠️ Маълумоти демо нопурра аст — аз нав сохта мешавад.');
   if (process.argv.includes('--if-empty') && !unfinishedDemo && (await prisma.user.count()) > 0) {
     console.log('✅ База аллакай маълумот дорад — seed лозим нест.');
@@ -127,11 +135,13 @@ async function main() {
   console.log('🧹 Пок кардани маълумоти кӯҳна…');
   // TRUNCATE ... RESTART IDENTITY — ID-ҳо ҳар дафъа аз 1 сар мешаванд.
   await prisma.$executeRawUnsafe(
-    'TRUNCATE "Call", "Message", "Media", "Alert", "AuditLog", "Expense", "Shift", "Task", "Notification", "OrderItem", "Order", "Customer", "User", "Product", "Branch" RESTART IDENTITY CASCADE',
+    'TRUNCATE "OnlineOrderItem", "OnlineOrder", "Client", "Organization", "Call", "Message", "Media", "Alert", "AuditLog", "Expense", "Shift", "Task", "Notification", "OrderItem", "Order", "Customer", "User", "Product", "Branch" RESTART IDENTITY CASCADE',
   );
 
   const passwordHash = await bcrypt.hash(DEMO_PASSWORD, 10);
   const now = Date.now();
+
+  ORG = (await prisma.organization.create({ data: { name: 'FilialHub', type: 'RESTAURANT' } })).id;
 
   console.log('🏪 Филиалҳо…');
   const branches = [];
@@ -140,6 +150,7 @@ async function main() {
     const branch = await prisma.branch.create({
       data: {
         ...data,
+        organizationId: ORG,
         email: `branch${i + 1}@filialhub.tj`,
         openedAt: new Date(now - int(400, 1500) * 86400000),
       },
@@ -154,6 +165,7 @@ async function main() {
       email: 'chef@filialhub.tj',
       phone: '+992 90 000 0001',
       passwordHash,
+      organizationId: ORG,
       role: 'CHEF',
       salary: 0,
       hiredAt: new Date(now - 1600 * 86400000),
@@ -167,6 +179,7 @@ async function main() {
     const manager = await prisma.user.create({
       data: {
         ...m,
+        organizationId: ORG,
         email: `manager${i + 1}@filialhub.tj`,
         passwordHash,
         role: 'MANAGER',
@@ -189,6 +202,7 @@ async function main() {
         const u = await prisma.user.create({
           data: {
             ...p,
+            organizationId: ORG,
             passwordHash,
             role: 'STAFF',
             position,
@@ -214,7 +228,7 @@ async function main() {
 
   console.log('🍔 Меню…');
   const products: Awaited<ReturnType<typeof prisma.product.create>>[] = [];
-  for (const p of PRODUCTS) products.push(await prisma.product.create({ data: p }));
+  for (const p of PRODUCTS) products.push(await prisma.product.create({ data: { ...p, organizationId: ORG, unit: 'порция' } }));
   // Маҳсулоти маъмул бештар фурӯхта мешаванд.
   const weights = products.map((p) => (p.category === 'Газакҳо' || p.category === 'Нӯшокиҳо' ? 3 : Number(p.price) > 100 ? 0.6 : 2));
   const totalWeight = weights.reduce((a, b) => a + b, 0);
@@ -247,6 +261,7 @@ async function main() {
           phone,
           email: rand() > 0.6 ? person.email.replace('@filialhub.tj', '@mail.tj') : null,
           birthday: rand() > 0.25 ? bd : null,
+          organizationId: ORG,
           branchId: b.id,
           note: rand() > 0.85 ? pick(['Тундро дӯст медорад', 'Бе пиёз', 'Ҳамеша бо оила меояд', 'Корти корпоративӣ']) : '',
           createdAt: new Date(now - int(1, DAYS) * 86400000),
@@ -326,6 +341,9 @@ async function main() {
   }
 
   await seedCrm({ branches, chefId: chef.id, managerByBranch, now, todayStart });
+  await prisma.organization.update({ where: { id: ORG }, data: { ownerId: chef.id, description: 'Бургер, мурғи бирён ва нӯшокиҳо — 5 филиал дар Тоҷикистон' } });
+  await seedShop(passwordHash);
+  await seedMarket(passwordHash);
 
   console.log(`\n✅ Тайёр! ${branches.length} филиал, ${await prisma.user.count()} корманд, ${orderCount} фармоиш.`);
   console.log('\nҲисобҳои демо (парол: demo1234):');
@@ -335,6 +353,58 @@ async function main() {
   console.log('  💵 Кассир:   cashier@filialhub.tj');
   console.log('  👨‍🍳 Ошпаз:    cook@filialhub.tj');
   console.log('  🧹 Фаррош:   cleaner@filialhub.tj');
+  console.log('  👕 Мағозаи либос (ширкати дигар): shop@filialhub.tj, seller@filialhub.tj');
+  console.log('  🛒 Мағозаи хӯрокворӣ: grocery@filialhub.tj');
+  console.log('  🙋 Мизоҷи онлайн: client@filialhub.tj');
+}
+
+/** Ширкати дуюми намунавӣ — мағозаи либос: маълумоташ аз тарабхона пурра ҷудо аст. */
+async function seedShop(passwordHash: string) {
+  console.log('👕 Мағозаи либос (ширкати дигар)…');
+  const org = await prisma.organization.create({ data: { name: 'Либоси Тоҷ', type: 'CLOTHING', description: 'Либоси мардона, занона ва кӯдакона' } });
+  const branch = await prisma.branch.create({
+    data: { organizationId: org.id, name: 'Либоси Тоҷ — Марказ', city: 'Душанбе', address: 'хиёбони Рӯдакӣ 80', phone: '+992 37 227 8080', email: 'shop@libos.tj' },
+  });
+  await prisma.user.create({
+    data: { organizationId: org.id, fullName: 'Нилуфар Саидова', email: 'shop@filialhub.tj', phone: '+992 93 500 0001', passwordHash, role: 'CHEF' },
+  }).then(async (u) => {
+    await prisma.organization.update({ where: { id: org.id }, data: { ownerId: u.id } });
+    return u;
+  });
+  const seller = await prisma.user.create({
+    data: { organizationId: org.id, branchId: branch.id, fullName: 'Шаҳло Каримова', email: 'seller@filialhub.tj', phone: '+992 93 500 0002', passwordHash, role: 'STAFF', position: 'SELLER', salary: 2500, payDay: 5 },
+  });
+  const items = [
+    ['Футболкаи пахтагӣ', 'Мардона', '👕', 85, 45],
+    ['Ҷинси классикӣ', 'Мардона', '👖', 220, 130],
+    ['Куртаи атлас', 'Занона', '👗', 320, 180],
+    ['Рӯймоли абрешимӣ', 'Аксессуарҳо', '🧣', 65, 30],
+    ['Кроссовка', 'Пойафзол', '👟', 380, 240],
+    ['Куртаи кӯдакона', 'Кӯдакона', '🧒', 120, 60],
+  ] as const;
+  const products = [];
+  for (const [name, category, emoji, price, cost] of items) {
+    products.push(await prisma.product.create({ data: { organizationId: org.id, name, category, emoji, price, cost, unit: 'дона' } }));
+  }
+  // 30 рӯз фурӯши хурд
+  for (let d = 0; d < 30; d++) {
+    for (let k = 0; k < int(2, 6); k++) {
+      const p = pick(products);
+      const qty = int(1, 2);
+      await prisma.order.create({
+        data: {
+          branchId: branch.id,
+          userId: seller.id,
+          createdAt: new Date(Date.now() - d * 86400000 - int(1, 9) * 3600000),
+          total: Number(p.price) * qty,
+          totalCost: Number(p.cost) * qty,
+          payment: rand() > 0.5 ? 'CARD' : 'CASH',
+          items: { create: [{ productId: p.id, qty, unitPrice: p.price, unitCost: p.cost }] },
+        },
+      });
+    }
+  }
+  await prisma.expense.create({ data: { branchId: branch.id, category: 'RENT', amount: 6000, date: new Date(), note: 'Иҷораи моҳона' } });
 }
 
 // ---------- CRM: бонусҳо, смена, хароҷот, вазифаҳо, таърих ----------
@@ -442,6 +512,7 @@ async function seedCrm(ctx: {
         description,
         priority,
         status: status as 'TODO' | 'IN_PROGRESS' | 'DONE',
+        organizationId: ORG,
         branchId: b.id,
         assigneeId: pick(pool.length ? pool : people).id,
         createdById: rand() > 0.3 ? mgr : chefId,
@@ -456,19 +527,19 @@ async function seedCrm(ctx: {
   const waiter = await prisma.user.findUniqueOrThrow({ where: { email: 'waiter@filialhub.tj' } });
   await prisma.task.createMany({
     data: [
-      { title: 'Пешниҳоди корти бонус ба мизоҷон', description: 'Ба ҳар мизоҷ гӯед, ки бо рақами телефон бонус ҷамъ мекунад', priority: 'MEDIUM', status: 'TODO', branchId: waiter.branchId, assigneeId: waiter.id, createdById: managerByBranch.get(waiter.branchId!)!, dueDate: new Date(todayStart + 2 * DAY) },
-      { title: 'Тайёр кардани мизҳо барои банкет', description: 'Шанбе соати 18:00, 20 нафар', priority: 'HIGH', status: 'IN_PROGRESS', branchId: waiter.branchId, assigneeId: waiter.id, createdById: managerByBranch.get(waiter.branchId!)!, dueDate: new Date(todayStart + 3 * DAY) },
+      { title: 'Пешниҳоди корти бонус ба мизоҷон', description: 'Ба ҳар мизоҷ гӯед, ки бо рақами телефон бонус ҷамъ мекунад', priority: 'MEDIUM', status: 'TODO', organizationId: ORG, branchId: waiter.branchId, assigneeId: waiter.id, createdById: managerByBranch.get(waiter.branchId!)!, dueDate: new Date(todayStart + 2 * DAY) },
+      { title: 'Тайёр кардани мизҳо барои банкет', description: 'Шанбе соати 18:00, 20 нафар', priority: 'HIGH', status: 'IN_PROGRESS', organizationId: ORG, branchId: waiter.branchId, assigneeId: waiter.id, createdById: managerByBranch.get(waiter.branchId!)!, dueDate: new Date(todayStart + 3 * DAY) },
     ],
   });
 
   console.log('🕓 Таърихи амалҳо ва огоҳиномаҳо…');
-  const products = await prisma.product.findMany({ take: 4 });
+  const products = await prisma.product.findMany({ where: { organizationId: ORG }, take: 4 });
   const audit = [
     ...products.map((p, i) => ({ userId: chefId, action: 'UPDATE', entity: 'product', entityId: p.id, summary: `${p.emoji} ${p.name}: нарх: ${Number(p.price) - 2} → ${Number(p.price)}`, createdAt: new Date(now - (i + 2) * DAY) })),
     ...branches.map((b, i) => ({ userId: chefId, action: 'UPDATE', entity: 'branch', entityId: b.id, branchId: b.id, summary: `Филиал тағйир ёфт: ${b.name}`, createdAt: new Date(now - (i + 8) * DAY) })),
     ...branches.map((b, i) => ({ userId: managerByBranch.get(b.id)!, action: 'CREATE', entity: 'task', branchId: b.id, summary: 'Вазифаи нав: «Инвентаризатсияи анбор»', createdAt: new Date(now - (i + 1) * 5 * H) })),
   ];
-  await prisma.auditLog.createMany({ data: audit });
+  await prisma.auditLog.createMany({ data: audit.map((a) => ({ ...a, organizationId: ORG })) });
 
   const managerIds = [...managerByBranch.values()];
   await prisma.alert.createMany({
@@ -489,3 +560,57 @@ main()
     process.exit(1);
   })
   .finally(() => prisma.$disconnect());
+
+/** Мағозаи хӯрокворӣ ва мизоҷи онлайн бо фармоишҳо — барои бозори онлайн */
+async function seedMarket(passwordHash: string) {
+  console.log('🛒 Мағозаи хӯрокворӣ ва мизоҷи онлайн…');
+  const org = await prisma.organization.create({ data: { name: 'Бозорчаи Баракат', type: 'GROCERY', description: 'Маҳсулоти тоза ҳар рӯз: мева, сабзавот, шир, нон' } });
+  const owner = await prisma.user.create({
+    data: { organizationId: org.id, fullName: 'Ҷамшед Олимов', email: 'grocery@filialhub.tj', phone: '+992 92 600 0001', passwordHash, role: 'CHEF' },
+  });
+  await prisma.organization.update({ where: { id: org.id }, data: { ownerId: owner.id } });
+  const branch = await prisma.branch.create({
+    data: { organizationId: org.id, name: 'Баракат — Шоҳмансур', city: 'Душанбе', address: 'кӯчаи Айнӣ 45', phone: '+992 37 228 4545', email: 'barakat@market.tj' },
+  });
+  const items = [
+    ['Себи сурх', 'Мева ва сабзавот', '🍎', 'кг', 14, 9],
+    ['Помидор', 'Мева ва сабзавот', '🍅', 'кг', 12, 7],
+    ['Картошка', 'Мева ва сабзавот', '🥔', 'кг', 6, 3.5],
+    ['Нони тандирӣ', 'Нон ва орд', '🫓', 'дона', 4, 2.5],
+    ['Шири гов', 'Шир ва панир', '🥛', 'литр', 11, 8],
+    ['Панири сафед', 'Шир ва панир', '🧀', 'кг', 65, 48],
+    ['Гӯшти гов', 'Гӯшт', '🥩', 'кг', 95, 78],
+    ['Обу ҷуш', 'Нӯшокиҳо', '🧃', 'дона', 9, 6],
+  ] as const;
+  const products = [];
+  for (const [name, category, emoji, unit, price, cost] of items) {
+    products.push(await prisma.product.create({ data: { organizationId: org.id, name, category, emoji, unit, price, cost } }));
+  }
+
+  const client = await prisma.client.create({
+    data: { fullName: 'Мадина Каримова', email: 'client@filialhub.tj', phone: '+992 93 700 0001', address: 'Душанбе, кӯчаи Бухоро 12, хонаи 5', passwordHash },
+  });
+  const shopProducts = await prisma.product.findMany({ where: { organization: { type: 'CLOTHING' } }, take: 2 });
+  const shopOrg = shopProducts[0] ? await prisma.organization.findUniqueOrThrow({ where: { id: shopProducts[0].organizationId }, include: { branches: true } }) : null;
+  const orders: { org: number; branch: number; status: 'DELIVERED' | 'DELIVERING' | 'NEW'; lines: { p: (typeof products)[number]; qty: number }[]; ago: number }[] = [
+    { org: org.id, branch: branch.id, status: 'DELIVERED', lines: [{ p: products[0], qty: 2 }, { p: products[4], qty: 1.5 }], ago: 3 },
+    { org: org.id, branch: branch.id, status: 'DELIVERING', lines: [{ p: products[6], qty: 1.2 }, { p: products[3], qty: 4 }], ago: 0 },
+  ];
+  if (shopOrg) orders.push({ org: shopOrg.id, branch: shopOrg.branches[0].id, status: 'NEW', lines: shopProducts.map((p) => ({ p, qty: 1 })), ago: 0 });
+  for (const o of orders) {
+    const total = o.lines.reduce((s, l) => s + Number(l.p.price) * l.qty, 0);
+    await prisma.onlineOrder.create({
+      data: {
+        clientId: client.id,
+        organizationId: o.org,
+        branchId: o.branch,
+        status: o.status,
+        address: client.address,
+        phone: client.phone,
+        total: Math.round(total * 100) / 100,
+        createdAt: new Date(Date.now() - o.ago * 86400000 - 2 * 3600000),
+        items: { create: o.lines.map((l) => ({ productId: l.p.id, name: l.p.name, emoji: l.p.emoji, unit: l.p.unit, qty: l.qty, unitPrice: l.p.price })) },
+      },
+    });
+  }
+}

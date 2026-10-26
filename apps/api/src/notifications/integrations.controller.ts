@@ -19,12 +19,12 @@ export class IntegrationsController {
   ) {}
 
   @Get('status')
-  async status(): Promise<IntegrationStatus> {
+  async status(@CurrentUser() user: AuthUser): Promise<IntegrationStatus> {
     return {
       telegram: {
         configured: this.telegram.configured,
         botUsername: this.telegram.botUsername,
-        linkedUsers: await this.prisma.user.count({ where: { telegramChatId: { not: null } } }),
+        linkedUsers: await this.prisma.user.count({ where: { telegramChatId: { not: null }, organizationId: user.organizationId } }),
       },
       whatsapp: { configured: this.whatsapp.configured },
       dailyReportCron: process.env.DAILY_REPORT_CRON || '0 0 22 * * *',
@@ -32,8 +32,14 @@ export class IntegrationsController {
   }
 
   @Get('logs')
-  async logs() {
-    const rows = await this.prisma.notification.findMany({ orderBy: { id: 'desc' }, take: 50 });
+  async logs(@CurrentUser() user: AuthUser) {
+    // Танҳо паёмҳои одамони ҳамин ширкат
+    const people = (await this.prisma.user.findMany({ where: { organizationId: user.organizationId }, select: { id: true } })).map((u) => u.id);
+    const rows = await this.prisma.notification.findMany({
+      where: { OR: [{ organizationId: user.organizationId }, { userId: { in: people } }, { senderId: { in: people } }] },
+      orderBy: { id: 'desc' },
+      take: 50,
+    });
     return rows.map((r) => ({ ...r, createdAt: r.createdAt.toISOString() }));
   }
 
@@ -41,17 +47,17 @@ export class IntegrationsController {
   @Post('test-report')
   @HttpCode(200)
   async testReport(@CurrentUser() user: AuthUser) {
-    const text = await this.reports.buildReport('day');
     const me = await this.prisma.user.findUniqueOrThrow({ where: { id: user.id } });
+    const text = await this.reports.buildReport('day', me);
     await this.notifications.notifyUser(me, text);
     return { text };
   }
 
-  /** Ҳисоботи рӯзонаро ба ҳамаи шефҳо ва менеҷерҳо мефиристад. */
+  /** Ҳисоботи рӯзонаро ба шефҳо ва менеҷерҳои ҳамин ширкат мефиристад. */
   @Post('daily-report')
   @HttpCode(200)
-  async dailyReport() {
-    const sent = await this.reports.sendDailyReports();
+  async dailyReport(@CurrentUser() user: AuthUser) {
+    const sent = await this.reports.sendDailyReports(user.organizationId);
     return { recipients: sent };
   }
 }

@@ -3,11 +3,13 @@
 import type { Branch, Overview } from "@filialhub/shared";
 import { ArrowLeft, CalendarDays, Mail, MapPin, Phone } from "lucide-react";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense } from "react";
+import { BranchCustomersTab, BranchMoneyTab, BranchSalesTab, BranchScheduleTab, BranchTasksTab } from "@/components/branch-tabs";
+import { AttendanceWidget, TasksWidget } from "@/components/crm-widgets";
 import { StaffTable } from "@/components/staff-table";
 import { KpiRow, SalesCard, StaffBreakdown, TopProducts } from "@/components/stats-panel";
-import { Badge, ContactButtons, ErrorBox, Skeleton } from "@/components/ui";
+import { Badge, ContactButtons, ErrorBox, Segmented, Select, Skeleton } from "@/components/ui";
 import { qs } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { useApi } from "@/lib/use-api";
@@ -23,19 +25,39 @@ export default function BranchViewPage() {
 
 function BranchView() {
   const { user } = useAuth();
-  const id = Number(useSearchParams().get("id")) || user?.branchId || 0;
+  const isChef = user?.role === "CHEF";
+  const params = useSearchParams();
+  const router = useRouter();
+  // Менеҷер ҳамеша филиали худро мебинад (API ҳам филиали дигарро намедиҳад)
+  const id = (isChef ? Number(params.get("id")) : 0) || user?.branchId || Number(params.get("id")) || 0;
+  const tab = (TABS.find((t) => t.value === params.get("tab"))?.value ?? "overview") as Tab;
   const { data: branch, error } = useApi<Branch>(id ? `/branches/${id}` : null);
+  const { data: branches } = useApi<Branch[]>(isChef ? "/branches" : null);
   const { data: overview } = useApi<Overview>(id ? `/stats/overview${qs({ branchId: id })}` : null);
+
+  const go = (next: { id?: number; tab?: Tab }) =>
+    router.replace(`/branches/view${qs({ id: isChef ? (next.id ?? id) : undefined, tab: (next.tab ?? tab) === "overview" ? undefined : (next.tab ?? tab) })}`, { scroll: false });
 
   if (error) return <ErrorBox message={error} />;
   if (!branch) return <Skeleton className="h-48" />;
 
   return (
     <>
-      {user?.role === "CHEF" && (
-        <Link href="/branches" className="mb-4 inline-flex items-center gap-1.5 text-sm font-medium text-muted hover:text-ink">
-          <ArrowLeft className="size-4" /> {tr("Ҳамаи филиалҳо")}
-        </Link>
+      {isChef && (
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+          <Link href="/branches" className="inline-flex items-center gap-1.5 text-sm font-medium text-muted hover:text-ink">
+            <ArrowLeft className="size-4" /> {tr("Ҳамаи филиалҳо")}
+          </Link>
+          {branches && branches.length > 1 && (
+            <Select value={id} onChange={(e) => go({ id: Number(e.target.value) })} className="w-60" aria-label={tr("Филиал")}>
+              {branches.map((b) => (
+                <option key={b.id} value={b.id}>
+                  {b.name}
+                </option>
+              ))}
+            </Select>
+          )}
+        </div>
       )}
       <div className="rise relative mb-6 overflow-hidden rounded-[24px] bg-[#170d0f] p-6 text-white shadow-card sm:p-8">
         <div className="absolute -top-24 -right-10 size-72 rounded-full bg-[#e4002b] opacity-45 blur-3xl" />
@@ -82,23 +104,44 @@ function BranchView() {
         </div>
       </div>
 
-      <KpiRow overview={overview} />
-
-      <div className="mt-6 grid grid-cols-[minmax(0,1fr)] gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
-        <SalesCard branchId={id} />
-        <StaffBreakdown overview={overview} />
+      <div className="-mx-1 mb-6 overflow-x-auto px-1 pb-1">
+        <Segmented value={tab} onChange={(t) => go({ tab: t })} options={TABS.map((t) => ({ value: t.value, label: t.label }))} />
       </div>
 
-      <div className="mt-6 grid grid-cols-[minmax(0,1fr)] gap-6 xl:grid-cols-[minmax(0,1fr)_420px]">
-        <div>
-          <h2 className="mb-3 text-lg font-bold text-ink">{tr("Кормандони филиал")}</h2>
-          <StaffTable fixedBranchId={id} compact />
-        </div>
-        <div>
-          <h2 className="mb-3 text-lg font-bold text-ink">&nbsp;</h2>
-          <TopProducts branchId={id} />
-        </div>
+      {/* key — то ҳангоми иваз кардани филиал саҳифабандии ҷадвалҳо аз нав сар шавад */}
+      <div key={`${id}-${tab}`} className="rise">
+        {tab === "overview" && (
+          <>
+            <KpiRow overview={overview} />
+            <div className="mt-6 grid grid-cols-[minmax(0,1fr)] gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
+              <SalesCard branchId={id} />
+              <StaffBreakdown overview={overview} />
+            </div>
+            <div className="mt-6 grid gap-6 lg:grid-cols-2 xl:grid-cols-3">
+              <AttendanceWidget branchId={id} />
+              <TasksWidget branchId={id} />
+              <TopProducts branchId={id} />
+            </div>
+          </>
+        )}
+        {tab === "staff" && <StaffTable fixedBranchId={id} />}
+        {tab === "money" && <BranchMoneyTab branchId={id} />}
+        {tab === "tasks" && <BranchTasksTab branchId={id} />}
+        {tab === "schedule" && <BranchScheduleTab branchId={id} />}
+        {tab === "sales" && <BranchSalesTab branchId={id} />}
+        {tab === "customers" && <BranchCustomersTab branchId={id} />}
       </div>
     </>
   );
 }
+
+const TABS = [
+  { value: "overview", label: "Умумӣ" },
+  { value: "staff", label: "Кормандон" },
+  { value: "money", label: "Фоида ва хароҷот" },
+  { value: "tasks", label: "Вазифаҳо" },
+  { value: "schedule", label: "Ҷадвал" },
+  { value: "sales", label: "Фурӯш" },
+  { value: "customers", label: "Мизоҷон" },
+] as const;
+type Tab = (typeof TABS)[number]["value"];

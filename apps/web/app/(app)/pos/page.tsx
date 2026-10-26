@@ -1,6 +1,6 @@
 "use client";
 
-import { PAYMENT_LABELS, POINTS_RATE, type Branch, type Customer, type Order, type Payment, type Product } from "@filialhub/shared";
+import { isFractionalUnit, PAYMENT_LABELS, POINTS_RATE, type Branch, type Customer, type Order, type Payment, type Product } from "@filialhub/shared";
 import { CheckCircle2, Gift, Minus, Plus, Search, ShoppingCart, Trash2, UserPlus, X } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 import { Suspense, useMemo, useState } from "react";
@@ -46,13 +46,21 @@ function Pos() {
   const discount = customer && usePoints ? Math.min(customer.points, Math.floor(subtotal)) : 0;
   const total = subtotal - discount;
   const willEarn = customer ? Math.floor(total * POINTS_RATE) : 0;
-  const count = lines.reduce((s, l) => s + l.qty, 0);
+  // Шумораи сатрҳо (1,5 кг — як мол)
+  const count = lines.reduce((s, l) => s + (isFractionalUnit(l.product.unit) ? 1 : l.qty), 0);
   const activeBranches = branches?.filter((b) => b.isActive);
   const selectedBranch = isChef ? (branchId ?? activeBranches?.[0]?.id) : undefined;
 
   const add = (id: number, d: number) =>
     setCart((c) => {
-      const next = { ...c, [id]: Math.max(0, (c[id] ?? 0) + d) };
+      const next = { ...c, [id]: Math.max(0, Math.round(((c[id] ?? 0) + d) * 1000) / 1000) };
+      if (!next[id]) delete next[id];
+      return next;
+    });
+  /** Миқдори дақиқ (масалан 1,5 кг) — барои воҳидҳои касрӣ */
+  const setQty = (id: number, v: number) =>
+    setCart((c) => {
+      const next = { ...c, [id]: Math.max(0, Math.round((Number.isFinite(v) ? v : 0) * 1000) / 1000) };
       if (!next[id]) delete next[id];
       return next;
     });
@@ -145,7 +153,10 @@ function Pos() {
                       )}
                       <span className="text-4xl">{p.emoji}</span>
                       <span className="mt-3 line-clamp-2 text-sm font-semibold text-ink">{p.name}</span>
-                      <span className="mt-auto pt-2 text-base font-bold text-brand tabular">{money(p.price)}</span>
+                      <span className="mt-auto pt-2 text-base font-bold text-brand tabular">
+                        {money(p.price)}
+                        <span className="text-xs font-medium text-muted"> / {tr(p.unit)}</span>
+                      </span>
                     </button>
                   );
                 })}
@@ -186,13 +197,28 @@ function Pos() {
                     <span className="text-2xl">{p.emoji}</span>
                     <div className="min-w-0 flex-1">
                       <div className="truncate text-sm font-semibold text-ink">{p.name}</div>
-                      <div className="text-xs text-muted tabular">{money(p.price * qty)}</div>
+                      <div className="text-xs text-muted tabular">
+                        {money(p.price)} × {qty} {tr(p.unit)} = {money(p.price * qty)}
+                      </div>
                     </div>
                     <div className="flex items-center gap-1 rounded-xl bg-surface-2 p-1">
                       <button onClick={() => add(p.id, -1)} className="grid size-7 cursor-pointer place-items-center rounded-lg hover:bg-surface" aria-label={tr("Кам")}>
                         {qty === 1 ? <Trash2 className="size-3.5 text-brand" /> : <Minus className="size-3.5" />}
                       </button>
-                      <span className="w-6 text-center text-sm font-bold tabular">{qty}</span>
+                      {isFractionalUnit(p.unit) ? (
+                        <input
+                          type="number"
+                          inputMode="decimal"
+                          min={0}
+                          step="0.001"
+                          value={qty}
+                          onChange={(e) => setQty(p.id, Number(e.target.value))}
+                          className="w-16 rounded-md bg-surface px-1 text-center text-sm font-bold tabular outline-none focus:ring-2 focus:ring-brand/30"
+                          aria-label={tr("Миқдор ({0})", tr(p.unit))}
+                        />
+                      ) : (
+                        <span className="w-6 text-center text-sm font-bold tabular">{qty}</span>
+                      )}
                       <button onClick={() => add(p.id, 1)} className="grid size-7 cursor-pointer place-items-center rounded-lg hover:bg-surface" aria-label={tr("Зиёд")}>
                         <Plus className="size-3.5" />
                       </button>

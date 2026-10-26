@@ -73,7 +73,7 @@ export class CallsService {
   async start(user: AuthUser, dto: StartCallDto): Promise<CallInfo> {
     if (!canAccess(user, 'messages')) throw new ForbiddenException('Шумо занг зада наметавонед');
     if (dto.calleeId === user.id) throw new BadRequestException('Ба худатон занг зада намешавад');
-    const callee = await this.prisma.user.findFirst({ where: { id: dto.calleeId, isActive: true } });
+    const callee = await this.prisma.user.findFirst({ where: { id: dto.calleeId, isActive: true, organizationId: user.organizationId } });
     if (!callee) throw new NotFoundException('Корбар ёфт нашуд');
     if (user.role === 'MANAGER' && callee.role !== 'CHEF' && callee.branchId !== user.branchId) {
       throw new ForbiddenException('Танҳо ба кормандони филиали худ ва шеф');

@@ -1,7 +1,8 @@
 "use client";
 
 import { homePath } from "@filialhub/shared";
-import { ArrowRight, Banknote, Brush, Building2, ChefHat, Crown, Loader2, Lock, Mail, UserRound } from "lucide-react";
+import { ArrowRight, Banknote, Brush, Building2, ChefHat, Crown, Loader2, Lock, Mail, Shirt, ShoppingBag, ShoppingCart, Store, UserRound } from "lucide-react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { Logo } from "@/components/shell";
@@ -17,6 +18,10 @@ const DEMO = [
   { email: "waiter@filialhub.tj", label: "Официант", desc: "Меню", icon: UserRound },
   { email: "cook@filialhub.tj", label: "Ошпаз", desc: "Профил ва маош", icon: ChefHat },
   { email: "cleaner@filialhub.tj", label: "Фаррош", desc: "Профил ва маош", icon: Brush },
+  { email: "shop@filialhub.tj", label: "Мағозаи либос", desc: "Ширкати дигар", icon: Shirt },
+  { email: "seller@filialhub.tj", label: "Фурӯшанда", desc: "Мағозаи либос", icon: ShoppingBag },
+  { email: "grocery@filialhub.tj", label: "Хӯрокворӣ", desc: "Фармоишҳои онлайн", icon: Store },
+  { email: "client@filialhub.tj", label: "Мизоҷ", desc: "Харид аз мағозаҳо", icon: ShoppingCart },
 ];
 
 /** Эмодзиҳои шинокунанда дар қисми тира: [эмодзи, мавқеъ, кунҷ, таъхир] */
@@ -30,7 +35,7 @@ const FLOATERS: [string, string, number, number][] = [
 const reducedMotion = () => typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
 export default function LoginPage() {
-  const { login, user } = useAuth();
+  const { login, user, client } = useAuth();
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -42,8 +47,10 @@ export default function LoginPage() {
   const welcoming = useRef(false);
 
   useEffect(() => {
-    if (user && !welcoming.current) router.replace(homePath(user));
-  }, [user, router]);
+    if (welcoming.current) return;
+    if (user) router.replace(homePath(user));
+    else if (client) router.replace("/shop");
+  }, [user, client, router]);
 
   async function submit(e: React.FormEvent | React.MouseEvent | undefined, creds?: { email: string; password: string }) {
     e?.preventDefault();
@@ -54,11 +61,12 @@ export default function LoginPage() {
     setError(null);
     welcoming.current = true;
     try {
-      const u = await login(creds?.email ?? email, creds?.password ?? password);
+      const acc = await login(creds?.email ?? email, creds?.password ?? password);
       const x = rect ? rect.left + rect.width / 2 : window.innerWidth / 2;
       const y = rect ? rect.top + rect.height / 2 : window.innerHeight / 2;
-      setWelcome({ name: u.fullName.split(" ")[0], x, y });
-      setTimeout(() => router.replace(homePath(u)), reducedMotion() ? 0 : 1100);
+      const who = acc.kind === "staff" ? acc.user : acc.client;
+      setWelcome({ name: who.fullName.split(" ")[0], x, y });
+      setTimeout(() => router.replace(acc.kind === "staff" ? homePath(acc.user) : "/shop"), reducedMotion() ? 0 : 1100);
     } catch (err) {
       welcoming.current = false;
       setError((err as Error).message);
@@ -159,6 +167,12 @@ export default function LoginPage() {
               </Button>
             </div>
           </form>
+          <p className="mt-4 text-center text-sm text-muted">
+            {tr("Ҳисоб надоред?")}{" "}
+            <Link href="/register" className="font-semibold text-brand hover:underline">
+              {tr("Ширкати худро созед — ройгон")}
+            </Link>
+          </p>
 
           <div className="mt-10">
             <div className="mb-3 flex items-center gap-3 text-xs font-semibold tracking-wide text-muted uppercase">

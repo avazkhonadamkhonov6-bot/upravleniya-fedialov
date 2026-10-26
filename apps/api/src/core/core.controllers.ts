@@ -50,8 +50,8 @@ export class AuditController {
   constructor(private readonly prisma: PrismaService) {}
 
   @Get()
-  async list(@Query('entity') entity?: string, @Query('page') page?: string): Promise<{ items: AuditEntry[]; total: number }> {
-    const where: Prisma.AuditLogWhereInput = entity ? { entity } : {};
+  async list(@CurrentUser() user: AuthUser, @Query('entity') entity?: string, @Query('page') page?: string): Promise<{ items: AuditEntry[]; total: number }> {
+    const where: Prisma.AuditLogWhereInput = { organizationId: user.organizationId, entity: entity || undefined };
     const p = Math.max(Number(page) || 1, 1);
     const [rows, total] = await Promise.all([
       this.prisma.auditLog.findMany({
@@ -90,6 +90,7 @@ export class SearchController {
     const term = q.trim();
     if (term.length < 2) return [];
     const like = { contains: term, mode: 'insensitive' as const };
+    const org = user.organizationId;
     const own = user.role === 'CHEF' ? undefined : (user.branchId ?? -1);
     const staffOnly = user.role === 'STAFF';
 
@@ -97,18 +98,18 @@ export class SearchController {
       staffOnly
         ? []
         : this.prisma.user.findMany({
-            where: { branchId: own, OR: [{ fullName: like }, { email: like }, { phone: { contains: term } }] },
+            where: { organizationId: org, branchId: own, OR: [{ fullName: like }, { email: like }, { phone: { contains: term } }] },
             include: { branch: true },
             take: 6,
           }),
       staffOnly && !canSell(user)
         ? []
         : this.prisma.customer.findMany({
-            where: { branchId: staffOnly ? undefined : own, OR: [{ fullName: like }, { phone: { contains: term } }] },
+            where: { organizationId: org, branchId: staffOnly ? undefined : own, OR: [{ fullName: like }, { phone: { contains: term } }] },
             take: 6,
           }),
-      this.prisma.branch.findMany({ where: { id: own, OR: [{ name: like }, { city: like }] }, take: 5 }),
-      this.prisma.product.findMany({ where: { isActive: true, name: like }, take: 5 }),
+      this.prisma.branch.findMany({ where: { organizationId: org, id: own, OR: [{ name: like }, { city: like }] }, take: 5 }),
+      this.prisma.product.findMany({ where: { organizationId: org, isActive: true, name: like }, take: 5 }),
     ]);
 
     return [

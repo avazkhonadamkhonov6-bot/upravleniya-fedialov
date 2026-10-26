@@ -19,7 +19,7 @@ import { Type } from 'class-transformer';
 import { IsDateString, IsInt, IsOptional } from 'class-validator';
 import { LATE_MINUTES, type AttendanceSummary, type Shift as ShiftDto, type ShiftState } from '@filialhub/shared';
 import { AuthUser, CurrentUser, Roles } from '../auth/decorators';
-import { scopeBranch } from '../common/access';
+import { branchWhere, scopeBranch } from '../common/access';
 import { localDateKey, startOfLocalDay, startOfLocalWeek } from '../common/time';
 import { AlertsService } from '../core/alerts.service';
 import { AuditService } from '../core/audit.service';
@@ -113,7 +113,7 @@ export class ShiftsService {
     const rows = await this.prisma.shift.findMany({
       where: {
         startsAt: { gte: from, lt: to },
-        ...(user.role === 'STAFF' ? { userId: user.id } : { branchId: scopeBranch(user, q.branchId) }),
+        ...(user.role === 'STAFF' ? { userId: user.id } : { branchId: branchWhere(user, q.branchId) }),
       },
       include,
       orderBy: [{ startsAt: 'asc' }],

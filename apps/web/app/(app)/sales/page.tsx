@@ -198,7 +198,7 @@ function OrdersList({ branchId, showProfit, showBranch }: { branchId?: number; s
                           <div className="flex flex-wrap gap-2">
                             {o.items.map((i) => (
                               <span key={i.productId} className="rounded-xl bg-surface px-3 py-1.5 text-xs font-medium text-ink ring-1 ring-line">
-                                {i.emoji} {i.name} × {i.qty} = <b className="tabular">{money(i.unitPrice * i.qty)}</b>
+                                {i.emoji} {i.name} × {i.qty} {tr(i.unit)} = <b className="tabular">{money(i.unitPrice * i.qty)}</b>
                               </span>
                             ))}
                           </div>

@@ -1,10 +1,20 @@
 "use client";
 
-import { POSITION_LABELS, POSITIONS, type Branch, type Position, type Product, type User } from "@filialhub/shared";
+import {
+  DEFAULT_PRODUCT_EMOJI,
+  defaultUnit,
+  POSITION_LABELS,
+  SUGGESTED_CATEGORIES,
+  UNITS,
+  type Branch,
+  type Position,
+  type Product,
+  type User,
+} from "@filialhub/shared";
 import { Trash2 } from "lucide-react";
 import { useState } from "react";
-import { api } from "@/lib/api";
-import { useAuth } from "@/lib/auth";
+import { api, ApiError } from "@/lib/api";
+import { useAuth, useBusiness } from "@/lib/auth";
 import { useToast } from "./toast";
 import { Button, ErrorBox, Field, Input, Select } from "./ui";
 import { tr } from "@/lib/i18n";
@@ -30,8 +40,9 @@ function useSubmit(onDone: () => void) {
 }
 
 export function BranchForm({ branch, onDone }: { branch?: Branch; onDone: () => void }) {
+  const { user: me } = useAuth();
   const [f, setF] = useState({
-    name: branch?.name ?? "FilialHub ",
+    name: branch?.name ?? `${me?.organization?.name ?? ""} `.trimStart(),
     city: branch?.city ?? "",
     address: branch?.address ?? "",
     phone: branch?.phone ?? "+992 ",
@@ -54,7 +65,19 @@ export function BranchForm({ branch, onDone }: { branch?: Branch; onDone: () => 
 
   const remove = () => {
     if (!branch || !confirm(tr("Филиали «{0}» нест карда шавад?", branch.name))) return;
-    run(() => api(`/branches/${branch.id}`, { method: "DELETE" }), tr("Филиал нест шуд"));
+    run(async () => {
+      try {
+        return await api(`/branches/${branch.id}`, { method: "DELETE" });
+      } catch (e) {
+        // Филиал фурӯш дорад — тасдиқи дуюм: ҳамаи таърихи филиал ҳам нест мешавад
+        if (e instanceof ApiError && e.status === 400 && confirm(`${e.message}
+
+${tr("Филиал бо ҳамаи фурӯш, хароҷот ва ҷадвалаш пурра нест карда шавад? Инро баргардондан намешавад.")}`)) {
+          return api(`/branches/${branch.id}?force=true`, { method: "DELETE" });
+        }
+        throw e;
+      }
+    }, tr("Филиал нест шуд"));
   };
 
   return (
@@ -114,6 +137,7 @@ export function UserForm({
   onDone: () => void;
 }) {
   const { user: me } = useAuth();
+  const { positions } = useBusiness();
   const isChef = me?.role === "CHEF";
   const [f, setF] = useState({
     fullName: user?.fullName ?? "",
@@ -123,7 +147,7 @@ export function UserForm({
     telegram: user?.telegram ?? "",
     password: "",
     role: (user?.role === "MANAGER" ? "MANAGER" : "STAFF") as "MANAGER" | "STAFF",
-    position: (user?.position ?? "WAITER") as Position,
+    position: (user?.position ?? positions[0]) as Position,
     branchId: user?.branchId ?? defaultBranchId ?? me?.branchId ?? branches[0]?.id ?? 0,
     salary: user?.salary ?? 3000,
     payDay: user?.payDay ?? 1,
@@ -204,7 +228,7 @@ export function UserForm({
       {f.role === "STAFF" && (
         <Field label={tr("Вазифа|position")}>
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-            {POSITIONS.map((p) => (
+            {positions.map((p) => (
               <button
                 type="button"
                 key={p}
@@ -260,10 +284,13 @@ export function UserForm({
 }
 
 export function ProductForm({ product, onDone }: { product?: Product; onDone: () => void }) {
+  const { type, catalog } = useBusiness();
+  const categories = SUGGESTED_CATEGORIES[type ?? "OTHER"];
   const [f, setF] = useState({
     name: product?.name ?? "",
-    category: product?.category ?? "Бургерҳо",
-    emoji: product?.emoji ?? "🍔",
+    category: product?.category ?? categories[0],
+    emoji: product?.emoji ?? DEFAULT_PRODUCT_EMOJI[type ?? "OTHER"],
+    unit: product?.unit ?? defaultUnit(type),
     price: product?.price ?? 0,
     cost: product?.cost ?? 0,
     isActive: product?.isActive ?? true,
@@ -276,12 +303,12 @@ export function ProductForm({ product, onDone }: { product?: Product; onDone: ()
 
   const save = (e: React.FormEvent) => {
     e.preventDefault();
-    const body = { name: f.name, category: f.category, emoji: f.emoji, price, cost, ...(product ? { isActive: f.isActive } : {}) };
+    const body = { name: f.name, category: f.category, emoji: f.emoji, unit: f.unit, price, cost, ...(product ? { isActive: f.isActive } : {}) };
     run(() => (product ? api(`/products/${product.id}`, { method: "PATCH", json: body }) : api("/products", { method: "POST", json: body })));
   };
   const remove = () => {
-    if (!product || !confirm(tr("«{0}» аз меню нест карда шавад?", product.name))) return;
-    run(() => api(`/products/${product.id}`, { method: "DELETE" }), tr("Маҳсулот аз меню хориҷ шуд"));
+    if (!product || !confirm(tr("«{0}» нест карда шавад?", product.name))) return;
+    run(() => api(`/products/${product.id}`, { method: "DELETE" }), tr("Маҳсулот хориҷ шуд"));
   };
 
   return (
@@ -294,16 +321,26 @@ export function ProductForm({ product, onDone }: { product?: Product; onDone: ()
           <Input required value={f.name} onChange={set("name")} />
         </Field>
       </div>
-      <Field label={tr("Категория")}>
-        <Input required value={f.category} onChange={set("category")} list="categories" />
-        <datalist id="categories">
-          {["Бургерҳо", "Ролҳо", "Мурғ", "Газакҳо", "Нӯшокиҳо", "Ширинӣ"].map((c) => (
-            <option key={c} value={c} />
-          ))}
-        </datalist>
-      </Field>
+      <div className="grid grid-cols-[1fr_140px] gap-4">
+        <Field label={tr("Категория")}>
+          <Input required value={f.category} onChange={set("category")} list="categories" />
+          <datalist id="categories">
+            {categories.map((c) => (
+              <option key={c} value={c} />
+            ))}
+          </datalist>
+        </Field>
+        <Field label={tr("Воҳид")}>
+          <Input required value={f.unit} onChange={set("unit")} list="units" maxLength={20} />
+          <datalist id="units">
+            {UNITS.map((u) => (
+              <option key={u} value={u} />
+            ))}
+          </datalist>
+        </Field>
+      </div>
       <div className="grid grid-cols-2 gap-4">
-        <Field label={tr("Нархи фурӯш")}>
+        <Field label={tr("Нархи фурӯш (барои 1 {0})", f.unit)}>
           <Input type="number" min={0} step="0.5" required value={f.price} onChange={set("price")} />
         </Field>
         <Field label={tr("Арзиши аслӣ")}>
@@ -312,7 +349,7 @@ export function ProductForm({ product, onDone }: { product?: Product; onDone: ()
       </div>
       <div className="grid grid-cols-2 gap-3 rounded-2xl bg-surface-2 p-4">
         <div>
-          <div className="text-xs text-muted">{tr("Фоида аз 1 дона")}</div>
+          <div className="text-xs text-muted">{tr("Фоида аз 1 {0}", f.unit)}</div>
           <div className="text-lg font-bold tabular" style={{ color: profit >= 0 ? "var(--chart-profit)" : "var(--brand)" }}>
             {profit.toFixed(2)} {tr("сомонӣ")}
           </div>
@@ -325,7 +362,7 @@ export function ProductForm({ product, onDone }: { product?: Product; onDone: ()
       {product && (
         <label className="flex cursor-pointer items-center gap-3 rounded-xl bg-surface-2 p-3 text-sm font-medium text-ink">
           <input type="checkbox" checked={f.isActive} onChange={(e) => setF({ ...f, isActive: e.target.checked })} className="size-4 accent-[var(--brand)]" />
-          {tr("Дар меню нишон дода шавад")}
+          {tr("Дар «{0}» нишон дода шавад", tr(catalog))}
         </label>
       )}
       <ErrorBox message={error} />

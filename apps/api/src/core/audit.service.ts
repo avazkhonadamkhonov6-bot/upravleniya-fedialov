@@ -20,7 +20,7 @@ export class AuditService {
     branchId?: number | null,
   ) {
     this.prisma.auditLog
-      .create({ data: { userId: actor.id, action, entity, entityId, summary, branchId: branchId ?? null } })
+      .create({ data: { organizationId: actor.organizationId, userId: actor.id, action, entity, entityId, summary, branchId: branchId ?? null } })
       .catch((e) => this.logger.warn(`Сабт нашуд: ${(e as Error).message}`));
   }
 }

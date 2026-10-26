@@ -26,7 +26,7 @@ import {
   type TaskStatus,
 } from '@filialhub/shared';
 import { AuthUser, CurrentUser, Roles } from '../auth/decorators';
-import { scopeBranch } from '../common/access';
+import { branchWhere, scopeBranch } from '../common/access';
 import { AlertsService } from '../core/alerts.service';
 import { AuditService } from '../core/audit.service';
 import { Prisma } from '../generated/prisma/client';
@@ -103,7 +103,9 @@ export class TasksService {
       user.role === 'STAFF'
         ? { assigneeId: user.id }
         : {
-            branchId: scopeBranch(user, q.branchId),
+            organizationId: user.organizationId,
+            // Шеф бе филтр вазифаҳои бе филиалро ҳам мебинад
+            branchId: user.role === 'CHEF' && !q.branchId ? undefined : branchWhere(user, q.branchId),
             assigneeId: q.mine ? user.id : q.assigneeId,
           };
     const rows = await this.prisma.task.findMany({
@@ -129,6 +131,7 @@ export class TasksService {
         dueDate: dto.dueDate ? new Date(dto.dueDate) : null,
         branchId,
         assigneeId,
+        organizationId: user.organizationId,
         createdById: user.id,
         completedAt: status === 'DONE' ? new Date() : null,
       },
@@ -200,7 +203,7 @@ export class TasksService {
 
   private async ensure(user: AuthUser, id: number) {
     const t = await this.prisma.task.findUnique({ where: { id } });
-    if (!t) throw new NotFoundException('Вазифа ёфт нашуд');
+    if (!t || t.organizationId !== user.organizationId) throw new NotFoundException('Вазифа ёфт нашуд');
     if (user.role === 'STAFF' && t.assigneeId !== user.id) throw new ForbiddenException('Ин вазифаи шумо нест');
     if (user.role === 'MANAGER' && t.branchId !== user.branchId) {
       throw new ForbiddenException('Шумо танҳо вазифаҳои филиали худатонро идора мекунед');
@@ -211,10 +214,10 @@ export class TasksService {
   /** Филиал ва иҷрокунандаро месанҷад: менеҷер танҳо дар филиали худ. */
   private async resolveTarget(user: AuthUser, branchId: number | undefined, assigneeId: number | null) {
     if (user.role === 'STAFF') throw new ForbiddenException('Шумо ҳуқуқ надоред');
-    let b = user.role === 'MANAGER' ? user.branchId! : branchId;
+    let b = user.role === 'MANAGER' ? user.branchId! : scopeBranch(user, branchId);
     if (assigneeId) {
       const a = await this.prisma.user.findUnique({ where: { id: assigneeId } });
-      if (!a || !a.isActive) throw new BadRequestException('Иҷрокунанда ёфт нашуд');
+      if (!a || !a.isActive || a.organizationId !== user.organizationId) throw new BadRequestException('Иҷрокунанда ёфт нашуд');
       if (user.role === 'MANAGER' && a.branchId !== user.branchId) {
         throw new ForbiddenException('Иҷрокунанда бояд аз филиали шумо бошад');
       }

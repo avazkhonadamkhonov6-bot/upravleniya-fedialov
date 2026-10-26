@@ -16,11 +16,14 @@ export class ReportService {
     private readonly notifications: NotificationsService,
   ) {}
 
-  /** Матни ҳисобот: branchId холӣ — ҳамаи филиалҳо (барои шеф). */
-  async buildReport(period: Period, branchId?: number): Promise<string> {
-    const s = await this.stats.periodStats(branchId, periodStart(period));
+  /** Матни ҳисобот: шеф — ҳамаи филиалҳои ширкаташ, менеҷер — филиали худ. */
+  async buildReport(period: Period, who: { role: string; branchId: number | null; organizationId: number }): Promise<string> {
+    const branchId = who.role === 'CHEF' ? undefined : (who.branchId ?? -1);
+    const org = await this.prisma.organization.findUnique({ where: { id: who.organizationId }, include: { branches: { select: { id: true } } } });
+    const allIds = org?.branches.map((b) => b.id) ?? [];
+    const s = await this.stats.periodStats(branchId ?? { in: allIds }, periodStart(period));
     const title = PERIOD_LABELS[period].toLowerCase();
-    const lines = [`📊 <b>Ҳисобот — ${title}</b> (${localDateKey(new Date())})`];
+    const lines = [`📊 <b>Ҳисобот — ${title}</b> (${localDateKey(new Date())})`, `🏢 ${escape(org?.name ?? '')}`];
 
     if (branchId) {
       const b = await this.prisma.branch.findUnique({ where: { id: branchId } });
@@ -35,7 +38,7 @@ export class ReportService {
     );
 
     if (!branchId) {
-      const ranking = await this.stats.branchRanking(period);
+      const ranking = await this.stats.branchRanking(allIds, period);
       lines.push('', '<b>Филиалҳо (аз рӯи фоида):</b>');
       ranking.forEach((r, i) => {
         const medal = ['🥇', '🥈', '🥉'][i] ?? '▫️';
@@ -46,13 +49,13 @@ export class ReportService {
   }
 
   @Cron(process.env.DAILY_REPORT_CRON || '0 0 22 * * *', { name: 'daily-report', timeZone: TZ })
-  async sendDailyReports() {
+  async sendDailyReports(organizationId?: number) {
     this.logger.log('Фиристодани ҳисоботи рӯзона…');
     const recipients = await this.prisma.user.findMany({
-      where: { isActive: true, role: { in: ['CHEF', 'MANAGER'] } },
+      where: { isActive: true, role: { in: ['CHEF', 'MANAGER'] }, organizationId },
     });
     for (const u of recipients) {
-      const text = await this.buildReport('day', u.role === 'CHEF' ? undefined : (u.branchId ?? undefined));
+      const text = await this.buildReport('day', u);
       await this.notifications.notifyUser(u, text);
     }
     return recipients.length;

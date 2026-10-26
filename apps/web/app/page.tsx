@@ -72,6 +72,12 @@ export default function Home() {
             <Link href="/login" className="brand-gradient rounded-xl px-6 py-3 font-semibold shadow-lg shadow-red-500/30 transition hover:-translate-y-0.5">
               Ворид шудан →
             </Link>
+            <Link href="/shop" className="rounded-xl bg-white px-6 py-3 font-semibold text-[#e4002b] transition hover:-translate-y-0.5">
+              🛍️ Харид аз мағозаҳо
+            </Link>
+            <Link href="/register" className="rounded-xl border border-white/15 px-6 py-3 font-semibold text-white/85 transition hover:bg-white/5">
+              Бизнеси худро созед
+            </Link>
             <a href="#roles" className="rounded-xl border border-white/15 px-6 py-3 font-semibold text-white/85 transition hover:bg-white/5">
               Кӣ чӣ мебинад?
             </a>

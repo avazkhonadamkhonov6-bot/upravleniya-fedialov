@@ -60,8 +60,7 @@ export class BotService {
     if (periods[command] || command === '/branches') {
       if (user.role === 'STAFF') return 'Омор танҳо барои шеф ва менеҷер дастрас аст.';
       if (command === '/branches' && user.role !== 'CHEF') return 'Рейтинги филиалҳо танҳо барои шеф аст.';
-      const branchId = user.role === 'CHEF' ? undefined : (user.branchId ?? undefined);
-      return this.reports.buildReport(periods[command] ?? 'day', branchId);
+      return this.reports.buildReport(periods[command] ?? 'day', user);
     }
 
     return BOT_HELP;

@@ -58,7 +58,7 @@ export class MessagesService {
    * Илова бар ин ба ҳар касе, ки ба шумо навишта буд, ҷавоб додан мумкин аст.
    */
   private async scope(user: AuthUser): Promise<Prisma.UserWhereInput> {
-    const base: Prisma.UserWhereInput = { isActive: true, id: { not: user.id } };
+    const base: Prisma.UserWhereInput = { isActive: true, id: { not: user.id }, organizationId: user.organizationId };
     if (user.role === 'CHEF') return base;
     const own = user.branchId ?? -1;
     const wroteToMe = (await this.prisma.message.findMany({ where: { recipientId: user.id }, select: { senderId: true }, distinct: ['senderId'] })).map(
