@@ -1,6 +1,6 @@
 import { Body, Controller, Get, HttpCode, Param, ParseIntPipe, Patch, Post } from '@nestjs/common';
 import { AuthService } from './auth.service';
-import { AuthUser, CurrentUser, Feature, Public, Roles } from './decorators';
+import { AllowPending, AuthUser, CurrentUser, Feature, Public, Roles } from './decorators';
 import { CreateBusinessDto, LoginDto, RegisterClientDto, RegisterDto, UpdateMeDto, UpdateOrganizationDto } from './dto';
 
 @Controller('auth')
@@ -28,18 +28,21 @@ export class AuthController {
   }
 
   /** Бизнесҳои шеф ва гузариш байни онҳо */
+  @AllowPending()
   @Get('businesses')
   @Roles('CHEF')
   businesses(@CurrentUser() user: AuthUser) {
     return this.auth.businesses(user);
   }
 
+  @AllowPending()
   @Post('businesses')
   @Roles('CHEF')
   createBusiness(@CurrentUser() user: AuthUser, @Body() dto: CreateBusinessDto) {
     return this.auth.createBusiness(user, dto);
   }
 
+  @AllowPending()
   @Post('businesses/:id/switch')
   @HttpCode(200)
   @Roles('CHEF')
@@ -47,6 +50,7 @@ export class AuthController {
     return this.auth.switchBusiness(user, id);
   }
 
+  @AllowPending()
   @Get('organization')
   organization(@CurrentUser() user: AuthUser) {
     return this.auth.organization(user.organizationId);
@@ -59,11 +63,13 @@ export class AuthController {
     return this.auth.updateOrganization(user.organizationId, dto);
   }
 
+  @AllowPending()
   @Get('me')
   me(@CurrentUser() user: AuthUser) {
     return this.auth.me(user.id);
   }
 
+  @AllowPending()
   @Patch('me')
   updateMe(@CurrentUser() user: AuthUser, @Body() dto: UpdateMeDto) {
     return this.auth.updateMe(user.id, dto);

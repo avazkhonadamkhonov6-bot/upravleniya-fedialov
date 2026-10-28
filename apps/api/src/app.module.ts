@@ -21,6 +21,7 @@ import { TasksModule } from './tasks/tasks';
 import { MessagesModule } from './messages/messages';
 import { CallsModule } from './calls/calls';
 import { ShopModule } from './shop/shop';
+import { AdminModule } from './admin/admin';
 
 @Module({
   imports: [
@@ -41,6 +42,7 @@ import { ShopModule } from './shop/shop';
     MessagesModule,
     CallsModule,
     ShopModule,
+    AdminModule,
   ],
   controllers: [HealthController],
   providers: [

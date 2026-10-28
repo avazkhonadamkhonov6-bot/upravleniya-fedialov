@@ -1,5 +1,5 @@
 import { createParamDecorator, ExecutionContext, SetMetadata } from '@nestjs/common';
-import type { Feature as FeatureName, Position, Role } from '@filialhub/shared';
+import type { Feature as FeatureName, OrgStatus, Position, Role } from '@filialhub/shared';
 
 export interface AuthUser {
   id: number;
@@ -13,10 +13,22 @@ export interface AuthUser {
   branchId: number | null;
   position: Position | null;
   fullName: string;
+  /** Супер-админи платформа */
+  isSuperAdmin: boolean;
+  /** Ҳолати ширкат: то APPROVED танҳо маршрутҳои @AllowPending кушодаанд */
+  orgStatus: OrgStatus;
 }
 
 export const IS_PUBLIC = 'isPublic';
 export const Public = () => SetMetadata(IS_PUBLIC, true);
+
+/** Маршрут танҳо барои супер-админи платформа */
+export const SUPER_ADMIN = 'superAdmin';
+export const SuperAdmin = () => SetMetadata(SUPER_ADMIN, true);
+
+/** Маршрут барои бизнеси ҳанӯз тасдиқнашуда (ё радшуда) ҳам кушода аст: профил, рӯйхати бизнесҳо */
+export const ALLOW_PENDING = 'allowPending';
+export const AllowPending = () => SetMetadata(ALLOW_PENDING, true);
 
 export const ROLES_KEY = 'roles';
 export const Roles = (...roles: Role[]) => SetMetadata(ROLES_KEY, roles);

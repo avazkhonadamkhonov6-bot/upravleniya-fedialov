@@ -50,6 +50,7 @@ function Register() {
     try {
       if (role === "chef") {
         await register({ businessName: f.businessName, businessType: type!, fullName: f.fullName, email: f.email, phone: f.phone, password: f.password });
+        // Бизнеси нав интизори тасдиқи супер-админ аст — AppShell экрани интизориро нишон медиҳад.
         router.replace("/branches?welcome=1");
       } else {
         await registerClient({ fullName: f.fullName, email: f.email, phone: f.phone, address: f.address, password: f.password });
@@ -164,7 +165,7 @@ function Register() {
           </Button>
           <p className="text-xs text-muted">
             {role === "chef"
-              ? tr("Шумо соҳиби бизнес (шеф) мешавед. Кормандонро ба филиалҳо танҳо шумо илова мекунед. Маълумоти бизнеси шуморо ҳеҷ кас аз бизнесҳои дигар намебинад.")
+              ? `${tr("Шумо соҳиби бизнес (шеф) мешавед. Кормандонро ба филиалҳо танҳо шумо илова мекунед. Маълумоти бизнеси шуморо ҳеҷ кас аз бизнесҳои дигар намебинад.")} ${tr("Бизнес пас аз тасдиқи супер-админ кушода мешавад — хабар ба WhatsApp ва Telegram меояд.")}`
               : tr("Пас аз сабти ном мағозаҳоро интихоб карда, фармоиш медиҳед ва ҳолати онро мебинед.")}
           </p>
         </form>

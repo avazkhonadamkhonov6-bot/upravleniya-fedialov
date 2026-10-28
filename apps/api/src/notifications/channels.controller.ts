@@ -1,6 +1,6 @@
 import { Controller, Delete, Get, HttpCode, Post } from '@nestjs/common';
 import type { DeliveryStatus, TelegramLinkInfo } from '@filialhub/shared';
-import { AuthUser, CurrentUser, Feature } from '../auth/decorators';
+import { AllowPending, AuthUser, CurrentUser, Feature } from '../auth/decorators';
 import { PrismaService } from '../prisma/prisma.service';
 import { NotificationsService } from './notifications.service';
 import { telegramLinkCode } from './telegram-link';
@@ -10,6 +10,8 @@ import { WhatsAppService } from './whatsapp.service';
 /** Профил → «WhatsApp ва Telegram»: пайвасти Telegram бо як пахш ва паёми санҷишӣ ба худ. Ҳар корбар — танҳо барои худаш. */
 @Controller('auth/channels')
 @Feature('profile')
+// Соҳиби бизнеси интизор ҳам Telegram-ро пайваст мекунад — то хабари тасдиқро гирад.
+@AllowPending()
 export class ChannelsController {
   constructor(
     private readonly prisma: PrismaService,

@@ -92,7 +92,57 @@ export interface Organization {
   description: string;
   /** Дар бозори онлайн нишон дода мешавад */
   isPublic: boolean;
+  /** Бизнес танҳо пас аз тасдиқи супер-админ (APPROVED) кор мекунад */
+  status: OrgStatus;
+  /** Сабаби рад ё бастан */
+  statusNote: string;
   createdAt: string;
+}
+
+// ---------- Супер-админ: тасдиқи бизнесҳо ----------
+
+export const ORG_STATUSES = ['PENDING', 'APPROVED', 'REJECTED', 'BLOCKED'] as const;
+export type OrgStatus = (typeof ORG_STATUSES)[number];
+
+export const ORG_STATUS_LABELS: Record<OrgStatus, string> = {
+  PENDING: 'Интизори тасдиқ',
+  APPROVED: 'Тасдиқшуда',
+  REJECTED: 'Радшуда',
+  BLOCKED: 'Басташуда',
+};
+
+/** Бизнес дар рӯйхати супер-админ */
+export interface AdminBusiness {
+  id: number;
+  name: string;
+  type: BusinessType;
+  description: string;
+  status: OrgStatus;
+  statusNote: string;
+  createdAt: string;
+  reviewedAt: string | null;
+  owner: Pick<User, 'id' | 'fullName' | 'email' | 'phone' | 'whatsapp' | 'telegram' | 'telegramLinked'> | null;
+  branches: number;
+  employees: number;
+  products: number;
+  /** Дигар бизнесҳои ҳамин соҳиб */
+  ownerBusinesses: number;
+}
+
+export interface AdminBusinessDetail extends AdminBusiness {
+  branchList: (Branch & { staffCount: number })[];
+  staff: User[];
+}
+
+export interface AdminOverview {
+  businesses: number;
+  pending: number;
+  approved: number;
+  rejected: number;
+  blocked: number;
+  branches: number;
+  employees: number;
+  clients: number;
 }
 
 export const PAYMENTS = ['CASH', 'CARD'] as const;
@@ -153,6 +203,8 @@ export const FEATURES = [
   'profile',
   /** Фармоишҳои онлайни мизоҷон */
   'online',
+  /** Панели супер-админ: тасдиқи бизнесҳо, ҳамаи филиалҳо ва кормандон */
+  'admin',
 ] as const;
 export type Feature = (typeof FEATURES)[number];
 
@@ -171,9 +223,10 @@ export const STAFF_FEATURES: Record<Position, readonly Feature[]> = {
   STOREKEEPER: ['products', 'profile', 'calls'],
 };
 
-type Who = { role: Role; position: Position | null };
+type Who = { role: Role; position: Position | null; isSuperAdmin?: boolean };
 
 export function canAccess(u: Who, feature: Feature): boolean {
+  if (feature === 'admin') return !!u.isSuperAdmin;
   if (u.role === 'CHEF') return true;
   if (u.role === 'MANAGER') return feature !== 'integrations' && feature !== 'audit';
   return !!u.position && STAFF_FEATURES[u.position].includes(feature);
@@ -181,6 +234,7 @@ export function canAccess(u: Who, feature: Feature): boolean {
 
 /** Саҳифаи аввал пас аз воридшавӣ */
 export function homePath(u: Who): string {
+  if (u.isSuperAdmin) return '/admin';
   if (u.role !== 'STAFF') return '/dashboard';
   if (u.position === 'CASHIER' || u.position === 'SELLER') return '/pos';
   if (u.position === 'WAITER' || u.position === 'STOREKEEPER') return '/products';
@@ -206,6 +260,7 @@ export function featureOfPath(pathname: string): Feature | null {
     audit: 'audit',
     profile: 'profile',
     online: 'online',
+    admin: 'admin',
   };
   return map[seg] ?? null;
 }
@@ -294,6 +349,8 @@ export interface User {
   hiredAt: string;
   isActive: boolean;
   telegramLinked: boolean;
+  /** Супер-админи платформа */
+  isSuperAdmin: boolean;
   /** Ширкате, ки корбар дар он кор мекунад */
   organization?: Organization | null;
 }
@@ -409,8 +466,22 @@ export const PERIOD_LABELS: Record<Period, string> = {
 };
 
 export interface IntegrationStatus {
-  telegram: { configured: boolean; botUsername: string | null; linkedUsers: number };
-  whatsapp: { configured: boolean };
+  telegram: {
+    configured: boolean;
+    botUsername: string | null;
+    linkedUsers: number;
+    /** webhook — дар сервер (бот ҳамеша ҷавоб медиҳад), polling — дар компютер */
+    mode: 'webhook' | 'polling' | 'off';
+    lastError: string | null;
+  };
+  whatsapp: {
+    configured: boolean;
+    /** Номи шаблон барои паём пас аз 24 соат */
+    template: string | null;
+    /** Webhook (ҷавобҳо аз WhatsApp ба сайт) танзим шудааст */
+    webhook: boolean;
+    lastError: string | null;
+  };
   dailyReportCron: string;
 }
 

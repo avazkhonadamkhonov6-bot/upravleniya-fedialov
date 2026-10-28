@@ -29,6 +29,7 @@ import {
   Package,
   Store,
   Search,
+  ShieldCheck,
   ShoppingBag,
   Sun,
   UserRound,
@@ -49,6 +50,7 @@ import { ShiftButton } from "./shift-button";
 import { Avatar, cn } from "./ui";
 import { tr } from "@/lib/i18n";
 import { BusinessIcon } from "./glyph";
+import { PendingBusiness } from "./pending-business";
 
 interface NavItem {
   href: string;
@@ -64,6 +66,10 @@ interface NavItem {
 }
 
 const NAV: { title: string; items: NavItem[] }[] = [
+  {
+    title: "Платформа",
+    items: [{ href: "/admin", label: "Супер-админ", short: "Админ", icon: ShieldCheck, feature: "admin", primary: true }],
+  },
   {
     title: "Асосӣ",
     items: [
@@ -189,7 +195,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const { theme, toggle } = useTheme();
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [moreOpen, setMoreOpen] = useState(false);
-  const unread = useUnreadMessages(!!user && canAccess(user, "messages"));
+  // Бизнеси тасдиқнашуда: ба ҷои панел экрани интизорӣ (супер-админ — ҳамеша панел)
+  const approved = !!user && (user.isSuperAdmin || user.organization?.status === "APPROVED");
+  const unread = useUnreadMessages(!!user && approved && canAccess(user, "messages"));
   const feature = featureOfPath(pathname);
   const allowed = !user || !feature || canAccess(user, feature);
 
@@ -213,6 +221,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, []);
+
+  if (!loading && user && !approved) return <PendingBusiness user={user} />;
 
   if (loading || !user || !allowed) {
     // Саҳифа рендер мешавад (Next.js онро барои instant navigation месанҷад), вале то санҷиши воридшавӣ пинҳон аст.

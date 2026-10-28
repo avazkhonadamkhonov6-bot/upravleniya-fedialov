@@ -110,7 +110,8 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
     phaseRef.current = state.phase;
     callRef.current = state.call;
   });
-  const enabled = !!user && canAccess(user, "calls");
+  // Бизнеси тасдиқнашуда занг надорад (API 403 медиҳад)
+  const enabled = !!user && (user.isSuperAdmin || user.organization?.status === "APPROVED") && canAccess(user, "calls");
 
   const cleanup = useCallback((message?: string, tone: "info" | "error" = "info") => {
     pc.current?.close();

@@ -43,6 +43,18 @@ services:
         generateValue: true
       - key: WHATSAPP_APP_SECRET
         sync: false
+      # Шаблони Meta бо матни «{{1}}» — барои паём пас аз 24 соат
+      - key: WHATSAPP_TEMPLATE
+        sync: false
+      - key: WHATSAPP_TEMPLATE_LANG
+        value: ru
+      # Супер-админ: почта(ҳо) бо вергул, парол (камаш 8 аломат) ва телефон барои WhatsApp
+      - key: SUPERADMIN_EMAILS
+        sync: false
+      - key: SUPERADMIN_PASSWORD
+        sync: false
+      - key: SUPERADMIN_PHONE
+        sync: false
 
   - type: web
     name: filialhub-web

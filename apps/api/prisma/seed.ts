@@ -141,7 +141,7 @@ async function main() {
   const passwordHash = await bcrypt.hash(DEMO_PASSWORD, 10);
   const now = Date.now();
 
-  ORG = (await prisma.organization.create({ data: { name: 'FilialHub', type: 'RESTAURANT' } })).id;
+  ORG = (await prisma.organization.create({ data: { name: 'FilialHub', type: 'RESTAURANT', status: 'APPROVED' } })).id;
 
   console.log('🏪 Филиалҳо…');
   const branches = [];
@@ -361,7 +361,7 @@ async function main() {
 /** Ширкати дуюми намунавӣ — мағозаи либос: маълумоташ аз тарабхона пурра ҷудо аст. */
 async function seedShop(passwordHash: string) {
   console.log('👕 Мағозаи либос (ширкати дигар)…');
-  const org = await prisma.organization.create({ data: { name: 'Либоси Тоҷ', type: 'CLOTHING', description: 'Либоси мардона, занона ва кӯдакона' } });
+  const org = await prisma.organization.create({ data: { name: 'Либоси Тоҷ', type: 'CLOTHING', status: 'APPROVED', description: 'Либоси мардона, занона ва кӯдакона' } });
   const branch = await prisma.branch.create({
     data: { organizationId: org.id, name: 'Либоси Тоҷ — Марказ', city: 'Душанбе', address: 'хиёбони Рӯдакӣ 80', phone: '+992 37 227 8080', email: 'shop@libos.tj' },
   });
@@ -564,7 +564,7 @@ main()
 /** Мағозаи хӯрокворӣ ва мизоҷи онлайн бо фармоишҳо — барои бозори онлайн */
 async function seedMarket(passwordHash: string) {
   console.log('🛒 Мағозаи хӯрокворӣ ва мизоҷи онлайн…');
-  const org = await prisma.organization.create({ data: { name: 'Бозорчаи Баракат', type: 'GROCERY', description: 'Маҳсулоти тоза ҳар рӯз: мева, сабзавот, шир, нон' } });
+  const org = await prisma.organization.create({ data: { name: 'Бозорчаи Баракат', type: 'GROCERY', status: 'APPROVED', description: 'Маҳсулоти тоза ҳар рӯз: мева, сабзавот, шир, нон' } });
   const owner = await prisma.user.create({
     data: { organizationId: org.id, fullName: 'Ҷамшед Олимов', email: 'grocery@filialhub.tj', phone: '+992 92 600 0001', passwordHash, role: 'CHEF' },
   });

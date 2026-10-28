@@ -133,6 +133,7 @@ export class ShopService {
     const orgs = await this.prisma.organization.findMany({
       where: {
         isPublic: true,
+        status: 'APPROVED',
         type: BUSINESS_TYPES.includes(type as BusinessType) ? type : undefined,
         branches: { some: { isActive: true } },
         products: { some: { isActive: true } },
@@ -158,7 +159,7 @@ export class ShopService {
 
   async store(id: number): Promise<StoreDetail> {
     const o = await this.prisma.organization.findFirst({
-      where: { id, isPublic: true },
+      where: { id, isPublic: true, status: 'APPROVED' },
       include: {
         branches: { where: { isActive: true }, orderBy: { id: 'asc' } },
         products: { where: { isActive: true }, orderBy: [{ category: 'asc' }, { name: 'asc' }] },
@@ -194,7 +195,7 @@ export class ShopService {
 
   async placeOrder(client: AuthClient, dto: PlaceOrderDto) {
     const store = await this.prisma.organization.findFirst({
-      where: { id: dto.storeId, isPublic: true },
+      where: { id: dto.storeId, isPublic: true, status: 'APPROVED' },
       include: { branches: { where: { isActive: true }, orderBy: { id: 'asc' } } },
     });
     if (!store || !store.branches.length) throw new BadRequestException('Мағоза ҳоло фармоиш қабул намекунад');

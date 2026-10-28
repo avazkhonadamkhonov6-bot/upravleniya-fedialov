@@ -8,7 +8,16 @@ export function toClient(c: Client): ClientDto {
 }
 
 export function toOrganization(o: Organization): OrganizationDto {
-  return { id: o.id, name: o.name, type: o.type as BusinessType, description: o.description, isPublic: o.isPublic, createdAt: o.createdAt.toISOString() };
+  return {
+    id: o.id,
+    name: o.name,
+    type: o.type as BusinessType,
+    description: o.description,
+    isPublic: o.isPublic,
+    status: o.status,
+    statusNote: o.statusNote,
+    createdAt: o.createdAt.toISOString(),
+  };
 }
 
 export function toUser(u: UserWithBranch): UserDto {
@@ -28,6 +37,7 @@ export function toUser(u: UserWithBranch): UserDto {
     hiredAt: u.hiredAt.toISOString(),
     isActive: u.isActive,
     telegramLinked: !!u.telegramChatId,
+    isSuperAdmin: u.isSuperAdmin,
     organization: u.organization ? toOrganization(u.organization) : undefined,
   };
 }

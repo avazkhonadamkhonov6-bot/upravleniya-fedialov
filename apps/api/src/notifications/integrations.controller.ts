@@ -25,8 +25,15 @@ export class IntegrationsController {
         configured: this.telegram.configured,
         botUsername: this.telegram.botUsername,
         linkedUsers: await this.prisma.user.count({ where: { telegramChatId: { not: null }, organizationId: user.organizationId } }),
+        mode: this.telegram.mode,
+        lastError: this.telegram.lastError,
       },
-      whatsapp: { configured: this.whatsapp.configured },
+      whatsapp: {
+        configured: this.whatsapp.configured,
+        template: this.whatsapp.template,
+        webhook: !!process.env.WHATSAPP_VERIFY_TOKEN?.trim(),
+        lastError: this.whatsapp.lastError,
+      },
       dailyReportCron: process.env.DAILY_REPORT_CRON || '0 0 22 * * *',
     };
   }

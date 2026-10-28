@@ -1,6 +1,9 @@
 import { Injectable } from '@nestjs/common';
+import { ModuleRef } from '@nestjs/core';
 import { POSITION_LABELS, ROLE_LABELS, type Period } from '@filialhub/shared';
+import { AdminService } from '../admin/admin';
 import type { Branch, User } from '../generated/prisma/client';
+import { PrismaService } from '../prisma/prisma.service';
 import { escape } from './notifications.service';
 import { ReportService } from './report.service';
 
@@ -14,6 +17,18 @@ export const BOT_HELP = [
   '/help — кӯмак',
   '',
   'Матни оддӣ, овоз ё видео нависед — он ба чати FilialHub меравад.',
+].join('\n');
+
+/** Танҳо супер-админ мебинад */
+const ADMIN_HELP = [
+  '',
+  '',
+  '<b>Супер-админ:</b>',
+  '/pending — дархостҳои нав',
+  '/approve ID — тасдиқ',
+  '/reject ID сабаб — рад',
+  '/block ID сабаб — бастан',
+  '/business ID — маълумоти бизнес',
 ].join('\n');
 
 /** Калимаҳо бе «/» ҳам кор мекунанд (дар WhatsApp «/» нотавон аст): «имрӯз», «today», «сегодня»… */
@@ -39,11 +54,27 @@ export function parseCommand(text: string): string | null {
  */
 @Injectable()
 export class BotService {
-  constructor(private readonly reports: ReportService) {}
+  constructor(
+    private readonly reports: ReportService,
+    private readonly prisma: PrismaService,
+    private readonly moduleRef: ModuleRef,
+  ) {}
 
   async command(user: User & { branch?: Branch | null }, text: string): Promise<string | null> {
     const command = parseCommand(text);
     if (!command) return null;
+
+    // Командаҳои супер-админ: /pending, /approve 12, /reject 12 сабаб…
+    // AdminService дар модули дигар аст — бо ModuleRef мегирем, то вобастагии даврӣ набошад.
+    const admin = this.moduleRef.get(AdminService, { strict: false });
+    const adminReply = await admin.botCommand(user, command, text.trim().split(/\s+/).slice(1));
+    if (adminReply) return adminReply;
+
+    // Бизнеси тасдиқнашуда ё басташуда: омор дастрас нест (супер-админ — ҳамеша).
+    const org = await this.prisma.organization.findUnique({ where: { id: user.organizationId }, select: { status: true } });
+    if (!user.isSuperAdmin && org?.status !== 'APPROVED') {
+      return org?.status === 'PENDING' ? '🕓 Бизнеси шумо интизори тасдиқи супер-админ аст. Пас аз тасдиқ ба шумо хабар медиҳем.' : '⛔ Бизнеси шумо баста аст. Ба супер-админ муроҷиат кунед.';
+    }
 
     if (command === '/me') {
       const role = user.position ? POSITION_LABELS[user.position] : ROLE_LABELS[user.role];
@@ -63,6 +94,6 @@ export class BotService {
       return this.reports.buildReport(periods[command] ?? 'day', user);
     }
 
-    return BOT_HELP;
+    return user.isSuperAdmin ? BOT_HELP + ADMIN_HELP : BOT_HELP;
   }
 }

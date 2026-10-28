@@ -89,6 +89,15 @@ export default function IntegrationsPage() {
               <div>
                 {tr("Ҳисобҳои пайвастшуда:")}{" "}<b className="text-ink">{status.telegram.linkedUsers}</b>
               </div>
+              {status.telegram.configured && (
+                <div>
+                  {tr("Режим:")}{" "}
+                  <b className="text-ink">
+                    {status.telegram.mode === "webhook" ? tr("webhook (ҳамеша фаъол)") : status.telegram.mode === "polling" ? "polling" : tr("хомӯш")}
+                  </b>
+                </div>
+              )}
+              {status.telegram.lastError && <div className="text-brand">{tr("Хатои охирин:")} {status.telegram.lastError}</div>}
             </div>
           )}
         </Card>
@@ -101,6 +110,19 @@ export default function IntegrationsPage() {
           </div>
           <div className="mt-4 text-lg font-bold text-ink">WhatsApp Cloud API</div>
           <div className="mt-1 text-sm text-muted">{tr("Паём ба рақами телефони ҳар корманд фиристода мешавад.")}</div>
+          {status?.whatsapp.configured && (
+            <div className="mt-2 space-y-1 text-sm text-muted">
+              <div>
+                {tr("Шаблон (пас аз 24 соат):")}{" "}
+                {status.whatsapp.template ? <b className="text-ink">{status.whatsapp.template}</b> : <span className="text-warn">{tr("нест — WHATSAPP_TEMPLATE")}</span>}
+              </div>
+              <div>
+                {tr("Ҷавобҳо ба сайт (webhook):")}{" "}
+                {status.whatsapp.webhook ? <b className="text-ink">{tr("танзим шуд")}</b> : <span className="text-warn">{tr("нест — WHATSAPP_VERIFY_TOKEN")}</span>}
+              </div>
+              {status.whatsapp.lastError && <div className="break-words text-brand">{tr("Хатои охирин:")} {status.whatsapp.lastError}</div>}
+            </div>
+          )}
         </Card>
         <Card>
           <div className="flex items-start justify-between">

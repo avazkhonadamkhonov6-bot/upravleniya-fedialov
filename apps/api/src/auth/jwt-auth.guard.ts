@@ -2,7 +2,7 @@ import { CanActivate, ExecutionContext, ForbiddenException, Injectable, Unauthor
 import { Reflector } from '@nestjs/core';
 import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from '../prisma/prisma.service';
-import { AuthClient, AuthUser, CLIENT_ONLY, IS_PUBLIC } from './decorators';
+import { ALLOW_PENDING, AuthClient, AuthUser, CLIENT_ONLY, IS_PUBLIC } from './decorators';
 
 @Injectable()
 export class JwtAuthGuard implements CanActivate {
@@ -55,8 +55,21 @@ export class JwtAuthGuard implements CanActivate {
       branchId: user.branchId,
       position: user.position,
       fullName: user.fullName,
+      isSuperAdmin: user.isSuperAdmin,
+      orgStatus: user.organization.status,
     };
     req.user = authUser;
+
+    // Бизнеси тасдиқнашуда (интизор, радшуда ё басташуда): танҳо профил ва рӯйхати бизнесҳо.
+    // Супер-админ ҳамеша дастрасӣ дорад.
+    if (!user.isSuperAdmin && user.organization.status !== 'APPROVED') {
+      const allowPending = this.reflector.getAllAndOverride<boolean>(ALLOW_PENDING, [ctx.getHandler(), ctx.getClass()]);
+      if (!allowPending) {
+        throw new ForbiddenException(
+          user.organization.status === 'PENDING' ? 'Бизнеси шумо интизори тасдиқи супер-админ аст' : 'Бизнеси шумо баста аст. Ба супер-админ муроҷиат кунед',
+        );
+      }
+    }
     return true;
   }
 }

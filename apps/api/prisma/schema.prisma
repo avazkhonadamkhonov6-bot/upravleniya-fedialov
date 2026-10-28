@@ -33,6 +33,14 @@ enum Channel {
   WHATSAPP
 }
 
+/// Ҳолати бизнес: бизнеси нав то тасдиқи супер-админ кор намекунад
+enum OrgStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  BLOCKED
+}
+
 enum DeliveryStatus {
   SENT
   DRY_RUN
@@ -51,6 +59,14 @@ model Organization {
   description   String         @default("")
   /// Дар бозори онлайн ба мизоҷон нишон дода шавад
   isPublic      Boolean        @default(true)
+  /// Бизнеси нав PENDING аст; супер-админ тасдиқ (APPROVED), рад (REJECTED) ё баста (BLOCKED) мекунад
+  status        OrgStatus      @default(PENDING)
+  /// Сабаби рад/бастан (ба соҳиб нишон дода мешавад)
+  statusNote    String         @default("")
+  reviewedAt    DateTime?
+  reviewedById  Int?
+  /// Ширкати хизматии супер-админ (дар рӯйхати бизнесҳо нест)
+  isPlatform    Boolean        @default(false)
   onlineOrders  OnlineOrder[]
   createdAt     DateTime       @default(now())
   branches      Branch[]
@@ -60,6 +76,8 @@ model Organization {
   tasks         Task[]
   auditLogs     AuditLog[]
   notifications Notification[]
+
+  @@index([status])
 }
 
 model Branch {
@@ -107,6 +125,8 @@ model User {
   hiredAt          DateTime     @default(now())
   isActive         Boolean      @default(true)
   telegramChatId   String?      @unique
+  /// Супер-админи платформа: ҳамаи бизнесҳоро мебинад ва бизнесҳои навро тасдиқ мекунад
+  isSuperAdmin     Boolean      @default(false)
   createdAt        DateTime     @default(now())
   orders           Order[]
   assignedTasks    Task[]       @relation("TaskAssignee")

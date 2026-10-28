@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import type { SendResult } from './whatsapp.service';
 
@@ -15,7 +16,20 @@ export interface TgMessage {
 
 type UpdateHandler = (msg: TgMessage) => Promise<unknown>;
 
-/** Telegram Bot API бо long polling — сервери иловагӣ ё webhook лозим нест. */
+/**
+ * Суроғаи оммавии API барои webhook: TELEGRAM_WEBHOOK_URL ё RENDER_EXTERNAL_URL (Render худаш медиҳад).
+ * TELEGRAM_MODE=polling — ҳатман polling (масалан дар компютер).
+ */
+function webhookBase(): string | null {
+  if (process.env.TELEGRAM_MODE?.trim() === 'polling') return null;
+  const base = (process.env.TELEGRAM_WEBHOOK_URL ?? process.env.RENDER_EXTERNAL_URL)?.trim().replace(/\/+$/, '');
+  return base?.startsWith('https://') ? base : null;
+}
+
+/**
+ * Telegram Bot API. Дар сервер (Render) — webhook: Telegram худаш паёмро ба API мефиристад ва сервери «хобида»-ро бедор мекунад.
+ * Дар компютер — long polling (сервери иловагӣ лозим нест).
+ */
 @Injectable()
 export class TelegramService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger('Telegram');
@@ -24,13 +38,26 @@ export class TelegramService implements OnModuleInit, OnModuleDestroy {
   private offset = 0;
   private handler?: UpdateHandler;
   botUsername: string | null = null;
+  /** Ҳолати бот барои саҳифаи «Интегратсияҳо» */
+  mode: 'webhook' | 'polling' | 'off' = 'off';
+  lastError: string | null = null;
 
   get configured() {
     return !!this.token;
   }
 
+  /** Сирри webhook аз токен (Telegram онро дар сарлавҳаи X-Telegram-Bot-Api-Secret-Token бармегардонад) */
+  get webhookSecret(): string | null {
+    return this.token ? createHash('sha256').update(`fh-webhook:${this.token}`).digest('hex').slice(0, 48) : null;
+  }
+
   onUpdate(handler: UpdateHandler) {
     this.handler = handler;
+  }
+
+  /** Паёме, ки тавассути webhook омад */
+  async handleUpdate(update: { message?: TgMessage }) {
+    if (update.message && this.handler) await this.handler(update.message).catch((e) => this.logger.error(e));
   }
 
   async onModuleInit() {
@@ -41,8 +68,21 @@ export class TelegramService implements OnModuleInit, OnModuleDestroy {
     try {
       const me = await this.call<{ username: string }>('getMe');
       this.botUsername = me.username;
-      // Агар пештар webhook гузошта шуда бошад, getUpdates 409 медиҳад — онро хомӯш мекунем.
-      await this.call('deleteWebhook', { drop_pending_updates: false });
+      const base = webhookBase();
+      if (base) {
+        await this.call('setWebhook', {
+          url: `${base}/api/telegram/webhook`,
+          secret_token: this.webhookSecret,
+          allowed_updates: ['message'],
+          drop_pending_updates: false,
+        });
+        this.mode = 'webhook';
+      } else {
+        // Агар пештар webhook гузошта шуда бошад, getUpdates 409 медиҳад — онро хомӯш мекунем.
+        // Диққат: агар ҳамин бот дар Render бо webhook кор кунад, дар компютер токени ДИГАР (боти санҷишӣ) гузоред.
+        await this.call('deleteWebhook', { drop_pending_updates: false });
+        this.mode = 'polling';
+      }
       await this.call('setMyCommands', {
         commands: [
           { command: 'today', description: 'Фурӯш ва фоидаи имрӯз' },
@@ -53,11 +93,14 @@ export class TelegramService implements OnModuleInit, OnModuleDestroy {
           { command: 'help', description: 'Кӯмак' },
         ],
       });
-      this.logger.log(`Бот @${me.username} пайваст шуд`);
-      this.running = true;
-      void this.poll();
+      this.logger.log(`Бот @${me.username} пайваст шуд (${this.mode})`);
+      if (this.mode === 'polling') {
+        this.running = true;
+        void this.poll();
+      }
     } catch (e) {
-      this.logger.error(`Пайваст нашуд: ${(e as Error).message}`);
+      this.lastError = (e as Error).message;
+      this.logger.error(`Пайваст нашуд: ${this.lastError}`);
     }
   }
 
@@ -82,7 +125,8 @@ export class TelegramService implements OnModuleInit, OnModuleDestroy {
       }
       return { status: 'SENT' };
     } catch (e) {
-      return { status: 'FAILED', error: (e as Error).message };
+      this.lastError = (e as Error).message;
+      return { status: 'FAILED', error: this.lastError };
     }
   }
 
@@ -169,14 +213,37 @@ export class TelegramService implements OnModuleInit, OnModuleDestroy {
     }
   }
 
-  private async call<T = unknown>(method: string, body?: unknown): Promise<T> {
-    const res = await fetch(`https://api.telegram.org/bot${this.token}/${method}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body ?? {}),
-    });
-    const json = (await res.json()) as { ok: boolean; result: T; description?: string };
-    if (!json.ok) throw new Error(json.description ?? 'Telegram error');
-    return json.result;
+  /**
+   * Дархост ба Bot API. Хатои муваққатӣ (шабака, 429 «too many requests», 5xx) то 3 маротиба такрор мешавад;
+   * хатои доимӣ (масалан «chat not found», «bot was blocked») фавран бармегардад.
+   */
+  private async call<T = unknown>(method: string, body?: unknown, attempts = method === 'getUpdates' ? 1 : 3): Promise<T> {
+    for (let i = 1; ; i++) {
+      let wait = 1000 * i;
+      try {
+        const res = await fetch(`https://api.telegram.org/bot${this.token}/${method}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body ?? {}),
+          signal: AbortSignal.timeout(method === 'getUpdates' ? 40000 : 15000),
+        });
+        const json = (await res.json().catch(() => ({ ok: false, description: `HTTP ${res.status}` }))) as {
+          ok: boolean;
+          result: T;
+          description?: string;
+          parameters?: { retry_after?: number };
+        };
+        if (json.ok) return json.result;
+        const temporary = res.status === 429 || res.status >= 500;
+        if (!temporary || i >= attempts) throw new TelegramApiError(json.description ?? 'Telegram error');
+        if (json.parameters?.retry_after) wait = Math.min(json.parameters.retry_after, 30) * 1000;
+      } catch (e) {
+        if (e instanceof TelegramApiError || i >= attempts) throw e;
+      }
+      await new Promise((r) => setTimeout(r, wait));
+    }
   }
 }
+
+/** Ҷавоби Bot API бо ok:false — такрор кардан фоида надорад */
+class TelegramApiError extends Error {}

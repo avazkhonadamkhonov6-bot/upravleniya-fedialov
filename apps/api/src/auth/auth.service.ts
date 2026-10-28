@@ -3,6 +3,7 @@ import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcryptjs';
 import { normalizeTelegram } from '@filialhub/shared';
 import { toClient, toOrganization, toUser } from '../common/serializers';
+import { AdminService } from '../admin/admin';
 import { PrismaService } from '../prisma/prisma.service';
 import type { AuthUser } from './decorators';
 import { CreateBusinessDto, LoginDto, RegisterClientDto, RegisterDto, UpdateMeDto, UpdateOrganizationDto } from './dto';
@@ -12,6 +13,7 @@ export class AuthService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly jwt: JwtService,
+    private readonly admin: AdminService,
   ) {}
 
   /** Як даромадан барои ҳама: аввал шеф/кормандон, баъд мизоҷони онлайн. */
@@ -69,9 +71,10 @@ export class AuthService {
     return rows.map((o) => ({ ...toOrganization(o), current: o.id === actor.organizationId }));
   }
 
-  /** Бизнеси нав барои ҳамон шеф — фавран ба он мегузарад */
+  /** Бизнеси нав барои ҳамон шеф — фавран ба он мегузарад; то тасдиқи супер-админ интизор мемонад */
   async createBusiness(actor: AuthUser, dto: CreateBusinessDto) {
-    const org = await this.prisma.organization.create({ data: { name: dto.name.trim(), type: dto.type, ownerId: actor.id } });
+    const org = await this.prisma.organization.create({ data: { name: dto.name.trim(), type: dto.type, ownerId: actor.id, status: 'PENDING' } });
+    void this.admin.onBusinessRegistered(org.id);
     return this.switchBusiness(actor, org.id);
   }
 
@@ -101,11 +104,13 @@ export class AuthService {
         phone: dto.phone.trim(),
         passwordHash: await bcrypt.hash(dto.password, 10),
         role: 'CHEF',
-        organization: { create: { name: dto.businessName.trim(), type: dto.businessType } },
+        organization: { create: { name: dto.businessName.trim(), type: dto.businessType, status: 'PENDING' } },
       },
       include: { branch: true, organization: true },
     });
     await this.prisma.organization.update({ where: { id: user.organizationId }, data: { ownerId: user.id } });
+    // Бизнеси нав то тасдиқи супер-админ кор намекунад — ба супер-админ ва соҳиб хабар медиҳем.
+    void this.admin.onBusinessRegistered(user.organizationId);
     const token = await this.jwt.signAsync({ sub: user.id, role: user.role });
     return { kind: 'staff' as const, token, user: toUser(user) };
   }
