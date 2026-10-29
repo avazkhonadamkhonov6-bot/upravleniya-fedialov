@@ -15,6 +15,7 @@
     "db:seed": "npm run db:seed -w @filialhub/api",
     "dev:web": "npm run build -w @filialhub/shared && npm run dev -w @filialhub/web",
     "build:api": "npm run build -w @filialhub/shared && npm run build -w @filialhub/api",
+    "test": "npm test -w @filialhub/api",
     "build:web": "npm run build -w @filialhub/shared && npm run build -w @filialhub/web"
   },
   "devDependencies": {
