@@ -18,6 +18,45 @@ export function htmlToWhatsApp(html: string): string {
     .replace(/&amp;/g, '&');
 }
 
+/**
+ * Green-API Partner: сайт барои ҳар бизнес instance-ро худаш месозад — соҳиб танҳо QR-ро скан мекунад.
+ * GREENAPI_PARTNER_TOKEN (аз support@green-api.com) ва GREENAPI_PARTNER_URL (аз танзимоти консол).
+ */
+export class GreenPartner {
+  private readonly token = process.env.GREENAPI_PARTNER_TOKEN?.trim();
+  private readonly base = (process.env.GREENAPI_PARTNER_URL?.trim() || 'https://api.green-api.com').replace(/\/+$/, '');
+
+  get configured() {
+    return !!this.token;
+  }
+
+  private async post<T>(method: string, body: unknown): Promise<T> {
+    const res = await fetch(`${this.base}/partner/${method}/${this.token}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+      signal: AbortSignal.timeout(30000),
+    });
+    const json = (await res.json().catch(() => ({}))) as T & { code?: number; description?: string };
+    // Green-API хатоҳоро бо HTTP 200 ва code/description бармегардонад
+    if (!res.ok || (json.code && json.code >= 400)) throw new Error(json.description ?? `HTTP ${res.status}`);
+    return json;
+  }
+
+  async createInstance(name: string, webhookUrl?: string, webhookUrlToken?: string): Promise<Required<GreenApiKeys>> {
+    const r = await this.post<{ idInstance: number | string; apiTokenInstance: string; apiUrl: string; mediaUrl: string }>('createInstance', {
+      name,
+      ...(webhookUrl ? { webhookUrl, webhookUrlToken, incomingWebhook: 'yes', stateWebhook: 'yes', outgoingWebhook: 'no' } : {}),
+    });
+    if (!r.idInstance || !r.apiTokenInstance) throw new Error('Green-API instance насохт');
+    return { id: String(r.idInstance), token: r.apiTokenInstance, apiUrl: r.apiUrl, mediaUrl: r.mediaUrl || r.apiUrl };
+  }
+
+  async deleteInstance(idInstance: string) {
+    await this.post('deleteInstanceAccount', { idInstance: Number(idInstance) });
+  }
+}
+
 /** Суроғаи оммавии API барои webhook-и Green-API (Render худаш RENDER_EXTERNAL_URL медиҳад) */
 export function greenWebhookBase(): string | null {
   const base = (process.env.GREENAPI_WEBHOOK_BASE ?? process.env.RENDER_EXTERNAL_URL)?.trim().replace(/\/+$/, '');

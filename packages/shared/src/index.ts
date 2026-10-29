@@ -487,6 +487,8 @@ export interface BusinessWhatsApp {
   error: string | null;
   /** Рақами умумии FilialHub кор мекунад */
   platform: boolean;
+  /** Сервер instance-ро худаш месозад — соҳиб танҳо QR-ро скан мекунад */
+  autoAvailable: boolean;
 }
 
 export interface IntegrationStatus {

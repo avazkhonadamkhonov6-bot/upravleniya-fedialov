@@ -1041,6 +1041,8 @@ export const DICT: Record<string, [ru: string, en: string]> = {
   "Холӣ монед — токени пешина боқӣ мемонад": ["Оставьте пустым — сохранится прежний токен", "Leave empty to keep the current token"],
   "Холӣ — ҳамон apiUrl": ["Пусто — как apiUrl", "Empty — same as apiUrl"],
   "Захира ва санҷидан": ["Сохранить и проверить", "Save and check"],
+  "QR-ро нишон диҳед": ["Показать QR", "Show QR"],
+  "Калидҳо дастӣ": ["Ввести ключи вручную", "Enter keys manually"],
   "Ҳолати WhatsApp:": ["Состояние WhatsApp:", "WhatsApp state:"],
   "пайваст": ["подключён", "connected"],
   "дар console.green-api.com QR-ро бо WhatsApp скан кунед": ["отсканируйте QR в console.green-api.com через WhatsApp", "scan the QR at console.green-api.com with WhatsApp"],

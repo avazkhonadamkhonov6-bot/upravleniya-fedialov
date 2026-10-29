@@ -1,7 +1,7 @@
 "use client";
 
 import type { BusinessWhatsApp } from "@filialhub/shared";
-import { CheckCircle2, ExternalLink, Unlink } from "lucide-react";
+import { CheckCircle2, ExternalLink, QrCode, Unlink } from "lucide-react";
 import { useCallback, useState } from "react";
 import { api } from "@/lib/api";
 import { tr } from "@/lib/i18n";
@@ -48,6 +48,20 @@ export function BusinessWhatsAppCard() {
     }
   }
 
+  /** Як тугма: сервер instance месозад ва QR пайдо мешавад */
+  async function connectAuto() {
+    setBusy(true);
+    setFormError(null);
+    try {
+      await api<BusinessWhatsApp>("/auth/organization/whatsapp/auto", { method: "POST" });
+      reload();
+    } catch (err) {
+      setFormError((err as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function remove() {
     if (!confirm(tr("Рақами WhatsApp-и бизнесро ҷудо кунем? Паёмҳо аз рақами умумии FilialHub мераванд."))) return;
     await api("/auth/organization/whatsapp", { method: "DELETE" });
@@ -85,10 +99,22 @@ export function BusinessWhatsAppCard() {
           </p>
           {data.own && data.state !== "authorized" && <WhatsAppQr path="/auth/organization/whatsapp/qr" onLinked={onLinked} />}
           {data.error && <div className="break-words text-xs text-brand">{data.error}</div>}
+          <ErrorBox message={formError} />
           <div className="flex flex-wrap gap-2">
-            <Button size="sm" variant={data.own ? "outline" : "primary"} onClick={startEdit}>
-              {data.own ? tr("Калидҳоро иваз кардан") : tr("Рақами худро пайваст кардан")}
-            </Button>
+            {!data.own && data.autoAvailable ? (
+              <>
+                <Button size="sm" onClick={connectAuto} loading={busy}>
+                  <QrCode className="size-4" /> {tr("QR-ро нишон диҳед")}
+                </Button>
+                <Button size="sm" variant="ghost" onClick={startEdit}>
+                  {tr("Калидҳо дастӣ")}
+                </Button>
+              </>
+            ) : (
+              <Button size="sm" variant={data.own ? "outline" : "primary"} onClick={startEdit}>
+                {data.own ? tr("Калидҳоро иваз кардан") : tr("Рақами худро пайваст кардан")}
+              </Button>
+            )}
             {data.own && (
               <Button size="sm" variant="ghost" onClick={remove}>
                 <Unlink className="size-4" /> {tr("Ҷудо кардан")}

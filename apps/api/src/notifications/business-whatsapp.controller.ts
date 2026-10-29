@@ -1,10 +1,10 @@
-import { BadRequestException, Body, Controller, Delete, Get, HttpCode, Put } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Delete, Get, HttpCode, Post, Put } from '@nestjs/common';
 import { IsOptional, IsString, IsUrl, Matches, MaxLength } from 'class-validator';
 import type { BusinessWhatsApp } from '@filialhub/shared';
 import { AuthUser, CurrentUser, Feature, Roles } from '../auth/decorators';
 import { AuditService } from '../core/audit.service';
 import { PrismaService } from '../prisma/prisma.service';
-import { GreenApi, greenWebhookBase, WhatsAppService } from './whatsapp.service';
+import { GreenApi, GreenPartner, greenWebhookBase, WhatsAppService } from './whatsapp.service';
 
 export class BusinessWhatsAppDto {
   @IsString() @Matches(/^\d{6,20}$/, { message: 'idInstance — танҳо рақамҳо' })
@@ -29,6 +29,8 @@ export class BusinessWhatsAppDto {
 @Feature('profile')
 @Roles('CHEF')
 export class BusinessWhatsAppController {
+  private readonly partner = new GreenPartner();
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly whatsapp: WhatsAppService,
@@ -57,6 +59,7 @@ export class BusinessWhatsAppController {
       state,
       error,
       platform: this.whatsapp.configured,
+      autoAvailable: this.partner.configured,
     };
   }
 
@@ -85,9 +88,43 @@ export class BusinessWhatsAppController {
     return this.get(user);
   }
 
+  /**
+   * Як тугма: сайт instance-и Green-API-ро худаш месозад (Partner API), калидҳоро захира мекунад ва webhook мегузорад.
+   * Баъд соҳиб танҳо QR-ро скан мекунад.
+   */
+  @Post('auto')
+  @HttpCode(200)
+  async auto(@CurrentUser() user: AuthUser): Promise<BusinessWhatsApp> {
+    if (!this.partner.configured) throw new BadRequestException('Пайвасти худкор дар сервер танзим нашудааст (GREENAPI_PARTNER_TOKEN)');
+    const o = await this.prisma.organization.findUniqueOrThrow({ where: { id: user.organizationId } });
+    if (o.waInstanceId && o.waApiToken) return this.get(user);
+    let keys;
+    try {
+      keys = await this.partner.createInstance(`FilialHub #${o.id} ${o.name}`.slice(0, 100));
+    } catch (e) {
+      throw new BadRequestException(`Green-API instance насохт: ${(e as Error).message.slice(0, 200)}`);
+    }
+    await this.prisma.organization.update({
+      where: { id: o.id },
+      data: { waInstanceId: keys.id, waApiToken: keys.token, waApiUrl: keys.apiUrl, waMediaUrl: keys.mediaUrl },
+    });
+    this.whatsapp.forgetOrg(o.id);
+    const base = greenWebhookBase();
+    if (base) await new GreenApi(keys).ensureWebhook(`${base}/api/whatsapp/webhook/greenapi/${o.id}`).catch(() => {});
+    this.audit.log(user, 'UPDATE', 'organization', o.id, 'WhatsApp-и бизнес: instance худкор сохта шуд');
+    return this.get(user);
+  }
+
   @Delete()
   @HttpCode(200)
   async remove(@CurrentUser() user: AuthUser): Promise<BusinessWhatsApp> {
+    const o = await this.prisma.organization.findUniqueOrThrow({ where: { id: user.organizationId } });
+    // Instance-и худкор сохташуда: аз WhatsApp мебароем ва онро нест мекунем (пардохт қатъ мешавад)
+    if (this.partner.configured && o.waInstanceId && o.waApiToken) {
+      const client = new GreenApi({ id: o.waInstanceId, token: o.waApiToken, apiUrl: o.waApiUrl, mediaUrl: o.waMediaUrl });
+      await client.logout().catch(() => {});
+      await this.partner.deleteInstance(o.waInstanceId).catch(() => {});
+    }
     await this.prisma.organization.update({
       where: { id: user.organizationId },
       data: { waInstanceId: null, waApiToken: null, waApiUrl: null, waMediaUrl: null },
