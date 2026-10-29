@@ -1,13 +1,15 @@
 "use client";
 
 import { PAYMENT_LABELS, type Branch, type Order, type Paginated, type Period, type TimePoint } from "@filialhub/shared";
-import { Banknote, ChevronDown, ChevronLeft, ChevronRight, CreditCard, Plus } from "lucide-react";
+import { Banknote, ChevronDown, ChevronLeft, ChevronRight, CreditCard, Plus, Printer } from "lucide-react";
 import Link from "next/link";
 import { Fragment, useState } from "react";
 import { bucketLabel } from "@/components/chart-label";
+import { ExportButton } from "@/components/export-button";
 import { SalesChart } from "@/components/charts-lazy";
 import { Badge, Button, Card, CardTitle, Empty, ErrorBox, formatDate, money, PageHeader, Segmented, Select, Skeleton, cn } from "@/components/ui";
 import { qs } from "@/lib/api";
+import { printReceipt } from "@/lib/receipt";
 import { useAuth } from "@/lib/auth";
 import { useApi } from "@/lib/use-api";
 import { tr, locale } from "@/lib/i18n";
@@ -43,6 +45,7 @@ export default function SalesPage() {
                 ))}
               </Select>
             )}
+            <ExportButton path="/orders/export" params={{ branchId }} name="sales" />
             <Link href="/pos">
               <Button>
                 <Plus className="size-4" /> {tr("Фурӯши нав")}
@@ -120,6 +123,7 @@ function History({ branchId }: { branchId?: number }) {
 }
 
 function OrdersList({ branchId, showProfit, showBranch }: { branchId?: number; showProfit: boolean; showBranch: boolean }) {
+  const { user } = useAuth();
   const [page, setPage] = useState(1);
   const [open, setOpen] = useState<number | null>(null);
   const { data, error } = useApi<Paginated<Order>>(`/orders${qs({ branchId, page, pageSize: 15 })}`);
@@ -202,6 +206,12 @@ function OrdersList({ branchId, showProfit, showBranch }: { branchId?: number; s
                                 <ProductIcon value={i.emoji} className="mr-1 inline size-3.5 -mt-0.5" />{i.name} × {i.qty} {tr(i.unit)} = <b className="tabular">{money(i.unitPrice * i.qty)}</b>
                               </span>
                             ))}
+                            <button
+                              onClick={() => printReceipt(o, user?.organization?.name ?? "FilialHub")}
+                              className="inline-flex cursor-pointer items-center gap-1.5 rounded-xl bg-surface px-3 py-1.5 text-xs font-semibold text-ink ring-1 ring-line hover:ring-ink"
+                            >
+                              <Printer className="size-3.5" /> {tr("Чопи чек")}
+                            </button>
                           </div>
                         </td>
                       </tr>

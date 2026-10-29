@@ -1,12 +1,13 @@
 "use client";
 
 import { isFractionalUnit, PAYMENT_LABELS, POINTS_RATE, type Branch, type Customer, type Order, type Payment, type Product } from "@filialhub/shared";
-import { Banknote, CheckCircle2, CreditCard, Gift, Minus, Plus, Search, ShoppingCart, Trash2, UserPlus, X } from "lucide-react";
+import { Banknote, CheckCircle2, CreditCard, Gift, Minus, Plus, Printer, Search, ShoppingCart, Trash2, UserPlus, X } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 import { Suspense, useMemo, useRef, useState } from "react";
 import { CustomerForm, prettyPhone, SegmentBadge } from "@/components/crm";
 import { useToast } from "@/components/toast";
-import { Avatar, Button, Card, Empty, ErrorBox, Input, Modal, money, PageHeader, Select, Skeleton, cn } from "@/components/ui";
+import { Avatar, Button, Card, Empty, ErrorBox, Input, Modal, money, PageHeader, Select, Skeleton, WhatsAppIcon, cn } from "@/components/ui";
+import { printReceipt, whatsappReceiptUrl } from "@/lib/receipt";
 import { api } from "@/lib/api";
 import { useAuth, useBusiness } from "@/lib/auth";
 import { useApi } from "@/lib/use-api";
@@ -39,6 +40,9 @@ function Pos() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState<Order | null>(null);
+  // Рақами мизоҷ барои фиристодани чек ба WhatsApp (пас аз фурӯш мизоҷ аз форма тоза мешавад)
+  const [donePhone, setDonePhone] = useState<string | null>(null);
+  const shopName = user?.organization?.name ?? "FilialHub";
 
   const [query, setQuery] = useState("");
   const cartRef = useRef<HTMLDivElement>(null);
@@ -103,6 +107,7 @@ function Pos() {
         },
       });
       setDone(order);
+      setDonePhone(customer?.phone ?? null);
       setCart({});
       setCustomer(null);
       setUsePoints(false);
@@ -226,7 +231,20 @@ function Pos() {
                   {done.pointsUsed > 0 && tr(" · −{0} истифода шуд", done.pointsUsed)}
                 </div>
               )}
-              <Button className="mt-5 w-full" onClick={() => setDone(null)}>
+              <div className="mt-5 grid grid-cols-2 gap-2">
+                <Button variant="outline" onClick={() => printReceipt(done, shopName)}>
+                  <Printer className="size-4" /> {tr("Чек")}
+                </Button>
+                <a
+                  href={whatsappReceiptUrl(done, shopName, donePhone)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex h-12 items-center justify-center gap-2 rounded-[14px] border-[1.5px] border-line bg-surface px-5 text-[15px] font-bold text-ink transition hover:border-ink"
+                >
+                  <WhatsAppIcon /> WhatsApp
+                </a>
+              </div>
+              <Button className="mt-2 w-full" onClick={() => setDone(null)}>
                 {tr("Фармоиши нав")}
               </Button>
             </div>

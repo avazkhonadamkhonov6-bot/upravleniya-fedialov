@@ -8,12 +8,15 @@ import {
   Module,
   Post,
   Query,
+  Res,
 } from '@nestjs/common';
+import type { Response } from 'express';
 import { Type } from 'class-transformer';
 import { ArrayMinSize, IsIn, IsInt, IsNumber, IsOptional, Max, Min, ValidateNested } from 'class-validator';
-import { canSell, PAYMENTS, POINTS_RATE, type Order, type Paginated, type Payment } from '@filialhub/shared';
+import { canSell, PAYMENT_LABELS, PAYMENTS, POINTS_RATE, type Order, type Paginated, type Payment } from '@filialhub/shared';
 import { AuthUser, CurrentUser, Feature } from '../auth/decorators';
 import { branchWhere, scopeBranch } from '../common/access';
+import { localDateTime, XLSX_TYPE, xlsx } from '../common/xlsx';
 import { Prisma } from '../generated/prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { StockService } from '../products/stock';
@@ -110,15 +113,7 @@ export class OrdersService {
     q: { branchId?: number; from?: string; to?: string; page: number; pageSize: number },
   ): Promise<Paginated<Order>> {
     assertCanSell(user);
-    const where: Prisma.OrderWhereInput = {
-      branchId: branchWhere(user, q.branchId),
-      // Кассир танҳо фармоишҳои худашро мебинад.
-      userId: user.role === 'STAFF' ? user.id : undefined,
-      createdAt: {
-        gte: q.from ? new Date(q.from) : undefined,
-        lt: q.to ? new Date(q.to) : undefined,
-      },
-    };
+    const where = this.where(user, q);
     const [rows, total] = await Promise.all([
       this.prisma.order.findMany({
         where,
@@ -131,6 +126,32 @@ export class OrdersService {
     ]);
     const items = rows.map((o) => forViewer(user, toOrder(o)));
     return { items, total, page: q.page, pageSize: q.pageSize };
+  }
+
+  private where(user: AuthUser, q: { branchId?: number; from?: string; to?: string }): Prisma.OrderWhereInput {
+    return {
+      branchId: branchWhere(user, q.branchId),
+      // Кассир танҳо фармоишҳои худашро мебинад.
+      userId: user.role === 'STAFF' ? user.id : undefined,
+      createdAt: {
+        gte: q.from ? new Date(q.from) : undefined,
+        lt: q.to ? new Date(q.to) : undefined,
+      },
+    };
+  }
+
+  /** Фурӯш ба Excel (то 20 000 сатр); кормандон арзиш ва фоидаро намебинанд */
+  async export(user: AuthUser, q: { branchId?: number; from?: string; to?: string }) {
+    assertCanSell(user);
+    const rows = await this.prisma.order.findMany({ where: this.where(user, q), include, orderBy: { createdAt: 'desc' }, take: 20_000 });
+    const staff = user.role === 'STAFF';
+    const headers = ['№', 'Сана', 'Филиал', 'Кассир', 'Мизоҷ', 'Пардохт', 'Маҳсулот', 'Тахфиф', 'Маблағ', ...(staff ? [] : ['Арзиши аслӣ', 'Фоида'])];
+    const data = rows.map((r) => {
+      const o = toOrder(r);
+      const items = o.items.map((i) => `${i.name} × ${i.qty}`).join(', ');
+      return [o.id, localDateTime(r.createdAt), o.branchName, o.userName, o.customerName ?? '', PAYMENT_LABELS[o.payment], items, o.discount || null, o.total, ...(staff ? [] : [o.totalCost, o.profit])];
+    });
+    return xlsx('Фурӯш', headers, data, [8, 17, 20, 20, 20, 10, 50, 10, 12, 12, 12]);
   }
 
   async create(user: AuthUser, dto: CreateOrderDto) {
@@ -221,6 +242,21 @@ export class OrdersController {
       page: Math.max(Number(page) || 1, 1),
       pageSize: Math.min(Math.max(Number(pageSize) || 20, 1), 100),
     });
+  }
+
+  /** GET /orders/export?from=…&to=… → .xlsx */
+  @Get('export')
+  async export(
+    @CurrentUser() user: AuthUser,
+    @Res() res: Response,
+    @Query('branchId') branchId?: string,
+    @Query('from') from?: string,
+    @Query('to') to?: string,
+  ) {
+    const file = await this.orders.export(user, { branchId: Number(branchId) || undefined, from: from || undefined, to: to || undefined });
+    res.setHeader('Content-Type', XLSX_TYPE);
+    res.setHeader('Content-Disposition', `attachment; filename="sales-${new Date().toISOString().slice(0, 10)}.xlsx"`);
+    res.end(file);
   }
 
   @Post()

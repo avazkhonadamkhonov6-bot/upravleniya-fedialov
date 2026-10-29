@@ -11,7 +11,9 @@ import {
   Patch,
   Post,
   Query,
+  Res,
 } from '@nestjs/common';
+import type { Response } from 'express';
 import { Type } from 'class-transformer';
 import { IsDateString, IsIn, IsInt, IsNumber, IsOptional, IsString, MaxLength, Min } from 'class-validator';
 import {
@@ -26,6 +28,7 @@ import {
 import { AuthUser, CurrentUser, Roles } from '../auth/decorators';
 import { branchIdList, branchWhere, scopeBranch } from '../common/access';
 import { startOfLocalMonth, TZ } from '../common/time';
+import { XLSX_TYPE, xlsx } from '../common/xlsx';
 import { AuditService } from '../core/audit.service';
 import { Prisma } from '../generated/prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
@@ -104,6 +107,25 @@ export class ExpensesService {
       this.prisma.expense.aggregate({ where, _sum: { amount: true } }),
     ]);
     return { items: rows.map(toExpense), total, page: q.page, pageSize: 20, sum: r2(Number(agg._sum.amount ?? 0)) };
+  }
+
+  /** Хароҷот ба Excel бо ҳамон филтрҳо (то 20 000 сатр) */
+  async export(user: AuthUser, q: { branchId?: number; category?: ExpenseCategory; from?: string; to?: string }) {
+    const rows = await this.prisma.expense.findMany({
+      where: {
+        branchId: branchWhere(user, q.branchId),
+        category: q.category,
+        date: { gte: q.from ? new Date(q.from) : undefined, lt: q.to ? new Date(q.to) : undefined },
+      },
+      include,
+      orderBy: [{ date: 'desc' }, { id: 'desc' }],
+      take: 20_000,
+    });
+    const data = rows.map((r) => {
+      const e = toExpense(r);
+      return [e.id, e.date.slice(0, 10), e.branchName, EXPENSE_LABELS[e.category], e.amount, e.note, e.createdBy ?? ''];
+    });
+    return xlsx('Хароҷот', ['№', 'Сана', 'Филиал', 'Навъ', 'Маблағ', 'Эзоҳ', 'Кӣ сабт кард'], data, [8, 12, 20, 18, 12, 40, 20]);
   }
 
   /** Ҳисоботи фоида ва зарар моҳ ба моҳ. */
@@ -210,6 +232,27 @@ export class ExpensesController {
       to: to || undefined,
       page: Math.max(Number(page) || 1, 1),
     });
+  }
+
+  /** GET /expenses/export?… → .xlsx */
+  @Get('export')
+  async export(
+    @CurrentUser() user: AuthUser,
+    @Res() res: Response,
+    @Query('branchId') branchId?: string,
+    @Query('category') category?: string,
+    @Query('from') from?: string,
+    @Query('to') to?: string,
+  ) {
+    const file = await this.expenses.export(user, {
+      branchId: Number(branchId) || undefined,
+      category: EXPENSE_CATEGORIES.includes(category as ExpenseCategory) ? (category as ExpenseCategory) : undefined,
+      from: from || undefined,
+      to: to || undefined,
+    });
+    res.setHeader('Content-Type', XLSX_TYPE);
+    res.setHeader('Content-Disposition', `attachment; filename="expenses-${new Date().toISOString().slice(0, 10)}.xlsx"`);
+    res.end(file);
   }
 
   @Get('pnl')

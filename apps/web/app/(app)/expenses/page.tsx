@@ -17,6 +17,7 @@ import { Button, Card, CardTitle, compactMoney, Empty, ErrorBox, Field, formatDa
 import { api, qs } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { useApi } from "@/lib/use-api";
+import { ExportButton } from "@/components/export-button";
 import { tr } from "@/lib/i18n";
 import { ExpenseIcon, Glyph } from "@/components/glyph";
 
@@ -70,6 +71,7 @@ export default function ExpensesPage() {
                 ))}
               </Select>
             )}
+            <ExportButton path="/expenses/export" params={{ branchId, category: category || undefined }} name="expenses" />
             <Button onClick={() => setEditing("new")}>
               <Plus className="size-4" /> {tr("Хароҷоти нав")}
             </Button>
