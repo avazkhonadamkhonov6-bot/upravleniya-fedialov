@@ -1,0 +1,30 @@
+# Хидматҳои ройгони Render пас аз 15 дақиқаи бекорӣ мехобанд (кушодани аввал 30–60 сония).
+# Ин workflow дар соатҳои корӣ сайтро ҳар 10 дақиқа «мезанад», то он бедор бошад.
+# /api/health-и сайт ба API меравад — ҳарду хидмат бедор мемонанд.
+#
+# Танзим: Settings → Secrets and variables → Actions → Variables → New repository variable
+#   SITE_URL — суроғаи сайт, масалан https://filialhub-web.onrender.com
+#
+# Ҳисоби соатҳо: Render ба ҳар workspace 750 соати ройгон дар моҳ медиҳад.
+# 2 хидмат × 10 соат × 31 рӯз ≈ 620 соат — ҷо барои истифодаи шом боқӣ мемонад.
+# Соатҳоро зиёд накунед: агар 750 тамом шавад, Render хидматҳоро то охири моҳ қатъ мекунад.
+name: Keep site awake
+
+on:
+  schedule:
+    - cron: "*/10 3-12 * * *" # 08:00–17:59 бо вақти Душанбе (UTC+5)
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Ping
+        env:
+          SITE_URL: ${{ vars.SITE_URL }}
+        run: |
+          if [ -z "$SITE_URL" ]; then echo "SITE_URL гузошта нашудааст — ҳеҷ кор намекунем"; exit 0; fi
+          curl -fsS --retry 3 --retry-delay 20 --max-time 90 "$SITE_URL/api/health"
