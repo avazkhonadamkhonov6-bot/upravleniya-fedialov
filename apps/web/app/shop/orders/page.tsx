@@ -4,6 +4,7 @@ import { Banknote, CreditCard, MapPin, Package } from "lucide-react";
 import { ONLINE_STATUS_LABELS, type OnlineOrder, type OnlineOrderStatus } from "@filialhub/shared";
 import { useState } from "react";
 import { NeedClient } from "@/components/shop-shell";
+import { ReviewForm, Stars } from "@/components/stars";
 import { useToast } from "@/components/toast";
 import { Button, ErrorBox, formatDate, money, cn } from "@/components/ui";
 import { api } from "@/lib/api";
@@ -81,6 +82,8 @@ function OrderCard({ order: o, onChange }: { order: OnlineOrder; onChange: () =>
   const th = storeTheme(o.store.type);
   const toast = useToast();
   const [busy, setBusy] = useState(false);
+  // true — мизоҷ баҳои пешинаро иваз мекунад
+  const [rating, setRating] = useState(false);
   const stepIdx = STEPS.indexOf(o.status);
 
   async function cancel() {
@@ -166,6 +169,34 @@ function OrderCard({ order: o, onChange }: { order: OnlineOrder; onChange: () =>
           </span>
         </div>
       </div>
+      {o.status === "DELIVERED" && (
+        <div className="border-t border-line px-4 py-3">
+          {o.review && !rating ? (
+            <div className="flex items-center justify-between gap-3">
+              <div className="min-w-0">
+                <Stars value={o.review.rating} />
+                {o.review.text && <p className="mt-1 truncate text-sm text-ink-2">{o.review.text}</p>}
+              </div>
+              <button onClick={() => setRating(true)} className="shrink-0 cursor-pointer text-xs font-semibold text-muted hover:text-ink">
+                {tr("Иваз кардан")}
+              </button>
+            </div>
+          ) : (
+            <>
+              <div className="mb-1 text-sm font-semibold text-ink">{tr("Ба «{0}» баҳо диҳед", o.store.name)}</div>
+              <ReviewForm
+                orderId={o.id}
+                initial={o.review}
+                accent={th.accent}
+                onDone={() => {
+                  setRating(false);
+                  onChange();
+                }}
+              />
+            </>
+          )}
+        </div>
+      )}
     </article>
   );
 }

@@ -70,6 +70,18 @@ function jsonLd(s: StoreDetail) {
     description: describe(s),
     url,
     telephone: s.branchList[0]?.phone,
+    ...(s.rating !== null && s.reviewCount > 0
+      ? {
+          aggregateRating: { "@type": "AggregateRating", ratingValue: s.rating, reviewCount: s.reviewCount, bestRating: 5, worstRating: 1 },
+          review: s.reviews.slice(0, 5).map((r) => ({
+            "@type": "Review",
+            author: { "@type": "Person", name: r.author || "Мизоҷ" },
+            datePublished: r.createdAt.slice(0, 10),
+            reviewRating: { "@type": "Rating", ratingValue: r.rating, bestRating: 5 },
+            ...(r.text ? { reviewBody: r.text } : {}),
+          })),
+        }
+      : {}),
     address: s.branchList.map((b) => ({ "@type": "PostalAddress", streetAddress: b.address, addressLocality: b.city, addressCountry: "TJ" })),
     ...(s.type === "RESTAURANT"
       ? { hasMenu: { "@type": "Menu", name: `Менюи ${s.name}`, hasMenuSection: menuSections(s) } }

@@ -1,7 +1,7 @@
 "use client";
 
 import { BUSINESS_TYPE_LABELS, BUSINESS_TYPES, type BusinessType, type StoreSummary } from "@filialhub/shared";
-import { MapPin, Search, Store } from "lucide-react";
+import { MapPin, Search, Star, Store } from "lucide-react";
 import Link from "next/link";
 import { useState, ViewTransition } from "react";
 import { ErrorBox, Input, cn } from "@/components/ui";
@@ -120,8 +120,13 @@ function StoreCard({ store }: { store: StoreSummary }) {
         <h2 className={cn("text-lg text-ink", th.titleClass)}>{store.name}</h2>
         <p className="mt-1 line-clamp-2 min-h-10 text-sm text-muted">{store.description || tr(th.tagline)}</p>
         <div className="mt-4 flex items-center justify-between text-xs text-muted">
-          <span className="flex items-center gap-1">
-            <MapPin className="size-3.5" /> {store.cities.join(", ")}
+          <span className="flex min-w-0 items-center gap-1">
+            <MapPin className="size-3.5 shrink-0" /> <span className="truncate">{store.cities.join(", ")}</span>
+            {store.rating !== null && (
+              <span className="ml-1 flex shrink-0 items-center gap-0.5 font-semibold text-ink">
+                <Star className="size-3.5 fill-[#ffb400] text-[#ffb400]" /> {store.rating.toFixed(1)}
+              </span>
+            )}
           </span>
           <span className="rounded-full px-2.5 py-1 font-semibold" style={{ background: th.soft, color: th.accent }}>
             {tr("{0} маҳсулот", store.products)}

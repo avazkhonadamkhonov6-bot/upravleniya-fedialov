@@ -1,7 +1,7 @@
 "use client";
 
 import { BUSINESS_TYPE_LABELS, isFractionalUnit, type StoreDetail } from "@filialhub/shared";
-import { ArrowLeft, MapPin, Minus, Phone, Plus, ShoppingCart } from "lucide-react";
+import { ArrowLeft, MapPin, Minus, Phone, Plus, ShoppingCart, Star } from "lucide-react";
 import Link from "next/link";
 import { useState, ViewTransition } from "react";
 import { money, cn } from "@/components/ui";
@@ -11,6 +11,7 @@ import { tr } from "@/lib/i18n";
 import { storeTheme } from "@/lib/store-theme";
 import { BusinessIcon, ProductIcon } from "@/components/glyph";
 import { ProductVisual } from "@/components/product-visual";
+import { Stars } from "@/components/stars";
 
 /**
  * Мағоза: ҳар навъ услуби худро дорад (рангҳо, кунҷҳо, ҳарфҳо, ороиш).
@@ -53,6 +54,11 @@ export function StoreView({ store }: { store: StoreDetail }) {
             <span className="flex items-center gap-1">
               <MapPin className="size-4" /> {store.cities.join(", ")}
             </span>
+            {store.rating !== null && (
+              <a href="#reviews" className="flex items-center gap-1 hover:text-white">
+                <Star className="size-4 fill-[#ffb400] text-[#ffb400]" /> <b className="text-white">{store.rating.toFixed(1)}</b> ({tr("{0} баҳо", store.reviewCount)})
+              </a>
+            )}
             {store.branchList[0] && (
               <a href={`tel:${store.branchList[0].phone.replace(/\s/g, "")}`} className="flex items-center gap-1 hover:text-white">
                 <Phone className="size-4" /> {store.branchList[0].phone}
@@ -171,6 +177,28 @@ export function StoreView({ store }: { store: StoreDetail }) {
           );
         })}
       </div>
+
+      {store.reviews.length > 0 && (
+        <section id="reviews" className="mt-10 scroll-mt-24">
+          <h2 className="flex items-center gap-2 text-lg font-bold text-ink">
+            {tr("Баҳои мизоҷон")}
+            <span className="flex items-center gap-1 text-base font-semibold text-muted">
+              <Star className="size-4 fill-[#ffb400] text-[#ffb400]" /> {store.rating?.toFixed(1)} · {tr("{0} баҳо", store.reviewCount)}
+            </span>
+          </h2>
+          <div className="mt-3 grid gap-3 sm:grid-cols-2">
+            {store.reviews.map((r) => (
+              <article key={r.id} className="border border-line bg-surface p-4" style={{ borderRadius: `calc(${th.radius} * 0.75)` }}>
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-sm font-semibold text-ink">{r.author}</span>
+                  <Stars value={r.rating} className="size-3.5" />
+                </div>
+                {r.text && <p className="mt-2 text-sm text-ink-2">{r.text}</p>}
+              </article>
+            ))}
+          </div>
+        </section>
+      )}
 
       {mine && mine.lines.length > 0 && (
         <Link

@@ -74,6 +74,7 @@ model Organization {
   waApiUrl      String?
   waMediaUrl    String?
   onlineOrders  OnlineOrder[]
+  reviews       Review[]
   createdAt     DateTime       @default(now())
   branches      Branch[]
   users         User[]
@@ -439,6 +440,7 @@ model Client {
   passwordHash String
   createdAt    DateTime      @default(now())
   orders       OnlineOrder[]
+  reviews      Review[]
 }
 
 enum OnlineOrderStatus {
@@ -469,6 +471,7 @@ model OnlineOrder {
   createdAt      DateTime          @default(now())
   updatedAt      DateTime          @updatedAt
   items          OnlineOrderItem[]
+  review         Review?
 
   @@index([organizationId, status])
   @@index([clientId, createdAt])
@@ -488,4 +491,20 @@ model OnlineOrderItem {
   unitPrice     Decimal     @db.Decimal(10, 2)
 
   @@index([onlineOrderId])
+}
+
+/// Баҳои мизоҷ ба мағоза (1–5 ⭐) — танҳо пас аз фармоиши расонидашуда, як баҳо барои як фармоиш
+model Review {
+  id             Int          @id @default(autoincrement())
+  organizationId Int
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  clientId       Int
+  client         Client       @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  onlineOrderId  Int          @unique
+  onlineOrder    OnlineOrder  @relation(fields: [onlineOrderId], references: [id], onDelete: Cascade)
+  rating         Int
+  text           String       @default("")
+  createdAt      DateTime     @default(now())
+
+  @@index([organizationId, createdAt])
 }

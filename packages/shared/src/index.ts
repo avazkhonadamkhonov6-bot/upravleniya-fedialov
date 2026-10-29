@@ -901,10 +901,24 @@ export interface StoreSummary {
   cities: string[];
   /** То 4 эмоҷии маҳсулот — барои пешнамоиш */
   preview: string[];
+  /** Баҳои миёна (1–5) ва шумораи баҳоҳо; null — ҳанӯз баҳо нест */
+  rating: number | null;
+  reviewCount: number;
+}
+
+export interface StoreReview {
+  id: number;
+  rating: number;
+  text: string;
+  /** Танҳо номи аввал — маълумоти шахсӣ нишон дода намешавад */
+  author: string;
+  createdAt: string;
 }
 
 export interface StoreDetail extends StoreSummary {
   branchList: Pick<Branch, 'id' | 'name' | 'city' | 'address' | 'phone'>[];
+  /** Охирин шарҳҳо */
+  reviews: StoreReview[];
   catalog: (Pick<Product, 'id' | 'name' | 'category' | 'emoji' | 'unit' | 'price' | 'imageId'> & { soldOut: boolean })[];
 }
 
@@ -930,6 +944,8 @@ export interface OnlineOrder {
   note: string;
   total: number;
   items: OnlineOrderItem[];
+  /** Баҳои мизоҷ (пас аз «Расонида шуд») */
+  review: { rating: number; text: string } | null;
   createdAt: string;
   updatedAt: string;
 }

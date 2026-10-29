@@ -4,6 +4,7 @@ import {
   Controller,
   ForbiddenException,
   Get,
+  HttpCode,
   Injectable,
   Module,
   NotFoundException,
@@ -90,6 +91,14 @@ export class SetStatusDto {
   status: OnlineOrderStatus;
 }
 
+export class ReviewDto {
+  @Type(() => Number) @IsInt() @Min(1) @Max(5)
+  rating: number;
+
+  @IsOptional() @IsString() @MaxLength(500, { message: 'Шарҳ хеле дароз аст' })
+  text?: string;
+}
+
 // ---------- Service ----------
 
 const orderInclude = {
@@ -97,6 +106,7 @@ const orderInclude = {
   branch: { select: { id: true, name: true } },
   client: { select: { id: true, fullName: true, phone: true } },
   items: true,
+  review: { select: { rating: true, text: true } },
 } satisfies Prisma.OnlineOrderInclude;
 
 type OrderRow = Prisma.OnlineOrderGetPayload<{ include: typeof orderInclude }>;
@@ -114,6 +124,7 @@ function toOnline(o: OrderRow): OnlineOrder {
     note: o.note,
     total: Number(o.total),
     items: o.items.map((i) => ({ productId: i.productId, name: i.name, emoji: i.emoji, unit: i.unit, qty: Number(i.qty), unitPrice: Number(i.unitPrice) })),
+    review: o.review,
     createdAt: o.createdAt.toISOString(),
     updatedAt: o.updatedAt.toISOString(),
   };
@@ -147,6 +158,7 @@ export class ShopService {
       },
       orderBy: { id: 'asc' },
     });
+    const ratings = await this.ratings(orgs.map((o) => o.id));
     return orgs.map((o) => ({
       id: o.id,
       name: o.name,
@@ -156,7 +168,14 @@ export class ShopService {
       branches: o.branches.length,
       cities: [...new Set(o.branches.map((b) => b.city))],
       preview: [...new Set(o.products.map((p) => p.emoji))].slice(0, 4),
+      ...(ratings.get(o.id) ?? { rating: null, reviewCount: 0 }),
     }));
+  }
+
+  /** Баҳои миёна барои якчанд мағоза бо як дархост */
+  private async ratings(orgIds: number[]) {
+    const rows = await this.prisma.review.groupBy({ by: ['organizationId'], where: { organizationId: { in: orgIds } }, _avg: { rating: true }, _count: true });
+    return new Map(rows.map((r) => [r.organizationId, { rating: Math.round((r._avg.rating ?? 0) * 10) / 10, reviewCount: r._count }]));
   }
 
   async store(id: number): Promise<StoreDetail> {
@@ -168,7 +187,13 @@ export class ShopService {
       },
     });
     if (!o || !o.branches.length) throw new NotFoundException('Мағоза ёфт нашуд');
+    const [rating, reviews] = await Promise.all([
+      this.ratings([o.id]),
+      this.prisma.review.findMany({ where: { organizationId: o.id }, orderBy: { id: 'desc' }, take: 10, include: { client: { select: { fullName: true } } } }),
+    ]);
     return {
+      ...(rating.get(o.id) ?? { rating: null, reviewCount: 0 }),
+      reviews: reviews.map((r) => ({ id: r.id, rating: r.rating, text: r.text, author: r.client.fullName.trim().split(/\s+/)[0] ?? '', createdAt: r.createdAt.toISOString() })),
       id: o.id,
       name: o.name,
       type: o.type as BusinessType,
@@ -259,6 +284,27 @@ export class ShopService {
     if (!o || o.clientId !== client.id) throw new NotFoundException('Фармоиш ёфт нашуд');
     if (o.status !== 'NEW') throw new BadRequestException('Фармоиш аллакай қабул шудааст — бо мағоза тамос гиред');
     return toOnline(await this.prisma.onlineOrder.update({ where: { id }, data: { status: 'CANCELLED' }, include: orderInclude }));
+  }
+
+  /** Баҳо пас аз «Расонида шуд»; такрор — баҳо иваз мешавад */
+  async review(client: AuthClient, id: number, dto: ReviewDto) {
+    const o = await this.prisma.onlineOrder.findUnique({ where: { id }, include: { review: true } });
+    if (!o || o.clientId !== client.id) throw new NotFoundException('Фармоиш ёфт нашуд');
+    if (o.status !== 'DELIVERED') throw new BadRequestException('Баҳо пас аз гирифтани фармоиш дода мешавад');
+    const data = { rating: dto.rating, text: dto.text?.trim() ?? '' };
+    await this.prisma.review.upsert({
+      where: { onlineOrderId: id },
+      create: { ...data, onlineOrderId: id, clientId: client.id, organizationId: o.organizationId },
+      update: data,
+    });
+    if (!o.review) {
+      const chefs = await this.prisma.user.findMany({ where: { organizationId: o.organizationId, role: 'CHEF', isActive: true }, select: { id: true } });
+      this.alerts.notify(
+        chefs.map((c) => c.id),
+        { icon: '⭐', title: `Баҳои нав: ${'★'.repeat(dto.rating)}`, body: data.text.slice(0, 200) || `Фармоиш #${id}`, link: '/online' },
+      );
+    }
+    return toOnline(await this.prisma.onlineOrder.findUniqueOrThrow({ where: { id }, include: orderInclude }));
   }
 
   // ---------- Тарафи ширкат ----------
@@ -352,6 +398,13 @@ export class ShopController {
   @Post('orders')
   place(@CurrentClient() client: AuthClient, @Body() dto: PlaceOrderDto) {
     return this.shop.placeOrder(client, dto);
+  }
+
+  @ClientOnly()
+  @Post('orders/:id/review')
+  @HttpCode(200)
+  review(@CurrentClient() client: AuthClient, @Param('id', ParseIntPipe) id: number, @Body() dto: ReviewDto) {
+    return this.shop.review(client, id, dto);
   }
 
   @ClientOnly()
