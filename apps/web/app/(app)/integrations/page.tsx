@@ -97,7 +97,10 @@ export default function IntegrationsPage() {
                   </b>
                 </div>
               )}
-              {status.telegram.lastError && <div className="text-brand">{tr("Хатои охирин:")} {status.telegram.lastError}</div>}
+              {status.telegram.pendingUpdates > 0 && (
+                <div className="text-warn">{tr("Паёмҳои дар навбат:")} {status.telegram.pendingUpdates}</div>
+              )}
+              {status.telegram.lastError && <div className="break-words text-brand">{tr("Хатои охирин:")} {status.telegram.lastError}</div>}
             </div>
           )}
         </Card>

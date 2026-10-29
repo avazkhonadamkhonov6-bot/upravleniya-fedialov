@@ -20,13 +20,16 @@ export class IntegrationsController {
 
   @Get('status')
   async status(@CurrentUser() user: AuthUser): Promise<IntegrationStatus> {
+    const wh = await this.telegram.webhookStatus();
     return {
       telegram: {
         configured: this.telegram.configured,
         botUsername: this.telegram.botUsername,
         linkedUsers: await this.prisma.user.count({ where: { telegramChatId: { not: null }, organizationId: user.organizationId } }),
         mode: this.telegram.mode,
-        lastError: this.telegram.lastError,
+        // Хатои фиристодан ё хатои webhook, ки Telegram худаш хабар медиҳад
+        lastError: this.telegram.lastError ?? (wh?.error ? `Webhook: ${wh.error}` : null),
+        pendingUpdates: wh?.pending ?? 0,
       },
       whatsapp: {
         configured: this.whatsapp.configured,

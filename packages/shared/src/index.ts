@@ -473,6 +473,8 @@ export interface IntegrationStatus {
     /** webhook — дар сервер (бот ҳамеша ҷавоб медиҳад), polling — дар компютер */
     mode: 'webhook' | 'polling' | 'off';
     lastError: string | null;
+    /** Паёмҳое, ки Telegram ҳанӯз ба сервер нарасондааст */
+    pendingUpdates: number;
   };
   whatsapp: {
     configured: boolean;

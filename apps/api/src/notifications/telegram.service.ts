@@ -56,6 +56,22 @@ export class TelegramService implements OnModuleInit, OnModuleDestroy {
   }
 
   /** Паёме, ки тавассути webhook омад */
+  /**
+   * Ҳолати webhook аз худи Telegram: оё паёмҳо ба сервер мерасанд.
+   * Хатои охирин (масалан «Wrong response from the webhook: 403») ва шумораи паёмҳои дар навбатмонда.
+   */
+  async webhookStatus(): Promise<{ error: string | null; pending: number; url: string } | null> {
+    if (!this.token || this.mode !== 'webhook') return null;
+    try {
+      const info = await this.call<{ url: string; pending_update_count: number; last_error_date?: number; last_error_message?: string }>('getWebhookInfo');
+      // Хатои кӯҳна (зиёда аз 1 соат) — дигар аҳамият надорад
+      const fresh = info.last_error_date && Date.now() / 1000 - info.last_error_date < 3600;
+      return { error: fresh ? (info.last_error_message ?? null) : null, pending: info.pending_update_count, url: info.url };
+    } catch (e) {
+      return { error: (e as Error).message, pending: 0, url: '' };
+    }
+  }
+
   async handleUpdate(update: { message?: TgMessage }) {
     if (update.message && this.handler) await this.handler(update.message).catch((e) => this.logger.error(e));
   }

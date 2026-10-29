@@ -1018,4 +1018,5 @@ export const DICT: Record<string, [ru: string, en: string]> = {
     "Create your business. Branches, staff and the till can be added later.",
   ],
   "Бозор": ["Маркет", "Market"],
+  "Паёмҳои дар навбат:": ["Сообщений в очереди:", "Queued updates:"],
 };
