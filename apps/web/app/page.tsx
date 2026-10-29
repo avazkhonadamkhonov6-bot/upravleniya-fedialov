@@ -24,6 +24,8 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { AuthRedirect } from "@/components/auth-redirect";
 import { BrandMark } from "@/components/brand-mark";
+import { LangSwitcher } from "@/components/lang-switcher";
+import { T } from "@/lib/i18n";
 import { SITE_DESCRIPTION, SITE_NAME, SITE_URL } from "@/lib/site";
 
 // Саҳифаи ҷамъиятӣ — Server Component: HTML-и тайёр барои Google. Услуб: дизайни FilialHub (сурх, сиёҳ, зард, крем).
@@ -118,16 +120,21 @@ export default function HomePage() {
             ["/shop", "Бозор"],
           ].map(([href, label]) => (
             <Link key={href} href={href} className="rounded-full px-3.5 py-2.5 text-[15px] font-medium transition hover:bg-[#f3ebdf]">
-              {label}
+              <T k={label} />
             </Link>
           ))}
         </nav>
+        {/* Дар телефон — дар қатори логотип, дар компютер — пеш аз тугмаҳо */}
+        <LangSwitcher className="ml-auto sm:ml-0" />
         <div className="ml-auto flex items-center gap-2">
-          <Link href="/login" className="rounded-[14px] border-[1.5px] border-[#16120f] px-4 py-2.5 text-[15px] font-semibold transition hover:bg-[#16120f] hover:text-white">
-            Ворид шудан
+          <Link
+            href="/login"
+            className="rounded-[14px] border-[1.5px] border-[#16120f] px-4 py-2.5 text-[15px] font-semibold whitespace-nowrap transition hover:bg-[#16120f] hover:text-white"
+          >
+            <T k="Ворид шудан" />
           </Link>
-          <Link href="/register" className="rounded-[14px] bg-[#dc3b1c] px-4 py-3 text-[15px] font-bold text-white transition hover:bg-[#c23215]">
-            Бизнес созед
+          <Link href="/register" className="rounded-[14px] bg-[#dc3b1c] px-4 py-3 text-[15px] font-bold whitespace-nowrap text-white transition hover:bg-[#c23215]">
+            <T k="Бизнес созед" />
           </Link>
         </div>
       </header>
@@ -136,29 +143,32 @@ export default function HomePage() {
       <section className="mx-auto flex max-w-[1280px] flex-wrap items-center gap-12 px-4 pt-6 pb-16 sm:px-8 sm:pt-8 sm:pb-[72px]">
         <div className="flex min-w-0 flex-[1_1_520px] flex-col gap-7">
           <span className="reveal-up inline-flex items-center gap-2 self-start rounded-full bg-[#ffe9dc] px-3.5 py-2 text-sm font-semibold text-[#a82a10]">
-            <span className="size-2 rounded-full bg-[#dc3b1c]" /> Платформа барои бизнесҳои Тоҷикистон
+            <span className="size-2 rounded-full bg-[#dc3b1c]" /> <T k="Платформа барои бизнесҳои Тоҷикистон" />
           </span>
           <h1
             className="reveal-up font-display text-[clamp(34px,8vw,52px)] leading-[1.08] font-extrabold tracking-[-0.03em] lg:text-[clamp(48px,4.6vw,68px)]"
             style={{ animationDelay: "80ms" }}
           >
-            Ҳамаи филиалҳо <span className="text-[#dc3b1c]">дар як ҷо.</span>
+            <T k="Ҳамаи филиалҳо" />{" "}
+            <span className="text-[#dc3b1c]">
+              <T k="дар як ҷо." />
+            </span>
           </h1>
           <p className="reveal-up max-w-[560px] text-lg leading-relaxed text-[#4a3f35] sm:text-xl" style={{ animationDelay: "160ms" }}>
-            Фурӯш, касса, кормандон, хароҷот ва фармоишҳои онлайн — ҳама аз як панел. Мизоҷони шумо бошанд аз мағозаатон онлайн мехаранд.
+            <T k="Фурӯш, касса, кормандон, хароҷот ва фармоишҳои онлайн — ҳама аз як панел. Мизоҷони шумо бошанд аз мағозаатон онлайн мехаранд." />
           </p>
           <div className="reveal-up flex flex-wrap gap-3" style={{ animationDelay: "240ms" }}>
             <Link href="/register" className="fx-btn inline-flex items-center gap-2.5 rounded-2xl bg-[#dc3b1c] px-6 py-4 text-[17px] font-bold text-white transition hover:bg-[#c23215]">
-              Бизнеси нав созед <ArrowRight className="size-[18px]" strokeWidth={2.4} />
+              <T k="Бизнеси нав созед" /> <ArrowRight className="size-[18px]" strokeWidth={2.4} />
             </Link>
             <Link href="/shop" className="fx-btn inline-flex items-center gap-2.5 rounded-2xl bg-[#16120f] px-6 py-4 text-[17px] font-bold text-white transition hover:bg-black">
-              Ба бозор равед
+              <T k="Ба бозор равед" />
             </Link>
           </div>
           <ul className="flex flex-wrap gap-x-5 gap-y-2 text-sm font-medium text-[#4a3f35]">
             {["Тоҷикӣ, русӣ, англисӣ", "Компютер ва телефон", "Ҳисобот ба Telegram ва WhatsApp"].map((t) => (
               <li key={t} className="inline-flex items-center gap-2">
-                <Check className="size-[18px] text-[#1e8a4c]" strokeWidth={2.4} /> {t}
+                <Check className="size-[18px] text-[#1e8a4c]" strokeWidth={2.4} /> <T k={t} />
               </li>
             ))}
           </ul>
@@ -171,9 +181,11 @@ export default function HomePage() {
           <div className="relative mt-[72px] mr-6 flex flex-col gap-[18px] rounded-3xl bg-white p-6 shadow-[0_30px_60px_-20px_rgba(80,30,10,0.35)]">
             <div className="flex items-center justify-between">
               <div>
-                <div className="text-[13px] font-medium text-[#6b5d50]">Фурӯши имрӯз · ҳамаи филиалҳо</div>
+                <div className="text-[13px] font-medium text-[#6b5d50]"><T k="Фурӯши имрӯз · ҳамаи филиалҳо" /></div>
                 <div className="mt-1 font-display text-[36px] font-bold tracking-tight">
-                  18 450 <span className="text-lg text-[#6b5d50]">с.</span>
+                  18 450 <span className="text-lg text-[#6b5d50]">
+                    <T k="с." />
+                  </span>
                 </div>
               </div>
               <span className="rounded-full bg-[#e3f4e9] px-2.5 py-1.5 text-[13px] font-bold text-[#17663a]">+12%</span>
@@ -182,19 +194,29 @@ export default function HomePage() {
               {BARS.map(([d, h], i) => (
                 <div key={d} className="flex h-full flex-1 flex-col items-center justify-end gap-1.5">
                   <div className={`w-full rounded-lg ${i === 5 ? "bg-[#dc3b1c]" : i === 4 ? "bg-[#ff7a1a]" : "bg-[#f3ebdf]"}`} style={{ height: `${h}%` }} />
-                  <span className="text-[11px] font-semibold text-[#6b5d50]">{d}</span>
+                  <span className="text-[11px] font-semibold text-[#6b5d50]"><T k={d} /></span>
                 </div>
               ))}
             </div>
             <div className="grid grid-cols-3 gap-2.5">
               {[
-                ["Фоида", "6 120 с."],
-                ["Хароҷот", "3 980 с."],
-                ["Фармоиш", "34"],
+                ["Фоида", "6 120"],
+                ["Хароҷот", "3 980"],
+                ["Фармоиш", ""],
               ].map(([l, v]) => (
                 <div key={l} className="min-w-0 rounded-[14px] bg-[#fbf6ef] p-2.5 sm:p-3">
-                  <div className="truncate text-xs text-[#6b5d50]">{l}</div>
-                  <div className="mt-0.5 truncate text-[15px] font-bold sm:text-[17px]">{v}</div>
+                  <div className="truncate text-xs text-[#6b5d50]">
+                    <T k={l} />
+                  </div>
+                  <div className="mt-0.5 truncate text-[15px] font-bold sm:text-[17px]">
+                    {v ? (
+                      <>
+                        {v} <T k="с." />
+                      </>
+                    ) : (
+                      "34"
+                    )}
+                  </div>
                 </div>
               ))}
             </div>
@@ -204,12 +226,14 @@ export default function HomePage() {
               <ShoppingBag className="size-5" strokeWidth={2.2} />
             </span>
             <div>
-              <div className="text-sm font-bold">Фармоиши нав #1042</div>
-              <div className="text-[13px] text-[#cfc4b8]">Оши палов ×2 · 96 с.</div>
+              <div className="text-sm font-bold"><T k="Фармоиши нав #{0}" args={[1042]} /></div>
+              <div className="text-[13px] text-[#cfc4b8]">
+                <T k="Оши палов" /> ×2 · 96 <T k="с." />
+              </div>
             </div>
           </div>
           <div className="absolute right-0 bottom-[70px] rounded-[18px] bg-[#ffc531] px-4 py-3.5 font-bold shadow-[0_20px_40px_-16px_rgba(120,80,0,0.45)]">
-            <div className="text-xs font-semibold">Бонуси мизоҷ</div>
+            <div className="text-xs font-semibold"><T k="Бонуси мизоҷ" /></div>
             <div className="font-display text-[22px]">+5%</div>
           </div>
         </div>
@@ -229,8 +253,8 @@ export default function HomePage() {
               data-reveal
               className={`flex min-h-[220px] flex-col justify-between gap-6 rounded-[28px] p-8 transition hover:-translate-y-1 ${p.cls}`}
             >
-              <span className={`text-sm font-semibold ${p.topCls}`}>{p.top}</span>
-              <span className="font-display text-[clamp(22px,5.6vw,30px)] leading-[1.15] font-bold tracking-[-0.02em]">{p.big}</span>
+              <span className={`text-sm font-semibold ${p.topCls}`}><T k={p.top} /></span>
+              <span className="font-display text-[clamp(22px,5.6vw,30px)] leading-[1.15] font-bold tracking-[-0.02em]"><T k={p.big} /></span>
             </Link>
           ))}
         </div>
@@ -239,9 +263,11 @@ export default function HomePage() {
       {/* Барои кӣ */}
       <section id="who" className="mx-auto flex max-w-[1280px] scroll-mt-6 flex-col gap-8 px-4 pt-10 pb-20 sm:px-8">
         <div className="flex flex-wrap items-end justify-between gap-4">
-          <h2 data-reveal className={H2}>Барои кӣ?</h2>
+          <h2 data-reveal className={H2}>
+            <T k="Барои кӣ?" />
+          </h2>
           <p className="max-w-[460px] text-[17px] leading-relaxed text-[#4a3f35]">
-            Ҳар кас метавонад бизнеси худро созад. Ҳар навъи мағоза дар бозор услуби худро мегирад.
+            <T k="Ҳар кас метавонад бизнеси худро созад. Ҳар навъи мағоза дар бозор услуби худро мегирад." />
           </p>
         </div>
         <ul className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-7">
@@ -256,8 +282,8 @@ export default function HomePage() {
                 <k.icon className="size-6" />
               </span>
               <div>
-                <div className="text-base font-extrabold [overflow-wrap:anywhere] sm:text-lg">{k.name}</div>
-                <div className="mt-1 text-[13px] opacity-85">{k.mood}</div>
+                <div className="text-base font-extrabold [overflow-wrap:anywhere] sm:text-lg"><T k={k.name} /></div>
+                <div className="mt-1 text-[13px] opacity-85"><T k={k.mood} /></div>
               </div>
             </li>
           ))}
@@ -269,12 +295,14 @@ export default function HomePage() {
         <div className="mx-auto flex max-w-[1280px] flex-col gap-10 px-4 py-20 sm:px-8 sm:py-[88px]">
           <div className="flex flex-wrap items-end justify-between gap-4">
             <h2 data-reveal className={H2}>
-              Ҳама чиз
+              <T k="Ҳама чиз" />
               <br />
-              <span className="text-[#dc3b1c]">барои кор</span>
+              <span className="text-[#dc3b1c]">
+                <T k="барои кор" />
+              </span>
             </h2>
             <p className="max-w-[460px] text-[17px] leading-relaxed text-[#4a3f35]">
-              Панели корӣ барои соҳиб ва кормандон. На ҷадвали хушки бухгалтерӣ — балки асбоби зинда, ки ҳар рӯз бо он кор кардан осон аст.
+              <T k="Панели корӣ барои соҳиб ва кормандон. На ҷадвали хушки бухгалтерӣ — балки асбоби зинда, ки ҳар рӯз бо он кор кардан осон аст." />
             </p>
           </div>
           <ul className="grid gap-3.5 sm:grid-cols-2 lg:grid-cols-4">
@@ -288,14 +316,16 @@ export default function HomePage() {
                 <span className={`grid size-11 place-items-center rounded-[13px] ${f.cls}`}>
                   <f.icon className="size-[22px]" />
                 </span>
-                <h3 className="text-[17px] font-bold">{f.t}</h3>
-                <p className="text-sm leading-normal text-[#5a4e43]">{f.d}</p>
+                <h3 className="text-[17px] font-bold"><T k={f.t} /></h3>
+                <p className="text-sm leading-normal text-[#5a4e43]"><T k={f.d} /></p>
               </li>
             ))}
             <li className="flex min-h-[160px] flex-col justify-between gap-3.5 rounded-[22px] bg-[#dc3b1c] p-[22px] text-white">
-              <div className="font-display text-[22px] leading-tight font-bold">Ҳамаашро худ санҷед</div>
+              <div className="font-display text-[22px] leading-tight font-bold">
+                <T k="Ҳамаашро худ санҷед" />
+              </div>
               <Link href="/login" className="self-start rounded-xl bg-white px-4 py-3 font-bold text-[#16120f]">
-                Панелро бинед →
+                <T k="Панелро бинед →" />
               </Link>
             </li>
           </ul>
@@ -306,35 +336,53 @@ export default function HomePage() {
       <section className="bg-[#16120f] text-white">
         <div className="mx-auto flex max-w-[1280px] flex-wrap items-center gap-12 px-4 py-20 sm:px-8 sm:py-[88px]">
           <div className="flex min-w-0 flex-[1_1_460px] flex-col gap-5">
-            <span className="text-sm font-bold tracking-[0.08em] text-[#ffc531] uppercase">Ҳар шаб</span>
-            <h2 data-reveal className={H2}>Ҳисоботи рӯз ба Telegram ва WhatsApp</h2>
+            <span className="text-sm font-bold tracking-[0.08em] text-[#ffc531] uppercase">
+              <T k="Ҳар шаб" />
+            </span>
+            <h2 data-reveal className={H2}>
+              <T k="Ҳисоботи рӯз ба Telegram ва WhatsApp" />
+            </h2>
             <p className="max-w-[520px] text-[17px] leading-relaxed text-[#cfc4b8]">
-              Фурӯш, фоида, кӣ дер монд ва кадом филиал пеш аст — худаш меояд. Чат бо кормандон ҳам ба ин мессенҷерҳо пайваст аст: паёми овозӣ, видео, занги
-              аудио ва видео.
+              <T k="Фурӯш, фоида, кӣ дер монд ва кадом филиал пеш аст — худаш меояд. Чат бо кормандон ҳам ба ин мессенҷерҳо пайваст аст: паёми овозӣ, видео, занги аудио ва видео." />
             </p>
           </div>
           <div className="flex min-w-0 flex-[1_1_420px] flex-col gap-3 rounded-[28px] bg-[#241d18] p-6" aria-hidden>
             <div className="flex items-center gap-3 border-b border-[#3a2f27] pb-3">
               <BrandMark className="size-10" />
               <div>
-                <div className="font-bold">FilialHub · Ҳисобот</div>
-                <div className="text-[13px] text-[#a89c90]">бот</div>
+                <div className="font-bold">
+                  FilialHub · <T k="Ҳисобот" />
+                </div>
+                <div className="text-[13px] text-[#a89c90]">
+                  <T k="бот" />
+                </div>
               </div>
             </div>
             <div className="max-w-[380px] self-start rounded-[4px_18px_18px_18px] bg-[#322822] px-[18px] py-4 text-[15px] leading-[1.7]">
-              <b>Ҳисоботи имрӯз</b>
+              <b>
+                <T k="Ҳисоботи имрӯз" />
+              </b>
               <br />
-              Фурӯш: <b>18 450 с.</b> (+12%)
+              <T k="Фурӯш" />:{" "}
+              <b>
+                18 450 <T k="с." />
+              </b>{" "}
+              (+12%)
               <br />
-              Фоидаи соф: <b>6 120 с.</b>
+              <T k="Фоидаи соф" />:{" "}
+              <b>
+                6 120 <T k="с." />
+              </b>
               <br />
-              Беҳтарин филиал: Рӯдакӣ
+              <T k="Беҳтарин филиал: Рӯдакӣ" />
               <br />
-              Дер монданд: 2 нафар
+              <T k="Дер монданд: {0} нафар" args={[2]} />
               <br />
-              Фармоишҳои онлайн: 34
+              <T k="Фармоишҳои онлайн" />: 34
             </div>
-            <div className="self-end rounded-[18px_4px_18px_18px] bg-[#dc3b1c] px-4 py-3 text-[15px]">Раҳмат! Фардо менеҷерҳо ҷамъ шаванд.</div>
+            <div className="self-end rounded-[18px_4px_18px_18px] bg-[#dc3b1c] px-4 py-3 text-[15px]">
+              <T k="Раҳмат! Фардо менеҷерҳо ҷамъ шаванд." />
+            </div>
           </div>
         </div>
       </section>
@@ -342,14 +390,18 @@ export default function HomePage() {
       {/* Нақшҳо */}
       <section id="roles" className="mx-auto flex max-w-[1280px] scroll-mt-6 flex-col gap-8 px-4 py-20 sm:px-8 sm:py-[88px]">
         <h2 data-reveal className={`${H2} max-w-[900px]`}>
-          Ҳар кас танҳо <span className="text-[#dc3b1c]">чизи ба худаш лозимиро</span> мебинад
+          <T k="Ҳар кас танҳо" />{" "}
+          <span className="text-[#dc3b1c]">
+            <T k="чизи ба худаш лозимиро" />
+          </span>{" "}
+          <T k="мебинад" />
         </h2>
         <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
           {ROLES.map((r) => (
             <li key={r.n} data-reveal className={`flex min-h-[150px] flex-col gap-2.5 rounded-[22px] p-[22px] ${r.cls}`}>
               <span className="text-[13px] font-bold opacity-80">{r.n}</span>
-              <span className="font-display text-lg font-bold [overflow-wrap:anywhere] sm:text-xl">{r.t}</span>
-              <span className="text-sm leading-normal">{r.d}</span>
+              <span className="font-display text-lg font-bold [overflow-wrap:anywhere] sm:text-xl"><T k={r.t} /></span>
+              <span className="text-sm leading-normal"><T k={r.d} /></span>
             </li>
           ))}
         </ul>
@@ -359,20 +411,24 @@ export default function HomePage() {
       <section className="mx-auto max-w-[1280px] px-4 pb-20 sm:px-8 sm:pb-[88px]">
         <div className="flex flex-wrap items-center gap-10 rounded-[36px] bg-white p-6 sm:p-12">
           <div className="flex min-w-0 flex-[1_1_400px] flex-col gap-[18px]">
-            <h2 className="font-display text-[clamp(24px,5vw,38px)] leading-[1.12] font-extrabold tracking-[-0.025em]">Мизоҷон онлайн мехаранд</h2>
+            <h2 className="font-display text-[clamp(24px,5vw,38px)] leading-[1.12] font-extrabold tracking-[-0.025em]">
+              <T k="Мизоҷон онлайн мехаранд" />
+            </h2>
             <p className="text-[17px] leading-relaxed text-[#4a3f35]">
-              Маҳсулотро интихоб мекунанд, ба сабад мегузоранд ва ҳолати фармоишро то дами дар пайгирӣ мекунанд.
+              <T k="Маҳсулотро интихоб мекунанд, ба сабад мегузоранд ва ҳолати фармоишро то дами дар пайгирӣ мекунанд." />
             </p>
             <Link href="/shop" className="self-start rounded-[14px] bg-[#16120f] px-[22px] py-4 font-bold text-white">
-              Бозорро кушоед
+              <T k="Бозорро кушоед" />
             </Link>
           </div>
           <ol className="grid min-w-0 flex-[1_1_520px] grid-cols-2 gap-2.5 sm:grid-cols-4">
             {STEPS.map((s) => (
               <li key={s.n} className={`flex flex-col gap-2.5 rounded-[20px] p-[18px] ${s.box}`}>
                 <span className={`grid size-8 place-items-center rounded-full font-extrabold ${s.dot}`}>{s.n}</span>
-                <b>{s.t}</b>
-                <span className="text-[13px] text-[#5a4e43]">{s.d}</span>
+                <b>
+                  <T k={s.t} />
+                </b>
+                <span className="text-[13px] text-[#5a4e43]"><T k={s.d} /></span>
               </li>
             ))}
           </ol>
@@ -383,14 +439,14 @@ export default function HomePage() {
       <section className="bg-[#ffc531]">
         <div className="mx-auto flex max-w-[1280px] flex-wrap items-center justify-between gap-8 px-4 py-20 sm:px-8 sm:py-[88px]">
           <h2 className="max-w-[760px] font-display text-[clamp(30px,6.4vw,60px)] leading-[1.06] font-extrabold tracking-[-0.03em]">
-            Бизнеси худро имрӯз созед.
+            <T k="Бизнеси худро имрӯз созед." />
           </h2>
           <div className="flex flex-wrap gap-3">
             <Link href="/register" className="rounded-2xl bg-[#dc3b1c] px-6 py-4 text-[17px] font-bold text-white">
-              Бизнес созед
+              <T k="Бизнес созед" />
             </Link>
             <Link href="/login" className="rounded-2xl bg-[#16120f] px-6 py-4 text-[17px] font-bold text-white">
-              Ворид шудан
+              <T k="Ворид шудан" />
             </Link>
           </div>
         </div>
@@ -404,16 +460,17 @@ export default function HomePage() {
           </div>
           <nav aria-label="Пойин" className="flex flex-wrap gap-6 text-[15px]">
             <Link href="#features" className="hover:text-white">
-              Имкониятҳо
+              <T k="Имкониятҳо" />
             </Link>
             <Link href="/shop" className="hover:text-white">
-              Бозор
+              <T k="Бозор" />
             </Link>
             <Link href="#roles" className="hover:text-white">
-              Нақшҳо
+              <T k="Нақшҳо" />
             </Link>
           </nav>
-          <span className="text-sm">© 2026 {SITE_NAME} · Душанбе</span>
+          <span className="text-sm">© 2026 {SITE_NAME} · <T k="Душанбе" />
+          </span>
         </div>
       </footer>
     </div>

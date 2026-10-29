@@ -86,6 +86,12 @@ export function LangProvider({ children }: { children: React.ReactNode }) {
   );
 }
 
+/** Матни тарҷумашаванда барои Server Component-ҳо (масалан саҳифаи асосӣ): дар сервер тоҷикӣ, дар браузер — забони интихобшуда */
+export function T({ k, args = [] }: { k: string; args?: (string | number)[] }) {
+  useLang();
+  return tr(k, ...args);
+}
+
 export function useLang() {
   const ctx = useContext(LangContext);
   if (!ctx) throw new Error("useLang must be used within LangProvider");
