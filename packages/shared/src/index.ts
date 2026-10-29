@@ -717,6 +717,9 @@ export interface SearchResult {
 
 // ---------- Паёмҳо ----------
 
+/** Хабарҳои фаврӣ аз /api/events: браузер дархости мувофиқро фавран такрор мекунад */
+export type ServerEvent = 'messages' | 'calls' | 'alerts';
+
 export const CHANNELS = ['WHATSAPP', 'TELEGRAM'] as const;
 export type Channel = (typeof CHANNELS)[number];
 

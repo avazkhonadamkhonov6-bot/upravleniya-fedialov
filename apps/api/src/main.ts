@@ -11,7 +11,8 @@ async function bootstrap() {
   const app = await NestFactory.create(AppModule, { rawBody: true });
   app.setGlobalPrefix('api');
   // gzip: ҷавобҳои JSON (омор, рӯйхатҳо) 5–10 маротиба хурдтар мешаванд.
-  app.use(compression());
+  // /api/events (SSE) фишурда намешавад — вагарна хабарҳо дар буфер мемонанд.
+  app.use(compression({ filter: (req, res) => !req.url.startsWith('/api/events') && compression.filter(req, res) }));
   // Паёмҳои овозӣ/видеоӣ: бадан — худи файл (то 16 МБ).
   app.use('/api/messages/media', raw({ type: ['audio/*', 'video/*'], limit: '16mb' }));
   app.enableCors({ origin: process.env.WEB_ORIGIN ?? 'http://localhost:3100', credentials: true });

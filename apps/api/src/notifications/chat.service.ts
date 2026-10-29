@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { phoneDigits, POSITION_LABELS, ROLE_LABELS, type Channel, type ChatMessage, type MessageKind, type MessageSource } from '@filialhub/shared';
 import { AlertsService } from '../core/alerts.service';
+import { EventsService } from '../core/events';
 import type { Media, Message, User } from '../generated/prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { escape, NotificationsService } from './notifications.service';
@@ -39,6 +40,7 @@ export class ChatService {
     private readonly prisma: PrismaService,
     private readonly notifications: NotificationsService,
     private readonly alerts: AlertsService,
+    private readonly events: EventsService,
   ) {}
 
   async deliver(
@@ -61,6 +63,7 @@ export class ChatService {
     });
 
     this.alerts.notify(recipient.id, { icon: '✉️', title: `Паём аз ${sender.fullName}`, body: text.slice(0, 200), link: `/messages?to=${sender.id}` });
+    this.events.emit([sender.id, recipient.id], 'messages');
     return toChatMessage(updated);
   }
 
@@ -74,6 +77,7 @@ export class ChatService {
 
     await this.prisma.message.create({ data: { senderId: from.id, recipientId: targetId, text, source, channel: source } });
     this.alerts.notify(targetId, { icon: '💬', title: `Ҷавоб аз ${from.fullName}`, body: text.slice(0, 200), link: `/messages?to=${from.id}` });
+    this.events.emit([from.id, targetId], 'messages');
     this.logger.log(`${source} → чат: ${from.fullName} → #${targetId}`);
     return this.prisma.user.findUnique({ where: { id: targetId } });
   }
@@ -101,6 +105,7 @@ export class ChatService {
       include: withMediaMime,
     });
     this.alerts.notify(recipient.id, { icon: kind === 'VOICE' ? '🎤' : '🎥', title: `${text} аз ${sender.fullName}`, body: `${durationSec} сония`, link: `/messages?to=${sender.id}` });
+    this.events.emit([sender.id, recipient.id], 'messages');
     return toChatMessage(updated);
   }
 
@@ -118,6 +123,7 @@ export class ChatService {
     const text = kind === 'VOICE' ? '🎤 Паёми овозӣ' : '🎥 Видеопаём';
     await this.prisma.message.create({ data: { senderId: from.id, recipientId: target, text, kind, mediaId: media.id, durationSec, source, channel: source } });
     this.alerts.notify(target, { icon: '💬', title: `${text} аз ${from.fullName}`, body: `${durationSec} сония`, link: `/messages?to=${from.id}` });
+    this.events.emit([from.id, target], 'messages');
     return this.prisma.user.findUnique({ where: { id: target } });
   }
 

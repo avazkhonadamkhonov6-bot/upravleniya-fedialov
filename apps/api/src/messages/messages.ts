@@ -27,6 +27,7 @@ import {
   type MessageResult,
 } from '@filialhub/shared';
 import { AuthUser, CurrentUser, Feature } from '../auth/decorators';
+import { EventsService } from '../core/events';
 import { Prisma } from '../generated/prisma/client';
 import { ChatService, toChatMessage, withMediaMime } from '../notifications/chat.service';
 import { NotificationsService } from '../notifications/notifications.service';
@@ -50,6 +51,7 @@ export class MessagesService {
     private readonly prisma: PrismaService,
     private readonly chat: ChatService,
     private readonly notifications: NotificationsService,
+    private readonly events: EventsService,
   ) {}
 
   /**
@@ -148,7 +150,9 @@ export class MessagesService {
       ...(after ? { id: { gt: after } } : {}),
     };
     const rows = await this.prisma.message.findMany({ where, orderBy: { id: 'desc' }, take: 200, include: withMediaMime });
-    await this.prisma.message.updateMany({ where: { senderId: otherId, recipientId: user.id, readAt: null, ...this.inChannel(channel) }, data: { readAt: new Date() } });
+    const read = await this.prisma.message.updateMany({ where: { senderId: otherId, recipientId: user.id, readAt: null, ...this.inChannel(channel) }, data: { readAt: new Date() } });
+    // Фиристанда «✓✓ хонда шуд»-ро фавран мебинад
+    if (read.count) this.events.emit(otherId, 'messages');
     return rows.reverse().map(toChatMessage);
   }
 

@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { EventsService } from './events';
 
 export interface AlertInput {
   icon?: string;
@@ -13,13 +14,17 @@ export interface AlertInput {
 export class AlertsService {
   private readonly logger = new Logger('Alerts');
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly events: EventsService,
+  ) {}
 
   notify(userIds: number | number[], alert: AlertInput) {
     const ids = [...new Set(Array.isArray(userIds) ? userIds : [userIds])];
     if (!ids.length) return;
     this.prisma.alert
       .createMany({ data: ids.map((userId) => ({ userId, ...alert })) })
+      .then(() => this.events.emit(ids, 'alerts'))
       .catch((e) => this.logger.warn(`Сохта нашуд: ${(e as Error).message}`));
   }
 

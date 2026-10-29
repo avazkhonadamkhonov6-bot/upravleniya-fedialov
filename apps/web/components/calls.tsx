@@ -5,6 +5,7 @@ import { Mic, MicOff, Phone, PhoneOff, Video, VideoOff } from "lucide-react";
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
 import { api, getToken } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
+import { subscribe } from "@/lib/events";
 import { tr } from "@/lib/i18n";
 import { clock, mediaError, mediaSupported } from "@/lib/media";
 import { useToast } from "./toast";
@@ -222,7 +223,7 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
     cleanup();
   }
 
-  // Зангҳои воридшаванда — ҳар 3 сония (танҳо вақте ки дар занг нестем).
+  // Зангҳои воридшаванда — фавран аз хабари сервер; polling ҳар 10 сония барои эҳтиёт (танҳо вақте ки дар занг нестем).
   useEffect(() => {
     if (!enabled || state.phase !== "idle") return;
     let alive = true;
@@ -233,9 +234,11 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
         })
         .catch(() => {});
     pull();
-    const t = setInterval(pull, 3000);
+    const off = subscribe("calls", pull);
+    const t = setInterval(pull, 10000);
     return () => {
       alive = false;
+      off();
       clearInterval(t);
     };
   }, [enabled, state.phase]);
@@ -263,9 +266,11 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
         if (ended[c.status]) cleanup(ended[c.status]);
       } catch {}
     };
+    const off = subscribe("calls", () => void pull());
     const t = setInterval(pull, state.phase === "active" ? 2500 : 1000);
     return () => {
       alive = false;
+      off();
       clearInterval(t);
     };
   }, [callId, state.phase, cleanup]);

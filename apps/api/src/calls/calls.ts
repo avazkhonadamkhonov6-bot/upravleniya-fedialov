@@ -17,6 +17,7 @@ import { CALL_RING_SECONDS, canAccess, type CallInfo, type CallStatus } from '@f
 import { AuthUser, CurrentUser, Feature } from '../auth/decorators';
 import type { Call, User } from '../generated/prisma/client';
 import { AlertsService } from '../core/alerts.service';
+import { EventsService } from '../core/events';
 import { PrismaService } from '../prisma/prisma.service';
 
 export class StartCallDto {
@@ -68,6 +69,7 @@ export class CallsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly alerts: AlertsService,
+    private readonly events: EventsService,
   ) {}
 
   async start(user: AuthUser, dto: StartCallDto): Promise<CallInfo> {
@@ -87,6 +89,7 @@ export class CallsService {
       data: { callerId: user.id, calleeId: callee.id, video: !!dto.video, offer: dto.offer },
       include: people,
     });
+    this.events.emit(callee.id, 'calls');
     return toCall(call, user.id);
   }
 
@@ -115,6 +118,7 @@ export class CallsService {
       data: { status: 'ACTIVE', answer: dto.answer, answeredAt: new Date() },
       include: people,
     });
+    this.events.emit(call.callerId, 'calls');
     return toCall(updated, user.id);
   }
 
@@ -157,6 +161,8 @@ export class CallsService {
     if (status === 'MISSED' || status === 'CANCELLED') {
       this.alerts.notify(call.calleeId, { icon: '📵', title: `Занги беҷавоб аз ${call.caller.fullName}`, body: kind, link: `/messages?to=${call.callerId}` });
     }
+    this.events.emit([call.callerId, call.calleeId], 'calls');
+    this.events.emit([call.callerId, call.calleeId], 'messages');
     return toCall(fresh, viewerId);
   }
 
