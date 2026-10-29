@@ -68,7 +68,7 @@
   --color-warn: var(--warn);
   --color-warn-soft: var(--warn-soft);
   --font-sans: var(--font-inter);
-  --font-display: var(--font-unbounded), var(--font-inter), sans-serif;
+  --font-display: var(--font-display-face), var(--font-inter), sans-serif;
   --shadow-card: var(--shadow);
 }
 
@@ -1259,5 +1259,25 @@ main tbody tr,
   [data-parallax],
   [data-magnetic] {
     transform: none !important;
+  }
+}
+
+/* Рӯйхати интихоб (components/select.tsx): нарм пайдо мешавад */
+@keyframes select-pop {
+  from {
+    opacity: 0;
+    transform: translateY(-4px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.select-pop {
+  animation: select-pop 0.16s cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+@media (prefers-reduced-motion: reduce) {
+  .select-pop {
+    animation: none;
   }
 }

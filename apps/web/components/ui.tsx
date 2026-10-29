@@ -5,6 +5,7 @@ import { Leaf, Loader2, Mail, Phone, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { formatMoney, locale, tr } from "@/lib/i18n";
 import { Glyph, iconize } from "./glyph";
+import { StyledSelect } from "./select";
 
 export function cn(...c: (string | false | null | undefined)[]) {
   return c.filter(Boolean).join(" ");
@@ -104,9 +105,8 @@ export function Input(props: React.InputHTMLAttributes<HTMLInputElement>) {
   return <input {...props} className={cn(inputCls, widthOf(props.className), props.className)} />;
 }
 
-export function Select(props: React.SelectHTMLAttributes<HTMLSelectElement>) {
-  return <select {...props} className={cn(inputCls, "cursor-pointer pr-8", widthOf(props.className), props.className)} />;
-}
+/** Рӯйхати интихоб — бо услуби сайт (components/select.tsx); API мисли <select> */
+export const Select = StyledSelect;
 
 export function Badge({
   tone = "neutral",
