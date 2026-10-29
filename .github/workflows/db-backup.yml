@@ -1,0 +1,49 @@
+# Нусхаи эҳтиётии база ҳар шаб (ройгон, дар GitHub Actions).
+# Базаи ройгони Render муҳлат дорад — бе нусха маълумоти мизоҷон гум шуданаш мумкин.
+#
+# Танзим: Settings → Secrets and variables → Actions → New repository secret
+#   DATABASE_URL       — Render → filialhub-db → Connections → External Database URL
+#   BACKUP_PASSPHRASE  — пароли дароз; нусха бо он рамзгузорӣ мешавад (онро дар ҷои бехатар нигоҳ доред)
+#
+# Нусха: Actions → «Database backup» → охирин иҷро → Artifacts (30 рӯз нигоҳ дошта мешавад).
+# Барқарор кардан:
+#   gpg -d filialhub-YYYY-MM-DD.dump.gpg > db.dump
+#   pg_restore --clean --no-owner -d "<DATABASE_URL>" db.dump
+name: Database backup
+
+on:
+  schedule:
+    - cron: "0 21 * * *" # 02:00 бо вақти Душанбе
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    container: postgres:17
+    steps:
+      - name: Dump and encrypt
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          BACKUP_PASSPHRASE: ${{ secrets.BACKUP_PASSPHRASE }}
+        run: |
+          if [ -z "$DATABASE_URL" ] || [ -z "$BACKUP_PASSPHRASE" ]; then
+            echo "::error::DATABASE_URL ва BACKUP_PASSPHRASE-ро дар Secrets гузоред"
+            exit 1
+          fi
+          apt-get update -qq && apt-get install -y -qq gnupg >/dev/null
+          name="filialhub-$(date -u +%F).dump"
+          pg_dump --format=custom --no-owner --no-privileges "$DATABASE_URL" > "$name"
+          gpg --batch --yes --pinentry-mode loopback --passphrase "$BACKUP_PASSPHRASE" --symmetric --cipher-algo AES256 -o "$name.gpg" "$name"
+          rm "$name"
+          ls -lh "$name.gpg"
+          echo "FILE=$name.gpg" >> "$GITHUB_ENV"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.FILE }}
+          path: ${{ env.FILE }}
+          retention-days: 30
+          if-no-files-found: error
