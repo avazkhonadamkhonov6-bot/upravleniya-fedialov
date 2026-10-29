@@ -67,6 +67,12 @@ model Organization {
   reviewedById  Int?
   /// Ширкати хизматии супер-админ (дар рӯйхати бизнесҳо нест)
   isPlatform    Boolean        @default(false)
+  /// WhatsApp-и худи бизнес (Green-API). Холӣ — рақами умумии FilialHub истифода мешавад
+  waInstanceId  String?
+  /// Махфӣ: ҳеҷ гоҳ ба браузер фиристода намешавад
+  waApiToken    String?
+  waApiUrl      String?
+  waMediaUrl    String?
   onlineOrders  OnlineOrder[]
   createdAt     DateTime       @default(now())
   branches      Branch[]

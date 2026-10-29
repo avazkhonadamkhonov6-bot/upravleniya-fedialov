@@ -1,6 +1,6 @@
-import { Controller, Get, HttpCode, Post } from '@nestjs/common';
+import { BadRequestException, Controller, Get, HttpCode, Post } from '@nestjs/common';
 import type { IntegrationStatus } from '@filialhub/shared';
-import { AuthUser, CurrentUser, Roles } from '../auth/decorators';
+import { AuthUser, CurrentUser, Roles, SuperAdmin } from '../auth/decorators';
 import { PrismaService } from '../prisma/prisma.service';
 import { NotificationsService } from './notifications.service';
 import { ReportService } from './report.service';
@@ -45,6 +45,14 @@ export class IntegrationsController {
       },
       dailyReportCron: process.env.DAILY_REPORT_CRON || '0 0 22 * * *',
     };
+  }
+
+  /** QR барои рақами умумии FilialHub (Green-API) — танҳо супер-админ, чунки ба ҳамаи бизнесҳо дахл дорад */
+  @Get('whatsapp-qr')
+  @SuperAdmin()
+  async whatsappQr() {
+    if (!this.whatsapp.green.configured) throw new BadRequestException('Калидҳои GREENAPI_* дар сервер нестанд');
+    return this.whatsapp.green.qr();
   }
 
   @Get('logs')

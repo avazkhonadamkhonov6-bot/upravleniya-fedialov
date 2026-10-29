@@ -5,7 +5,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { TelegramService } from './telegram.service';
 import { htmlToWhatsApp, WhatsAppService } from './whatsapp.service';
 
-type Recipient = Pick<User, 'id' | 'phone' | 'telegramChatId'> & Partial<Pick<User, 'whatsapp'>>;
+type Recipient = Pick<User, 'id' | 'phone' | 'telegramChatId'> & Partial<Pick<User, 'whatsapp' | 'organizationId'>>;
 
 @Injectable()
 export class NotificationsService {
@@ -29,7 +29,7 @@ export class NotificationsService {
     const wa = user.whatsapp || user.phone;
     if (wa) {
       const plain = htmlToWhatsApp(text);
-      jobs.push(this.whatsapp.send(wa, plain).then((r) => this.log('WHATSAPP', wa, user.id, plain, r.status, r.error)));
+      jobs.push(this.whatsapp.send(wa, plain, user.organizationId).then((r) => this.log('WHATSAPP', wa, user.id, plain, r.status, r.error)));
     }
     await Promise.all(jobs);
   }
@@ -52,7 +52,7 @@ export class NotificationsService {
    */
   async sendDirect(
     senderId: number,
-    user: Pick<User, 'id' | 'phone' | 'whatsapp' | 'telegramChatId'>,
+    user: Pick<User, 'id' | 'phone' | 'whatsapp' | 'telegramChatId'> & Partial<Pick<User, 'organizationId'>>,
     text: string,
     channels: Channel[],
   ): Promise<{ channel: Channel; status: DeliveryStatus; error?: string }[]> {
@@ -71,7 +71,7 @@ export class NotificationsService {
       const wa = user.whatsapp || user.phone;
       if (!wa) results.push({ channel: 'WHATSAPP', status: 'NOT_LINKED' });
       else {
-        const r = await this.whatsapp.send(wa, plain);
+        const r = await this.whatsapp.send(wa, plain, user.organizationId);
         await this.log('WHATSAPP', wa, user.id, plain, r.status, r.error, senderId);
         results.push({ channel: 'WHATSAPP', ...r });
       }
@@ -82,7 +82,7 @@ export class NotificationsService {
   /** Нусхаи паёми овозӣ/видеоӣ ба каналҳои интихобшуда */
   async sendDirectMedia(
     senderId: number,
-    user: Pick<User, 'id' | 'phone' | 'whatsapp' | 'telegramChatId'>,
+    user: Pick<User, 'id' | 'phone' | 'whatsapp' | 'telegramChatId'> & Partial<Pick<User, 'organizationId'>>,
     media: { mime: string; data: Uint8Array<ArrayBuffer> },
     kind: 'VOICE' | 'VIDEO_NOTE',
     caption: string,
@@ -100,7 +100,7 @@ export class NotificationsService {
     }
     if (channels.includes('WHATSAPP')) {
       const wa = user.whatsapp || user.phone;
-      const r = await this.whatsapp.sendMedia(wa, kind, media.data, media.mime, htmlToWhatsApp(caption));
+      const r = await this.whatsapp.sendMedia(wa, kind, media.data, media.mime, htmlToWhatsApp(caption), user.organizationId);
       await this.log('WHATSAPP', wa, user.id, label, r.status, r.error, senderId);
       results.push({ channel: 'WHATSAPP', ...r });
     }

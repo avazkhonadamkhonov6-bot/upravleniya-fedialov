@@ -4,6 +4,7 @@ import { POSITION_LABELS, ROLE_LABELS, TELEGRAM_PATTERN, type User } from "@fili
 import { Building2, CalendarDays, Mail, Pencil, Phone } from "lucide-react";
 import { useState } from "react";
 import { ChannelsCard } from "@/components/channels-card";
+import { BusinessWhatsAppCard } from "@/components/business-whatsapp";
 import { OrganizationCard } from "@/components/organization-card";
 import { SalaryCard } from "@/components/salary-card";
 import { Avatar, Badge, Button, Card, CardTitle, ErrorBox, Field, Input, PageHeader } from "@/components/ui";
@@ -104,6 +105,7 @@ export default function ProfilePage() {
             </ul>
           </Card>
           <OrganizationCard />
+          {user.role === "CHEF" && <BusinessWhatsAppCard />}
           {user.role !== "CHEF" && <SalaryCard user={user} />}
           <ChannelsCard whatsappNumber={user.whatsapp || user.phone} />
         </div>

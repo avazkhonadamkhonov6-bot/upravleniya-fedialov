@@ -473,6 +473,22 @@ export const PERIOD_LABELS: Record<Period, string> = {
   month: 'Моҳ',
 };
 
+/** Профил → Бизнеси ман → WhatsApp-и худи бизнес (Green-API) */
+export interface BusinessWhatsApp {
+  /** Бизнес рақами худашро пайваст кардааст */
+  own: boolean;
+  idInstance: string;
+  apiUrl: string;
+  mediaUrl: string;
+  /** Токен захира шудааст (худи токен ба браузер намеояд) */
+  tokenSet: boolean;
+  /** authorized | notAuthorized | … */
+  state: string | null;
+  error: string | null;
+  /** Рақами умумии FilialHub кор мекунад */
+  platform: boolean;
+}
+
 export interface IntegrationStatus {
   telegram: {
     configured: boolean;

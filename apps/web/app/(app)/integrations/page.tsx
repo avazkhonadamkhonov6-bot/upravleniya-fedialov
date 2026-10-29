@@ -6,6 +6,8 @@ import { useState } from "react";
 import { Badge, Button, Card, CardTitle, Empty, ErrorBox, formatDate, PageHeader, Skeleton, TelegramIcon, WhatsAppIcon } from "@/components/ui";
 import { api } from "@/lib/api";
 import { useApi } from "@/lib/use-api";
+import { useAuth } from "@/lib/auth";
+import { WhatsAppQr } from "@/components/whatsapp-qr";
 import { tr } from "@/lib/i18n";
 
 interface Log {
@@ -32,7 +34,8 @@ function cronLabel(cron: string) {
 }
 
 export default function IntegrationsPage() {
-  const { data: status } = useApi<IntegrationStatus>("/integrations/status");
+  const { data: status, reload: reloadStatus } = useApi<IntegrationStatus>("/integrations/status");
+  const { user } = useAuth();
   const { data: logs, reload } = useApi<Log[]>("/integrations/logs");
   const [preview, setPreview] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
@@ -143,6 +146,12 @@ export default function IntegrationsPage() {
                 {status.whatsapp.webhook ? <b className="text-ink">{tr("танзим шуд")}</b> : <span className="text-warn">{status.whatsapp.provider === "greenapi" ? "GREENAPI_WEBHOOK_BASE" : tr("нест — WHATSAPP_VERIFY_TOKEN")}</span>}
               </div>
               {status.whatsapp.lastError && <div className="break-words text-brand">{tr("Хатои охирин:")} {status.whatsapp.lastError}</div>}
+            </div>
+          )}
+          {/* Рақами умумии FilialHub ҳанӯз ба телефон пайваст нест — QR-ро супер-админ рост дар ин ҷо скан мекунад */}
+          {status?.whatsapp.provider === "greenapi" && status.whatsapp.state !== "authorized" && user?.isSuperAdmin && (
+            <div className="mt-3">
+              <WhatsAppQr path="/integrations/whatsapp-qr" onLinked={reloadStatus} />
             </div>
           )}
         </Card>

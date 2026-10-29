@@ -1,4 +1,4 @@
-import { Body, Controller, ForbiddenException, Get, Headers, HttpCode, Logger, Post, Query, Req, type RawBodyRequest } from '@nestjs/common';
+import { Body, Controller, ForbiddenException, Get, Headers, HttpCode, Logger, Param, ParseIntPipe, Post, Query, Req, type RawBodyRequest } from '@nestjs/common';
 import { createHmac, timingSafeEqual } from 'node:crypto';
 import type { Request } from 'express';
 import { MEDIA_MAX_BYTES } from '@filialhub/shared';
@@ -6,7 +6,7 @@ import { Public } from '../auth/decorators';
 import { PrismaService } from '../prisma/prisma.service';
 import { BotService } from './bot.service';
 import { ChatService } from './chat.service';
-import { htmlToWhatsApp, WhatsAppService } from './whatsapp.service';
+import { GreenApi, htmlToWhatsApp, WhatsAppService } from './whatsapp.service';
 
 interface WaMedia {
   id: string;
@@ -91,14 +91,28 @@ export class WhatsAppWebhookController {
    */
   @Post('greenapi')
   @HttpCode(200)
-  async greenapi(@Body() body: GreenWebhook, @Headers('authorization') auth?: string) {
-    const secret = this.whatsapp.green.webhookSecret;
+  greenapi(@Body() body: GreenWebhook, @Headers('authorization') auth?: string) {
+    return this.green(body, auth, this.whatsapp.green, null);
+  }
+
+  /** Рақами WhatsApp-и худи бизнес: ҷавобҳо танҳо ба кормандони ҳамин бизнес мераванд */
+  @Post('greenapi/:orgId')
+  @HttpCode(200)
+  async greenapiOrg(@Param('orgId', ParseIntPipe) orgId: number, @Body() body: GreenWebhook, @Headers('authorization') auth?: string) {
+    const client = await this.whatsapp.greenFor(orgId);
+    // greenFor ба рақами умумӣ бармегардад, агар бизнес рақам надошта бошад — инро қабул намекунем
+    if (!client || client === this.whatsapp.green) throw new ForbiddenException();
+    return this.green(body, auth, client, orgId);
+  }
+
+  private async green(body: GreenWebhook, auth: string | undefined, client: GreenApi, orgId: number | null) {
+    const secret = client.webhookSecret;
     const given = Buffer.from(auth ?? '');
     const expected = Buffer.from(`Bearer ${secret}`);
     if (!secret || given.length !== expected.length || !timingSafeEqual(given, expected)) throw new ForbiddenException();
     if (body.typeWebhook === 'stateInstanceChanged') {
-      this.whatsapp.greenState = body.stateInstance ?? null;
-      this.logger.log(`Green-API ҳолат: ${body.stateInstance}`);
+      if (!orgId) this.whatsapp.greenState = body.stateInstance ?? null;
+      this.logger.log(`Green-API${orgId ? ` (бизнес #${orgId})` : ''} ҳолат: ${body.stateInstance}`);
       return { ok: true };
     }
     if (body.typeWebhook !== 'incomingMessageReceived') return { ok: true };
@@ -122,7 +136,7 @@ export class WhatsAppWebhookController {
             },
           }
         : null;
-    await this.process(from, text, media).catch((e: Error) => this.logger.error(`${from}: ${e.message}`));
+    await this.process(from, text, media, orgId).catch((e: Error) => this.logger.error(`${from}: ${e.message}`));
     return { ok: true };
   }
 
@@ -138,9 +152,11 @@ export class WhatsAppWebhookController {
     from: string,
     rawText: string,
     media: { kind: 'VOICE' | 'VIDEO_NOTE'; load: () => Promise<{ data: Uint8Array<ArrayBuffer>; mime: string }> } | null,
+    orgId: number | null = null,
   ) {
-    const found = await this.chat.findByPhone(from);
-    const reply = (html: string) => this.whatsapp.send(from, htmlToWhatsApp(html));
+    // Рақами бизнес — танҳо кормандони ҳамон бизнес; ҷавоб аз ҳамон рақам меравад
+    const found = await this.chat.findByPhone(from, orgId ?? undefined);
+    const reply = (html: string) => this.whatsapp.send(from, htmlToWhatsApp(html), orgId);
     if (!found) return reply('❌ Ин рақам дар системаи FilialHub ёфт нашуд. Ба менеҷер муроҷиат кунед.');
     const user = await this.prisma.user.findUniqueOrThrow({ where: { id: found.id }, include: { branch: true } });
 

@@ -43,7 +43,7 @@ export class ChatService {
 
   async deliver(
     sender: Pick<User, 'id' | 'fullName' | 'role' | 'position'>,
-    recipient: Pick<User, 'id' | 'phone' | 'whatsapp' | 'telegramChatId'>,
+    recipient: Pick<User, 'id' | 'phone' | 'whatsapp' | 'telegramChatId' | 'organizationId'>,
     text: string,
     channels: Channel[],
   ): Promise<ChatMessage> {
@@ -81,7 +81,7 @@ export class ChatService {
   /** Паёми овозӣ ё видеои мудаввар: файл дар база, нусха ба Telegram/WhatsApp ҳамчун файли овоз/видео. */
   async deliverMedia(
     sender: Pick<User, 'id' | 'fullName' | 'role' | 'position'>,
-    recipient: Pick<User, 'id' | 'phone' | 'whatsapp' | 'telegramChatId'>,
+    recipient: Pick<User, 'id' | 'phone' | 'whatsapp' | 'telegramChatId' | 'organizationId'>,
     media: Pick<Media, 'id' | 'mime' | 'data'>,
     kind: 'VOICE' | 'VIDEO_NOTE',
     durationSec: number,
@@ -134,10 +134,11 @@ export class ChatService {
   }
 
   /** Корбарро аз рӯи рақами телефон ё WhatsApp меёбад (9 рақами охир). */
-  async findByPhone(phone: string): Promise<User | null> {
+  /** organizationId — танҳо дар ҳамин бизнес (барои рақами WhatsApp-и худи бизнес) */
+  async findByPhone(phone: string, organizationId?: number): Promise<User | null> {
     const digits = phoneDigits(phone).slice(-9);
     if (digits.length < 9) return null;
-    const users = await this.prisma.user.findMany({ where: { isActive: true } });
+    const users = await this.prisma.user.findMany({ where: { isActive: true, organizationId } });
     return users.find((u) => [u.phone, u.whatsapp].some((p) => p && phoneDigits(p).slice(-9) === digits)) ?? null;
   }
 }

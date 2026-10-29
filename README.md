@@ -43,7 +43,7 @@
 | 👨‍🍳 Ошпаз — профил ва маош | `cook@filialhub.tj` |
 | 🧹 Фаррош — профил ва маош | `cleaner@filialhub.tj` |
 
-Кӣ чӣ мебинад — [SPECS.md](SPECS.md) §2. Пешрафт ва хатоҳои ислоҳшуда — [ROADMAP.md](ROADMAP.md), [PLAN.md](PLAN.md) §9.
+Топшириқ — [TZ.md](docs/TZ.md). Кӣ чӣ мебинад — [SPECS.md](docs/SPECS.md) §2. Пешрафт ва хатоҳои ислоҳшуда — [ROADMAP.md](docs/ROADMAP.md), [PLAN.md](docs/PLAN.md) §9.
 
 ## 🏢 Ширкатҳо (барои ҳар соҳибкор)
 
@@ -182,4 +182,4 @@ DAILY_REPORT_CRON="0 0 22 * * *" # ҳар рӯз соати 22:00 (Душанб�
 ## Ҳуқуқҳо
 
 Ҳамаи ҳуқуқҳо дар **API** санҷида мешаванд (`apps/api/src/common/access.ts`, `apps/api/src/auth/staff-access.guard.ts`; қоидаҳо — `canAccess` дар `packages/shared`): менеҷер ҳатто бо дархости
-мустақим маълумоти филиали дигарро гирифта наметавонад. Нигаред ба [PLAN.md](PLAN.md) ва [ROADMAP.md](ROADMAP.md).
+мустақим маълумоти филиали дигарро гирифта наметавонад. Нигаред ба [PLAN.md](docs/PLAN.md) ва [ROADMAP.md](docs/ROADMAP.md).
