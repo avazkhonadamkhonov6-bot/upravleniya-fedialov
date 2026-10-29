@@ -298,6 +298,14 @@ export function whatsappLink(phone: string, text?: string): string {
   return `https://wa.me/${phoneDigits(phone)}${q}`;
 }
 
+/**
+ * Майдони Telegram: @номи_корбар, t.me/номи_корбар ё рақами телефон (на почта!).
+ * Ҳам барои атрибути pattern дар браузер, ҳам барои санҷиш дар сервер.
+ */
+export const TELEGRAM_PATTERN = String.raw`@?[A-Za-z][A-Za-z0-9_]{3,31}|(https?:\/\/)?t\.me\/[A-Za-z][A-Za-z0-9_]{3,31}|\+?[0-9 \(\)\-]{7,20}`;
+
+export const TELEGRAM_RE = new RegExp(`^(?:${TELEGRAM_PATTERN})?$`);
+
 /** Номи корбарии Telegram-ро ба шакли ягона меорад: «@Name», «t.me/Name» → «Name» */
 export function normalizeTelegram(value: string): string {
   return value

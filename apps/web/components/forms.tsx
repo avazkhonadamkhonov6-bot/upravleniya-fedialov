@@ -6,6 +6,7 @@ import {
   POSITION_LABELS,
   SUGGESTED_CATEGORIES,
   UNITS,
+  TELEGRAM_PATTERN,
   type Branch,
   type Position,
   type Product,
@@ -205,7 +206,18 @@ export function UserForm({
           <Input type="tel" value={f.whatsapp} onChange={set("whatsapp")} placeholder="+992 90 123 4567" />
         </Field>
         <Field label="Telegram" hint={tr("@номи_корбар ё рақам")}>
-          <Input value={f.telegram} onChange={set("telegram")} placeholder="@username" />
+          <Input
+                    name="telegram-handle"
+                    value={f.telegram}
+                    onChange={set("telegram")}
+                    placeholder="@username"
+                    // Браузер почтаро ба ин майдон худкор нагузорад
+                    autoComplete="off"
+                    data-1p-ignore
+                    data-lpignore="true"
+                    pattern={TELEGRAM_PATTERN}
+                    title={tr("@номи_корбар ё рақами телефон")}
+                  />
         </Field>
       </div>
       {isChef && (

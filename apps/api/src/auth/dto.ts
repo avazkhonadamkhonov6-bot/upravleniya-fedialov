@@ -1,5 +1,5 @@
-import { BUSINESS_TYPES, type BusinessType } from '@filialhub/shared';
-import { IsBoolean, IsEmail, IsIn, IsOptional, IsString, MaxLength, MinLength } from 'class-validator';
+import { BUSINESS_TYPES, TELEGRAM_RE, type BusinessType } from '@filialhub/shared';
+import { IsBoolean, IsEmail, IsIn, IsOptional, IsString, Matches, MaxLength, MinLength } from 'class-validator';
 
 export class LoginDto {
   @IsEmail({}, { message: 'Почтаи электронӣ нодуруст аст' })
@@ -25,7 +25,7 @@ export class UpdateMeDto {
   whatsapp?: string;
 
   /** Telegram: @номи_корбар ё рақам (ихтиёрӣ) */
-  @IsOptional() @IsString() @MaxLength(64)
+  @IsOptional() @IsString() @MaxLength(64) @Matches(TELEGRAM_RE, { message: 'Telegram: @номи_корбар ё рақами телефон нависед (на почта)' })
   telegram?: string;
 
   @IsOptional() @IsString()

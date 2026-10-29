@@ -8,11 +8,12 @@ import {
   IsOptional,
   IsString,
   Max,
+  Matches,
   MaxLength,
   Min,
   MinLength,
 } from 'class-validator';
-import { POSITIONS, type Position } from '@filialhub/shared';
+import { POSITIONS, TELEGRAM_RE, type Position } from '@filialhub/shared';
 
 export class CreateUserDto {
   @IsString() @MinLength(3, { message: 'Ному насабро пурра нависед' })
@@ -32,7 +33,7 @@ export class CreateUserDto {
   whatsapp?: string;
 
   /** Telegram: @номи_корбар ё рақам (ихтиёрӣ) */
-  @IsOptional() @IsString() @MaxLength(64)
+  @IsOptional() @IsString() @MaxLength(64) @Matches(TELEGRAM_RE, { message: 'Telegram: @номи_корбар ё рақами телефон нависед (на почта)' })
   telegram?: string;
 
   @IsIn(['MANAGER', 'STAFF'], { message: 'Нақш нодуруст аст' })
@@ -73,7 +74,7 @@ export class UpdateUserDto {
   whatsapp?: string;
 
   /** Telegram: @номи_корбар ё рақам (ихтиёрӣ) */
-  @IsOptional() @IsString() @MaxLength(64)
+  @IsOptional() @IsString() @MaxLength(64) @Matches(TELEGRAM_RE, { message: 'Telegram: @номи_корбар ё рақами телефон нависед (на почта)' })
   telegram?: string;
 
   @IsOptional() @IsIn(['MANAGER', 'STAFF'])

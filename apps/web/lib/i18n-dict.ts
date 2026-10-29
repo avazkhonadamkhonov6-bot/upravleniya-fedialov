@@ -1019,4 +1019,6 @@ export const DICT: Record<string, [ru: string, en: string]> = {
   ],
   "Бозор": ["Маркет", "Market"],
   "Паёмҳои дар навбат:": ["Сообщений в очереди:", "Queued updates:"],
+  "@номи_корбар ё рақами телефон": ["@имя_пользователя или номер телефона", "@username or phone number"],
+  "Telegram: @номи_корбар ё рақами телефон нависед (на почта)": ["Telegram: укажите @имя_пользователя или номер телефона (не почту)", "Telegram: enter @username or phone number (not an email)"],
 };
