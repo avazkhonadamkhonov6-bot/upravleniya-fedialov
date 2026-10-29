@@ -15,6 +15,21 @@ const nextConfig: NextConfig = {
       },
     },
   },
+  // Сарлавҳаҳои амниятӣ: сайтро дар iframe-и бегона кушодан мумкин нест (clickjacking),
+  // браузер навъи файлро тахмин намекунад. Камера/микрофон — танҳо барои зангҳои худи сайт.
+  async headers() {
+    return [
+      {
+        source: "/:path*",
+        headers: [
+          { key: "X-Frame-Options", value: "DENY" },
+          { key: "X-Content-Type-Options", value: "nosniff" },
+          { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+          { key: "Permissions-Policy", value: "camera=(self), microphone=(self), geolocation=()" },
+        ],
+      },
+    ];
+  },
   // Дархостҳои /api/* ба сервери NestJS мераванд — CORS лозим намешавад.
   async rewrites() {
     return [{ source: "/api/:path*", destination: `${API_URL}/api/:path*` }];

@@ -7,6 +7,7 @@ import { AdminService } from '../admin/admin';
 import { PrismaService } from '../prisma/prisma.service';
 import type { AuthUser } from './decorators';
 import { CreateBusinessDto, LoginDto, RegisterClientDto, RegisterDto, UpdateMeDto, UpdateOrganizationDto } from './dto';
+import { LoginLimiter } from './login-limiter';
 
 /** Почтаҳои супер-админ аз .env (SUPERADMIN_EMAILS, бо вергул) */
 export function isSuperAdminEmail(email: string): boolean {
@@ -19,6 +20,8 @@ export function isSuperAdminEmail(email: string): boolean {
 
 @Injectable()
 export class AuthService {
+  private readonly limiter = new LoginLimiter();
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly jwt: JwtService,
@@ -28,20 +31,23 @@ export class AuthService {
   /** Як даромадан барои ҳама: аввал шеф/кормандон, баъд мизоҷони онлайн. */
   async login(dto: LoginDto) {
     const email = dto.email.toLowerCase().trim();
+    this.limiter.check(email);
+    const wrong = () => {
+      this.limiter.fail(email);
+      return new UnauthorizedException('Почта ё парол нодуруст аст');
+    };
     const user = await this.prisma.user.findUnique({
       where: { email },
       include: { branch: true, organization: true },
     });
     if (!user) {
       const client = await this.prisma.client.findUnique({ where: { email } });
-      if (!client || !(await bcrypt.compare(dto.password, client.passwordHash))) {
-        throw new UnauthorizedException('Почта ё парол нодуруст аст');
-      }
+      if (!client || !(await bcrypt.compare(dto.password, client.passwordHash))) throw wrong();
+      this.limiter.success(email);
       return { kind: 'client' as const, token: await this.clientToken(client.id), client: toClient(client) };
     }
-    if (!(await bcrypt.compare(dto.password, user.passwordHash))) {
-      throw new UnauthorizedException('Почта ё парол нодуруст аст');
-    }
+    if (!(await bcrypt.compare(dto.password, user.passwordHash))) throw wrong();
+    this.limiter.success(email);
     if (!user.isActive) throw new UnauthorizedException('Ҳисоби шумо ғайрифаъол аст');
     // Почта дар SUPERADMIN_EMAILS — ҳангоми воридшавӣ худкор супер-админ мешавад (бе аз нав сар кардани сервер)
     const me = !user.isSuperAdmin && isSuperAdminEmail(email)

@@ -1048,4 +1048,11 @@ export const DICT: Record<string, [ru: string, en: string]> = {
   "дар console.green-api.com QR-ро бо WhatsApp скан кунед": ["отсканируйте QR в console.green-api.com через WhatsApp", "scan the QR at console.green-api.com with WhatsApp"],
   "@номи_корбар ё рақами телефон": ["@имя_пользователя или номер телефона", "@username or phone number"],
   "Telegram: @номи_корбар ё рақами телефон нависед (на почта)": ["Telegram: укажите @имя_пользователя или номер телефона (не почту)", "Telegram: enter @username or phone number (not an email)"],
+
+  // ---------- Экрани хато ----------
+  "Чизе нодуруст шуд": ["Что-то пошло не так", "Something went wrong"],
+  "Ин қисми саҳифа бор нашуд. Аз нав кӯшиш кунед — агар такрор шавад, саҳифаро нав кунед.": ["Не удалось загрузить эту часть страницы. Попробуйте ещё раз — если повторится, обновите страницу.", "This part of the page failed to load. Try again — if it keeps happening, refresh the page."],
+  "Аз нав кӯшиш": ["Попробовать снова", "Try again"],
+  "Ба саҳифаи асосӣ": ["На главную", "Go to home"],
+  "Дархостҳо аз ҳад зиёданд. Каме истед ва аз нав кӯшиш кунед.": ["Слишком много попыток. Подождите немного и попробуйте снова.", "Too many attempts. Wait a moment and try again."],
 };
