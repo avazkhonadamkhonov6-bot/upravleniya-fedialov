@@ -111,7 +111,7 @@ export class WhatsAppWebhookController {
     const expected = Buffer.from(`Bearer ${secret}`);
     if (!secret || given.length !== expected.length || !timingSafeEqual(given, expected)) throw new ForbiddenException();
     if (body.typeWebhook === 'stateInstanceChanged') {
-      if (!orgId) this.whatsapp.greenState = body.stateInstance ?? null;
+      if (body.stateInstance) this.whatsapp.setState(orgId ? `org:${orgId}` : 'platform', body.stateInstance);
       this.logger.log(`Green-API${orgId ? ` (бизнес #${orgId})` : ''} ҳолат: ${body.stateInstance}`);
       return { ok: true };
     }

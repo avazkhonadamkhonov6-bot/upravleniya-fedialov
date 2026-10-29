@@ -241,13 +241,36 @@ export class WhatsAppService implements OnModuleInit {
   /** Ҳолати навтарини Green-API (барои саҳифаи «Интегратсияҳо») */
   async refreshGreenState() {
     if (!this.green.configured) return null;
-    try {
-      this.greenState = await this.green.state();
-    } catch (e) {
-      this.greenState = 'error';
-      this.lastError = `Green-API: ${(e as Error).message}`;
-    }
+    this.greenState = await this.stateOf('platform', this.green, this.greenState);
     return this.greenState;
+  }
+
+  private readonly states = new Map<string, { at: number; state: string }>();
+
+  /**
+   * Ҳолати WhatsApp бо хотираи 30 сония: Green-API дархостҳои зудро бо HTTP 429 рад мекунад.
+   * 429 хато нест — ҳолати пешина боқӣ мемонад.
+   */
+  async stateOf(key: string, client: GreenApi, fallback: string | null = null): Promise<string | null> {
+    const hit = this.states.get(key);
+    if (hit && Date.now() - hit.at < 30_000) return hit.state;
+    try {
+      const state = await client.state();
+      this.states.set(key, { at: Date.now(), state });
+      if (key === 'platform' && this.lastError?.includes('429')) this.lastError = null;
+      return state;
+    } catch (e) {
+      const message = (e as Error).message;
+      if (message.includes('429')) return hit?.state ?? fallback;
+      if (key === 'platform') this.lastError = `Green-API: ${message}`;
+      return 'error';
+    }
+  }
+
+  /** Пас аз webhook-и stateInstanceChanged */
+  setState(key: string, state: string) {
+    this.states.set(key, { at: Date.now(), state });
+    if (key === 'platform') this.greenState = state;
   }
 
   /**

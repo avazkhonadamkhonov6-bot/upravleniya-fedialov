@@ -44,11 +44,8 @@ export class BusinessWhatsAppController {
     let state: string | null = null;
     let error: string | null = null;
     if (client.configured) {
-      try {
-        state = await client.state();
-      } catch (e) {
-        error = (e as Error).message;
-      }
+      state = await this.whatsapp.stateOf(`org:${user.organizationId}`, client);
+      if (state === 'error') error = 'Green-API ҷавоб надод — калидҳоро санҷед';
     }
     return {
       own: client.configured,
@@ -140,6 +137,7 @@ export class BusinessWhatsAppController {
     const o = await this.prisma.organization.findUniqueOrThrow({ where: { id: user.organizationId } });
     const client = new GreenApi({ id: o.waInstanceId, token: o.waApiToken, apiUrl: o.waApiUrl, mediaUrl: o.waMediaUrl });
     if (!client.configured) throw new BadRequestException('Аввал калидҳои Green-API-ро захира кунед');
-    return client.qr();
+    // Хатои Green-API (масалан 429 — дархости зиёд) ҳамчун ҷавоб, на 500 — саҳифа QR-и пешинаро нигоҳ медорад
+    return client.qr().catch((e: Error) => ({ type: 'error', message: e.message.slice(0, 200) }));
   }
 }

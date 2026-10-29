@@ -9,7 +9,7 @@ type Qr = { type: string; message: string };
 
 /**
  * QR-и Green-API: телефон бо WhatsApp → «Связанные устройства» → «Привязка устройства» скан мекунад.
- * QR ҳар 20 сония нав мешавад — мо ҳар 5 сония мегирем. Пас аз пайвастшавӣ onLinked даъват мешавад.
+ * QR ҳар 20 сония нав мешавад — мо ҳар 6 сония мегирем. Пас аз пайвастшавӣ onLinked даъват мешавад.
  */
 export function WhatsAppQr({ path, onLinked }: { path: string; onLinked?: () => void }) {
   const [qr, setQr] = useState<Qr | null>(null);
@@ -21,13 +21,15 @@ export function WhatsAppQr({ path, onLinked }: { path: string; onLinked?: () => 
       api<Qr>(path)
         .then((r) => {
           if (!alive) return;
+          // 429 — Green-API дархостҳои зудро маҳдуд мекунад: QR-и пешина боқӣ мемонад
+          if (r.type === "error" && r.message.includes("429")) return;
           setQr(r);
           setError(null);
           if (r.type === "alreadyLogged") onLinked?.();
         })
         .catch((e: Error) => alive && setError(e.message));
     pull();
-    const t = setInterval(pull, 5000);
+    const t = setInterval(pull, 6000);
     return () => {
       alive = false;
       clearInterval(t);

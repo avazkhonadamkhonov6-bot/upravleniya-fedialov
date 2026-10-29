@@ -52,7 +52,7 @@ export class IntegrationsController {
   @SuperAdmin()
   async whatsappQr() {
     if (!this.whatsapp.green.configured) throw new BadRequestException('Калидҳои GREENAPI_* дар сервер нестанд');
-    return this.whatsapp.green.qr();
+    return this.whatsapp.green.qr().catch((e: Error) => ({ type: 'error', message: e.message.slice(0, 200) }));
   }
 
   @Get('logs')
