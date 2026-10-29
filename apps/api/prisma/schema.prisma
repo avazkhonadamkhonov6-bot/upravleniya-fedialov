@@ -164,6 +164,13 @@ model Product {
   cost           Decimal           @db.Decimal(10, 2)
   /// Штрих-код (EAN/UPC) — сканер дар POS молро фавран меёбад
   barcode        String?
+  /// Акси мол (WebP-и фишурда дар худи база)
+  imageId        Int?
+  image          Media?            @relation(fields: [imageId], references: [id], onDelete: SetNull)
+  /// Боқимонда дар анбор; null — ҳисоб карда намешавад
+  stock          Decimal?          @db.Decimal(12, 3)
+  /// Огоҳӣ, вақте ки боқимонда то ин миқдор кам шавад
+  lowStock       Decimal?          @db.Decimal(12, 3)
   isActive       Boolean           @default(true)
   createdAt      DateTime          @default(now())
   items          OrderItem[]
@@ -398,6 +405,7 @@ model Media {
   data      Bytes
   createdAt DateTime  @default(now())
   messages  Message[]
+  products  Product[]
 }
 
 /// Занги аудио/видео (WebRTC). Пешниҳод ва ҷавоби SDP дар ҳамин ҷо — сервери алоҳидаи сигнал лозим нест.

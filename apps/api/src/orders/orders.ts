@@ -16,6 +16,7 @@ import { AuthUser, CurrentUser, Feature } from '../auth/decorators';
 import { branchWhere, scopeBranch } from '../common/access';
 import { Prisma } from '../generated/prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
+import { StockService } from '../products/stock';
 
 class OrderItemDto {
   @Type(() => Number) @IsInt()
@@ -99,7 +100,10 @@ function assertCanSell(user: AuthUser) {
 
 @Injectable()
 export class OrdersService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly stock: StockService,
+  ) {}
 
   async list(
     user: AuthUser,
@@ -160,6 +164,7 @@ export class OrdersService {
     const total = Math.round((subtotal - pointsUsed) * 100) / 100;
     const pointsEarned = dto.customerId ? Math.floor(total * POINTS_RATE) : 0;
 
+    let low: Awaited<ReturnType<StockService['take']>> = [];
     const order = await this.prisma.$transaction(async (tx) => {
       const created = await tx.order.create({
         data: {
@@ -187,8 +192,10 @@ export class OrdersService {
           },
         });
       }
+      low = await this.stock.take(tx, lines);
       return created;
     });
+    if (low.length) void this.stock.warn(branchId, low);
     return forViewer(user, toOrder(order));
   }
 }

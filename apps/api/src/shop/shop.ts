@@ -35,6 +35,7 @@ import { AlertsService } from '../core/alerts.service';
 import { AuditService } from '../core/audit.service';
 import { Prisma } from '../generated/prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
+import { StockService } from '../products/stock';
 
 // ---------- DTO ----------
 
@@ -126,6 +127,7 @@ export class ShopService {
     private readonly prisma: PrismaService,
     private readonly alerts: AlertsService,
     private readonly audit: AuditService,
+    private readonly stock: StockService,
   ) {}
 
   /** Мағозаҳои кушода: бизнес ҷамъиятӣ, ақаллан як филиали фаъол ва як маҳсулот */
@@ -177,7 +179,16 @@ export class ShopService {
       preview: [...new Set(o.products.map((p) => p.emoji))].slice(0, 4),
       branchList: o.branches.map((b) => ({ id: b.id, name: b.name, city: b.city, address: b.address, phone: b.phone })),
       // Арзиши аслӣ ба мизоҷ нишон дода намешавад
-      catalog: o.products.map((p) => ({ id: p.id, name: p.name, category: p.category, emoji: p.emoji, unit: p.unit, price: Number(p.price) })),
+      catalog: o.products.map((p) => ({
+        id: p.id,
+        name: p.name,
+        category: p.category,
+        emoji: p.emoji,
+        unit: p.unit,
+        price: Number(p.price),
+        imageId: p.imageId,
+        soldOut: p.stock !== null && Number(p.stock) <= 0,
+      })),
     };
   }
 
@@ -205,6 +216,8 @@ export class ShopService {
     const ids = [...new Set(dto.items.map((i) => i.productId))];
     const products = await this.prisma.product.findMany({ where: { id: { in: ids }, organizationId: store.id, isActive: true } });
     if (products.length !== ids.length) throw new BadRequestException('Баъзе маҳсулот дигар фурӯхта намешаванд — сабадро нав кунед');
+    const out = products.find((p) => p.stock !== null && Number(p.stock) <= 0);
+    if (out) throw new BadRequestException(`«${out.name}» тамом шудааст — онро аз сабад гиред`);
 
     // Нарх аз база, на аз браузер
     const items = dto.items.map((i) => {
@@ -273,6 +286,7 @@ export class ShopService {
       throw new BadRequestException(`Аз «${ONLINE_STATUS_LABELS[o.status]}» ба «${ONLINE_STATUS_LABELS[status]}» гузаштан мумкин нест`);
     }
 
+    let low: Awaited<ReturnType<StockService['take']>> = [];
     const updated = await this.prisma.$transaction(async (tx) => {
       let saleOrderId = o.saleOrderId;
       // Расонида шуд → фурӯш дар филиал сабт мешавад (ба омор ва фоида медарояд)
@@ -287,9 +301,11 @@ export class ShopService {
           data: { branchId: o.branchId, userId: user.id, total: o.total, totalCost, payment: o.payment, items: { create: lines } },
         });
         saleOrderId = sale.id;
+        low = await this.stock.take(tx, lines.map((l) => ({ productId: l.productId, qty: Number(l.qty) })));
       }
       return tx.onlineOrder.update({ where: { id }, data: { status, saleOrderId }, include: orderInclude });
     });
+    if (low.length && o.branchId) void this.stock.warn(o.branchId, low);
     this.audit.log(user, 'UPDATE', 'online-order', id, `Фармоиши онлайн #${id}: ${ONLINE_STATUS_LABELS[o.status]} → ${ONLINE_STATUS_LABELS[status]}`, o.branchId);
     return toOnline(updated);
   }

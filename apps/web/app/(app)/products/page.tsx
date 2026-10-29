@@ -1,14 +1,15 @@
 "use client";
 
 import type { Product } from "@filialhub/shared";
-import { Pencil, Plus } from "lucide-react";
+import { PackagePlus, Pencil, Plus } from "lucide-react";
 import { useState } from "react";
 import { ProductForm } from "@/components/forms";
 import { Badge, Button, Card, Empty, ErrorBox, Modal, money, PageHeader, Skeleton, cn } from "@/components/ui";
 import { useAuth, useBusiness } from "@/lib/auth";
 import { useApi } from "@/lib/use-api";
 import { tr } from "@/lib/i18n";
-import { ProductIcon } from "@/components/glyph";
+import { ProductVisual } from "@/components/product-visual";
+import { StockForm } from "@/components/stock-form";
 
 export default function ProductsPage() {
   const { user } = useAuth();
@@ -17,6 +18,11 @@ export default function ProductsPage() {
   const showCost = user?.role !== "STAFF";
   const { data, error, reload } = useApi<Product[]>("/products");
   const [editing, setEditing] = useState<Product | "new" | null>(null);
+  const [receiving, setReceiving] = useState<Product | null>(null);
+  // Анборро шеф, менеҷер ва анбордор пур мекунанд
+  const canStock = user?.role !== "STAFF" || user?.position === "STOREKEEPER";
+  const tracksStock = data?.some((p) => p.stock !== null) ?? false;
+  const lowCount = data?.filter((p) => p.isActive && p.stock !== null && p.stock <= (p.lowStock ?? 0)).length ?? 0;
   const [category, setCategory] = useState<string>("");
 
   const categories = [...new Set(data?.map((p) => p.category))];
@@ -76,6 +82,11 @@ export default function ProductsPage() {
         ))}
       </div>
 
+      {lowCount > 0 && (
+        <div className="mb-4 rounded-xl bg-warn-soft px-4 py-3 text-sm font-semibold text-warn">
+          {tr("{0} мол кам монд ё тамом шуд — анборро пур кунед", lowCount)}
+        </div>
+      )}
       <ErrorBox message={error} />
       <Card className="p-2">
         {!data ? (
@@ -94,6 +105,7 @@ export default function ProductsPage() {
                   <th className="px-3 py-3 font-semibold">{tr("Маҳсулот")}</th>
                   <th className="px-3 py-3 font-semibold">{tr("Категория")}</th>
                   <th className="px-3 py-3 text-right font-semibold">{tr("Нарх")}</th>
+                  {tracksStock && <th className="px-3 py-3 text-right font-semibold">{tr("Анбор")}</th>}
                   {showCost && (
                     <>
                       <th className="px-3 py-3 text-right font-semibold">{tr("Арзиши аслӣ")}</th>
@@ -109,7 +121,9 @@ export default function ProductsPage() {
                   <tr key={p.id} className={cn("border-t border-line hover:bg-surface-2", !p.isActive && "opacity-45")}>
                     <td className="px-3 py-3">
                       <div className="flex items-center gap-3">
-                        <span className="grid size-10 place-items-center rounded-xl bg-brand-soft text-brand"><ProductIcon value={p.emoji} type={type} className="size-5" /></span>
+                        <span className="grid size-10 shrink-0 place-items-center overflow-hidden rounded-xl bg-brand-soft text-brand">
+                          <ProductVisual imageId={p.imageId} emoji={p.emoji} name={p.name} type={type} iconClass="size-5" />
+                        </span>
                         <span className="font-semibold text-ink">{p.name}</span>
                         {!p.isActive && <Badge tone="warn">{tr("пинҳон")}</Badge>}
                       </div>
@@ -119,6 +133,24 @@ export default function ProductsPage() {
                       {money(p.price)}
                       <span className="block text-[11px] font-medium text-muted">/ {tr(p.unit)}</span>
                     </td>
+                    {tracksStock && (
+                      <td className="px-3 py-3 text-right whitespace-nowrap">
+                        {p.stock === null ? (
+                          <span className="text-muted">—</span>
+                        ) : (
+                          <span className="inline-flex items-center gap-2">
+                            <span className={cn("font-bold tabular", p.stock <= 0 ? "text-brand" : p.stock <= (p.lowStock ?? 0) ? "text-warn" : "text-ink")}>
+                              {p.stock} <span className="text-[11px] font-medium text-muted">{tr(p.unit)}</span>
+                            </span>
+                            {canStock && (
+                              <button onClick={() => setReceiving(p)} className="grid size-8 cursor-pointer place-items-center rounded-lg text-muted hover:bg-surface hover:text-ink" aria-label={tr("Қабули мол")}>
+                                <PackagePlus className="size-4" />
+                              </button>
+                            )}
+                          </span>
+                        )}
+                      </td>
+                    )}
                     {showCost && (
                       <>
                         <td className="px-3 py-3 text-right whitespace-nowrap text-muted tabular">{money(p.cost)}</td>
@@ -156,6 +188,18 @@ export default function ProductsPage() {
             product={editing === "new" ? undefined : editing}
             onDone={() => {
               setEditing(null);
+              reload();
+            }}
+          />
+        )}
+      </Modal>
+
+      <Modal open={!!receiving} onClose={() => setReceiving(null)} title={tr("Қабули мол")}>
+        {receiving && (
+          <StockForm
+            product={receiving}
+            onDone={() => {
+              setReceiving(null);
               reload();
             }}
           />

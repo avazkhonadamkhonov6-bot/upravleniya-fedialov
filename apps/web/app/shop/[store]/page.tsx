@@ -59,8 +59,8 @@ function jsonLd(s: StoreDetail) {
     "@type": "Offer",
     price: p.price,
     priceCurrency: "TJS",
-    availability: "https://schema.org/InStock",
-    itemOffered: { "@type": "Product", name: p.name, category: p.category },
+    availability: p.soldOut ? "https://schema.org/OutOfStock" : "https://schema.org/InStock",
+    itemOffered: { "@type": "Product", name: p.name, category: p.category, ...(p.imageId ? { image: `${SITE_URL}/api/images/${p.imageId}` } : {}) },
   }));
   return {
     "@context": "https://schema.org",
@@ -83,7 +83,12 @@ function menuSections(s: StoreDetail) {
   return [...byCat].map(([name, items]) => ({
     "@type": "MenuSection",
     name,
-    hasMenuItem: items.slice(0, 50).map((p) => ({ "@type": "MenuItem", name: p.name, offers: { "@type": "Offer", price: p.price, priceCurrency: "TJS" } })),
+    hasMenuItem: items.slice(0, 50).map((p) => ({
+      "@type": "MenuItem",
+      name: p.name,
+      ...(p.imageId ? { image: `${SITE_URL}/api/images/${p.imageId}` } : {}),
+      offers: { "@type": "Offer", price: p.price, priceCurrency: "TJS" },
+    })),
   }));
 }
 

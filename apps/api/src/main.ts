@@ -15,6 +15,8 @@ async function bootstrap() {
   app.use(compression({ filter: (req, res) => !req.url.startsWith('/api/events') && compression.filter(req, res) }));
   // Паёмҳои овозӣ/видеоӣ: бадан — худи файл (то 16 МБ).
   app.use('/api/messages/media', raw({ type: ['audio/*', 'video/*'], limit: '16mb' }));
+  // Акси мол: бадан — худи акс (браузер онро то ~100 КБ фишурда мефиристад)
+  app.use(/^\/api\/products\/\d+\/image$/, raw({ type: 'image/*', limit: '2mb' }));
   app.enableCors({ origin: process.env.WEB_ORIGIN ?? 'http://localhost:3100', credentials: true });
   app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
   app.useGlobalFilters(new PrismaExceptionFilter());

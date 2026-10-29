@@ -10,6 +10,7 @@ import { flyToCart } from "@/lib/fx";
 import { tr } from "@/lib/i18n";
 import { storeTheme } from "@/lib/store-theme";
 import { BusinessIcon, ProductIcon } from "@/components/glyph";
+import { ProductVisual } from "@/components/product-visual";
 
 /**
  * Мағоза: ҳар навъ услуби худро дорад (рангҳо, кунҷҳо, ҳарфҳо, ороиш).
@@ -110,17 +111,30 @@ export function StoreView({ store }: { store: StoreDetail }) {
           const line = { productId: p.id, name: p.name, emoji: p.emoji, unit: p.unit, price: p.price };
           return (
             <div key={p.id} data-tilt="7" className="group flex flex-col border border-line bg-surface p-3 shadow-card hover:shadow-xl sm:p-4" style={{ borderRadius: th.radius }}>
-              <div className="grid aspect-[4/3] place-items-center overflow-hidden text-5xl sm:text-6xl" style={{ background: th.soft, borderRadius: `calc(${th.radius} * 0.75)` }}>
-                <span data-depth className="transition duration-500 group-hover:scale-125 group-hover:-rotate-6" style={{ color: th.accent }}>
-                  <ProductIcon value={p.emoji} type={store.type} className="size-12 sm:size-14" />
-                </span>
+              <div className="relative grid aspect-[4/3] place-items-center overflow-hidden text-5xl sm:text-6xl" style={{ background: th.soft, borderRadius: `calc(${th.radius} * 0.75)` }}>
+                {p.imageId ? (
+                  <span className="size-full transition duration-500 group-hover:scale-105">
+                    <ProductVisual imageId={p.imageId} emoji={p.emoji} name={p.name} type={store.type} />
+                  </span>
+                ) : (
+                  <span data-depth className="transition duration-500 group-hover:scale-125 group-hover:-rotate-6" style={{ color: th.accent }}>
+                    <ProductIcon value={p.emoji} type={store.type} className="size-12 sm:size-14" />
+                  </span>
+                )}
+                {p.soldOut && (
+                  <span className="absolute inset-x-0 bottom-0 bg-black/60 py-1 text-center text-xs font-bold text-white">{tr("Тамом шуд")}</span>
+                )}
               </div>
               <div className="mt-3 line-clamp-2 min-h-10 text-sm font-semibold text-ink">{p.name}</div>
               <div className="mt-1 text-base font-bold tabular" style={{ color: th.accent }}>
                 {money(p.price)} <span className="text-xs font-medium text-muted">/ {tr(p.unit)}</span>
               </div>
               <div className="mt-auto pt-3">
-                {qty === 0 ? (
+                {p.soldOut && qty === 0 ? (
+                  <div className="flex h-10 items-center justify-center text-sm font-semibold text-muted" style={{ background: "var(--surface-2)", borderRadius: `calc(${th.radius} * 0.6)` }}>
+                    {tr("Дар анбор нест")}
+                  </div>
+                ) : qty === 0 ? (
                   <button
                     onClick={(e) => {
                       flyToCart(e.currentTarget, p.emoji);

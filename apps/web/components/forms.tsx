@@ -12,9 +12,10 @@ import {
   type Product,
   type User,
 } from "@filialhub/shared";
-import { Trash2 } from "lucide-react";
+import { ImagePlus, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { api, ApiError } from "@/lib/api";
+import { compressImage, imageUrl } from "@/lib/image";
 import { useAuth, useBusiness } from "@/lib/auth";
 import { PRODUCT_ICONS, ProductIcon } from "./glyph";
 import { useToast } from "./toast";
@@ -308,10 +309,32 @@ export function ProductForm({ product, onDone }: { product?: Product; onDone: ()
     price: product?.price ?? 0,
     cost: product?.cost ?? 0,
     barcode: product?.barcode ?? "",
+    tracked: product ? product.stock !== null : false,
+    stock: product?.stock ?? 0,
+    lowStock: product?.lowStock ?? "",
     isActive: product?.isActive ?? true,
   });
   const { busy, error, run } = useSubmit(onDone);
   const [picking, setPicking] = useState(false);
+  // Акс: нав (Blob-и фишурда), нест кардан ё бетағйир
+  const [photo, setPhoto] = useState<{ blob: Blob; url: string } | null>(null);
+  const [dropPhoto, setDropPhoto] = useState(false);
+  const [photoError, setPhotoError] = useState<string | null>(null);
+  const shownPhoto = photo?.url ?? (!dropPhoto && product?.imageId ? imageUrl(product.imageId) : null);
+
+  async function pickPhoto(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    setPhotoError(null);
+    try {
+      const blob = await compressImage(file);
+      setPhoto({ blob, url: URL.createObjectURL(blob) });
+      setDropPhoto(false);
+    } catch {
+      setPhotoError(tr("Аксро хондан нашуд. JPEG ё PNG-ро санҷед."));
+    }
+  }
   const set = (k: keyof typeof f) => (e: React.ChangeEvent<HTMLInputElement>) => setF({ ...f, [k]: e.target.value });
   const price = Number(f.price) || 0;
   const cost = Number(f.cost) || 0;
@@ -319,8 +342,13 @@ export function ProductForm({ product, onDone }: { product?: Product; onDone: ()
 
   const save = (e: React.FormEvent) => {
     e.preventDefault();
-    const body = { name: f.name, category: f.category, emoji: f.emoji, unit: f.unit, price, cost, barcode: f.barcode.trim(), ...(product ? { isActive: f.isActive } : {}) };
-    run(() => (product ? api(`/products/${product.id}`, { method: "PATCH", json: body }) : api("/products", { method: "POST", json: body })));
+    const stock = f.tracked ? { stock: Number(f.stock) || 0, lowStock: f.lowStock === "" ? null : Number(f.lowStock) } : { stock: null, lowStock: null };
+    const body = { name: f.name, category: f.category, emoji: f.emoji, unit: f.unit, price, cost, barcode: f.barcode.trim(), ...stock, ...(product ? { isActive: f.isActive } : {}) };
+    run(async () => {
+      const saved = await (product ? api<Product>(`/products/${product.id}`, { method: "PATCH", json: body }) : api<Product>("/products", { method: "POST", json: body }));
+      if (photo) await api(`/products/${saved.id}/image`, { method: "PUT", body: photo.blob, headers: { "Content-Type": photo.blob.type } });
+      else if (dropPhoto && product?.imageId) await api(`/products/${saved.id}/image`, { method: "DELETE" });
+    });
   };
   const remove = () => {
     if (!product || !confirm(tr("«{0}» нест карда шавад?", product.name))) return;
@@ -384,6 +412,28 @@ export function ProductForm({ product, onDone }: { product?: Product; onDone: ()
           </datalist>
         </Field>
       </div>
+      <div className="flex items-center gap-4 rounded-2xl border border-dashed border-line p-3">
+        <div className="grid size-20 shrink-0 place-items-center overflow-hidden rounded-xl bg-surface-2 text-muted">
+          {/* eslint-disable-next-line @next/next/no-img-element -- пешнамоиши маҳаллӣ (blob:) ё акси API */}
+          {shownPhoto ? <img src={shownPhoto} alt="" className="size-full object-cover" /> : <ImagePlus className="size-7" />}
+        </div>
+        <div className="min-w-0 flex-1 space-y-1.5">
+          <div className="text-sm font-semibold text-ink">{tr("Акси мол")}</div>
+          <div className="text-xs text-muted">{tr("Мизоҷон дар бозори онлайн аксро мебинанд. Худкор хурд карда мешавад.")}</div>
+          <div className="flex flex-wrap gap-2">
+            <label className="inline-flex h-9 cursor-pointer items-center rounded-xl border-[1.5px] border-line bg-surface px-3 text-sm font-semibold text-ink hover:border-ink">
+              {shownPhoto ? tr("Иваз кардан") : tr("Интихоби акс")}
+              <input type="file" accept="image/*" className="sr-only" onChange={pickPhoto} />
+            </label>
+            {shownPhoto && (
+              <button type="button" onClick={() => { setPhoto(null); setDropPhoto(true); }} className="h-9 cursor-pointer rounded-xl px-3 text-sm font-semibold text-brand hover:bg-brand-soft">
+                {tr("Нест кардан")}
+              </button>
+            )}
+          </div>
+          {photoError && <div className="text-xs font-medium text-brand">{photoError}</div>}
+        </div>
+      </div>
       <Field label={tr("Штрих-код")} hint={tr("Ихтиёрӣ. Курсорро ба ин ҷо гузоред ва молро скан кунед.")}>
         {/* Сканер пас аз рақам Enter мезанад — формаро намефиристем */}
         <Input value={f.barcode} onChange={set("barcode")} onKeyDown={(e) => e.key === "Enter" && e.preventDefault()} maxLength={64} inputMode="numeric" autoComplete="off" />
@@ -407,6 +457,22 @@ export function ProductForm({ product, onDone }: { product?: Product; onDone: ()
           <div className="text-xs text-muted">{tr("Маржа")}</div>
           <div className="text-lg font-bold text-ink tabular">{price ? ((profit / price) * 100).toFixed(1) : 0}%</div>
         </div>
+      </div>
+      <div className="space-y-3 rounded-2xl bg-surface-2 p-4">
+        <label className="flex cursor-pointer items-center gap-3 text-sm font-medium text-ink">
+          <input type="checkbox" checked={f.tracked} onChange={(e) => setF({ ...f, tracked: e.target.checked })} className="size-4 accent-[var(--brand)]" />
+          {tr("Боқимондаро дар анбор ҳисоб кардан")}
+        </label>
+        {f.tracked && (
+          <div className="grid grid-cols-2 gap-4">
+            <Field label={tr("Ҳоло дар анбор ({0})", f.unit)}>
+              <Input type="number" min={0} step="any" value={f.stock} onChange={set("stock")} />
+            </Field>
+            <Field label={tr("Огоҳӣ, агар кам аз")} hint={tr("Ихтиёрӣ")}>
+              <Input type="number" min={0} step="any" value={f.lowStock} onChange={set("lowStock")} />
+            </Field>
+          </div>
+        )}
       </div>
       {product && (
         <label className="flex cursor-pointer items-center gap-3 rounded-xl bg-surface-2 p-3 text-sm font-medium text-ink">

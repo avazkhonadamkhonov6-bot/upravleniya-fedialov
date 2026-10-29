@@ -376,6 +376,12 @@ export interface Product {
   margin: number;
   /** Штрих-код (агар бошад) */
   barcode: string | null;
+  /** Акс: /api/images/{imageId} */
+  imageId: number | null;
+  /** Боқимонда дар анбор; null — ҳисоб карда намешавад */
+  stock: number | null;
+  /** Ҳадди огоҳӣ (кам мондан) */
+  lowStock: number | null;
   isActive: boolean;
 }
 
@@ -899,7 +905,7 @@ export interface StoreSummary {
 
 export interface StoreDetail extends StoreSummary {
   branchList: Pick<Branch, 'id' | 'name' | 'city' | 'address' | 'phone'>[];
-  catalog: Pick<Product, 'id' | 'name' | 'category' | 'emoji' | 'unit' | 'price'>[];
+  catalog: (Pick<Product, 'id' | 'name' | 'category' | 'emoji' | 'unit' | 'price' | 'imageId'> & { soldOut: boolean })[];
 }
 
 export interface OnlineOrderItem {

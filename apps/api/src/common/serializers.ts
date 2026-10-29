@@ -70,6 +70,9 @@ export function toProduct(p: Product, hideCost = false): ProductDto {
     profit: Math.round(profit * 100) / 100,
     margin: hideCost || price === 0 ? 0 : Math.round((profit / price) * 1000) / 10,
     barcode: p.barcode,
+    imageId: p.imageId,
+    stock: p.stock === null ? null : Number(p.stock),
+    lowStock: p.lowStock === null ? null : Number(p.lowStock),
     isActive: p.isActive,
   };
 }
