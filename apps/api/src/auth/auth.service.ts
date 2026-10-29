@@ -8,6 +8,15 @@ import { PrismaService } from '../prisma/prisma.service';
 import type { AuthUser } from './decorators';
 import { CreateBusinessDto, LoginDto, RegisterClientDto, RegisterDto, UpdateMeDto, UpdateOrganizationDto } from './dto';
 
+/** Почтаҳои супер-админ аз .env (SUPERADMIN_EMAILS, бо вергул) */
+export function isSuperAdminEmail(email: string): boolean {
+  return (process.env.SUPERADMIN_EMAILS ?? process.env.SUPERADMIN_EMAIL ?? '')
+    .split(',')
+    .map((e) => e.trim().toLowerCase())
+    .filter(Boolean)
+    .includes(email.trim().toLowerCase());
+}
+
 @Injectable()
 export class AuthService {
   constructor(
@@ -34,8 +43,12 @@ export class AuthService {
       throw new UnauthorizedException('Почта ё парол нодуруст аст');
     }
     if (!user.isActive) throw new UnauthorizedException('Ҳисоби шумо ғайрифаъол аст');
-    const token = await this.jwt.signAsync({ sub: user.id, role: user.role });
-    return { kind: 'staff' as const, token, user: toUser(user) };
+    // Почта дар SUPERADMIN_EMAILS — ҳангоми воридшавӣ худкор супер-админ мешавад (бе аз нав сар кардани сервер)
+    const me = !user.isSuperAdmin && isSuperAdminEmail(email)
+      ? await this.prisma.user.update({ where: { id: user.id }, data: { isSuperAdmin: true }, include: { branch: true, organization: true } })
+      : user;
+    const token = await this.jwt.signAsync({ sub: me.id, role: me.role });
+    return { kind: 'staff' as const, token, user: toUser(me) };
   }
 
   private clientToken(id: number) {
@@ -94,6 +107,12 @@ export class AuthService {
   /** Соҳибкори нав: ширкат ва ҳисоби шеф якҷоя сохта мешаванд. */
   async register(dto: RegisterDto) {
     const email = dto.email.toLowerCase().trim();
+    const superAdmin = isSuperAdminEmail(email);
+    // Почтаи супер-админ дар ҳисоби мизоҷи бозор: почтаро аз он ҷудо мекунем (ҳисоб ва фармоишҳояш боқӣ мемонанд)
+    if (superAdmin) {
+      const client = await this.prisma.client.findUnique({ where: { email } });
+      if (client) await this.prisma.client.update({ where: { id: client.id }, data: { email: `${email}.old-client-${client.id}` } });
+    }
     if (await this.emailTaken(email)) {
       throw new ConflictException('Ин почтаи электронӣ аллакай истифода шудааст');
     }
@@ -104,13 +123,15 @@ export class AuthService {
         phone: dto.phone.trim(),
         passwordHash: await bcrypt.hash(dto.password, 10),
         role: 'CHEF',
-        organization: { create: { name: dto.businessName.trim(), type: dto.businessType, status: 'PENDING' } },
+        isSuperAdmin: superAdmin,
+        // Бизнеси супер-админ тасдиқ лозим надорад
+        organization: { create: { name: dto.businessName.trim(), type: dto.businessType, status: superAdmin ? 'APPROVED' : 'PENDING' } },
       },
       include: { branch: true, organization: true },
     });
     await this.prisma.organization.update({ where: { id: user.organizationId }, data: { ownerId: user.id } });
     // Бизнеси нав то тасдиқи супер-админ кор намекунад — ба супер-админ ва соҳиб хабар медиҳем.
-    void this.admin.onBusinessRegistered(user.organizationId);
+    if (!superAdmin) void this.admin.onBusinessRegistered(user.organizationId);
     const token = await this.jwt.signAsync({ sub: user.id, role: user.role });
     return { kind: 'staff' as const, token, user: toUser(user) };
   }
