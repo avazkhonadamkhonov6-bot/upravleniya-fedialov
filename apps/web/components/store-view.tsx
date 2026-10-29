@@ -151,7 +151,7 @@ export function StoreView({ store }: { store: StoreDetail }) {
                   </span>
                 )}
                 {p.soldOut && (
-                  <span className="absolute inset-x-0 bottom-0 bg-black/60 py-1 text-center text-xs font-bold text-white">{tr("Тамом шуд")}</span>
+                  <span className="absolute inset-x-0 bottom-0 bg-black/60 py-1 text-center text-xs font-bold text-white">{tr("Тамом шуд|мол")}</span>
                 )}
               </div>
               <div className="mt-3 line-clamp-2 min-h-10 text-sm font-semibold text-ink">{p.name}</div>
