@@ -2,12 +2,13 @@
 
 import { ONLINE_NEXT, ONLINE_STATUS_LABELS, ONLINE_STATUSES, type OnlineOrder, type OnlineOrderStatus } from "@filialhub/shared";
 import { Banknote, CreditCard, MapPin, MessageSquare, Phone } from "lucide-react";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import { useToast } from "@/components/toast";
 import { Badge, Button, Card, Empty, ErrorBox, formatDate, money, PageHeader, Skeleton, cn } from "@/components/ui";
 import { api, qs } from "@/lib/api";
 import { tr } from "@/lib/i18n";
 import { useApi } from "@/lib/use-api";
+import { useVisibleInterval } from "@/lib/use-interval";
 import { ProductIcon, StatusIcon } from "@/components/glyph";
 
 const TONE: Record<OnlineOrderStatus, "brand" | "warn" | "blue" | "good" | "neutral"> = {
@@ -28,10 +29,7 @@ export default function OnlineOrdersPage() {
     reloadAll();
   }, [reload, reloadAll]);
 
-  useEffect(() => {
-    const t = setInterval(refresh, 15000);
-    return () => clearInterval(t);
-  }, [refresh]);
+  useVisibleInterval(refresh, 15000);
 
   const count = (s: OnlineOrderStatus) => all?.filter((o) => o.status === s).length ?? 0;
 

@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { api } from "@/lib/api";
 import { useApi } from "@/lib/use-api";
+import { useVisibleInterval } from "@/lib/use-interval";
 import { cn } from "./ui";
 import { tr, locale } from "@/lib/i18n";
 import { Iconized } from "./glyph";
@@ -26,10 +27,7 @@ export function AlertsBell({ dark }: { dark?: boolean }) {
   const { data, reload } = useApi<{ items: Alert[]; unread: number }>("/alerts");
   const box = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    const t = setInterval(reload, 30000);
-    return () => clearInterval(t);
-  }, [reload]);
+  useVisibleInterval(reload, 30000);
 
   useEffect(() => {
     if (!open) return;

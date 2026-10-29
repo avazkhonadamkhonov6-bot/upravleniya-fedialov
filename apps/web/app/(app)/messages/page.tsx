@@ -22,6 +22,7 @@ import { Avatar, Badge, Button, Card, cn, Empty, ErrorBox, Input, Modal, money, 
 import { api } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { useApi } from "@/lib/use-api";
+import { useVisibleInterval } from "@/lib/use-interval";
 import { locale, tr } from "@/lib/i18n";
 import { mediaSupported, type Recording } from "@/lib/media";
 import { Glyph, Iconized, stripEmoji } from "@/components/glyph";
@@ -82,12 +83,11 @@ function Chat() {
       .catch((e: Error) => setError(e.message));
   }, [channel]);
 
-  // Рӯйхат ҳар 8 сония нав мешавад (паёмҳои нав ва нохондашудаҳо).
+  // Рӯйхат ҳар 8 сония нав мешавад (паёмҳои нав ва нохондашудаҳо); таби пинҳон — не.
   useEffect(() => {
     loadContacts();
-    const t = setInterval(loadContacts, 8000);
-    return () => clearInterval(t);
   }, [loadContacts]);
+  useVisibleInterval(loadContacts, 8000);
 
   const go = (id: number, ch: Channel) => router.replace(`/messages?ch=${CH[ch].param}${id ? `&to=${id}` : ""}`, { scroll: false });
   const open = (id: number) => go(id, channel);
@@ -248,7 +248,7 @@ function Thread({ contact, channel, onBack, onSent }: { contact: ChatContact; ch
       } catch {}
     };
     void pull();
-    const t = setInterval(pull, 4000);
+    const t = setInterval(() => document.visibilityState === "visible" && void pull(), 4000);
     return () => {
       alive = false;
       clearInterval(t);

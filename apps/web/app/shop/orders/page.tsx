@@ -2,7 +2,7 @@
 
 import { Banknote, CreditCard, MapPin, Package } from "lucide-react";
 import { ONLINE_STATUS_LABELS, type OnlineOrder, type OnlineOrderStatus } from "@filialhub/shared";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { NeedClient } from "@/components/shop-shell";
 import { useToast } from "@/components/toast";
 import { Button, ErrorBox, formatDate, money, cn } from "@/components/ui";
@@ -10,6 +10,7 @@ import { api } from "@/lib/api";
 import { tr } from "@/lib/i18n";
 import { storeTheme } from "@/lib/store-theme";
 import { useApi } from "@/lib/use-api";
+import { useVisibleInterval } from "@/lib/use-interval";
 import { BusinessIcon, ProductIcon, StatusIcon } from "@/components/glyph";
 
 const STEPS: OnlineOrderStatus[] = ["NEW", "ACCEPTED", "DELIVERING", "DELIVERED"];
@@ -34,10 +35,7 @@ function Orders() {
   const [filter, setFilter] = useState<(typeof FILTERS)[number]["value"]>("");
 
   // Ҳолат худкор нав мешавад (мағоза фармоишро қабул мекунад, мефиристад…)
-  useEffect(() => {
-    const t = setInterval(reload, 15000);
-    return () => clearInterval(t);
-  }, [reload]);
+  useVisibleInterval(reload, 15000);
 
   const active = (o: OnlineOrder) => o.status !== "DELIVERED" && o.status !== "CANCELLED";
   const list = (data ?? []).filter((o) => (!filter ? true : filter === "active" ? active(o) : o.status === filter));
