@@ -23,6 +23,19 @@ interface WaMessage {
   interactive?: { button_reply?: { title: string }; list_reply?: { title: string } };
 }
 
+/** Green-API: огоҳинома (матн, файл, ҳолати пайвастшавӣ) */
+interface GreenWebhook {
+  typeWebhook?: string;
+  stateInstance?: string;
+  senderData?: { chatId?: string; senderName?: string };
+  messageData?: {
+    typeMessage?: string;
+    textMessageData?: { textMessage?: string };
+    extendedTextMessageData?: { text?: string };
+    fileMessageData?: { downloadUrl?: string; mimeType?: string; caption?: string };
+  };
+}
+
 interface WaWebhook {
   entry?: { changes?: { value?: { messages?: WaMessage[] } }[] }[];
 }
@@ -72,29 +85,81 @@ export class WhatsAppWebhookController {
     if (expected.length !== given.length || !timingSafeEqual(expected, given)) throw new ForbiddenException('Имзои нодуруст');
   }
 
+  /**
+   * Green-API: паёмҳои воридшаванда (матн, овоз, видео). Сарлавҳаи Authorization: Bearer <сирр> санҷида мешавад.
+   * Green-API бояд 200 гирад — вагарна ҳар дақиқа аз нав мефиристад.
+   */
+  @Post('greenapi')
+  @HttpCode(200)
+  async greenapi(@Body() body: GreenWebhook, @Headers('authorization') auth?: string) {
+    const secret = this.whatsapp.green.webhookSecret;
+    const given = Buffer.from(auth ?? '');
+    const expected = Buffer.from(`Bearer ${secret}`);
+    if (!secret || given.length !== expected.length || !timingSafeEqual(given, expected)) throw new ForbiddenException();
+    if (body.typeWebhook === 'stateInstanceChanged') {
+      this.whatsapp.greenState = body.stateInstance ?? null;
+      this.logger.log(`Green-API ҳолат: ${body.stateInstance}`);
+      return { ok: true };
+    }
+    if (body.typeWebhook !== 'incomingMessageReceived') return { ok: true };
+    const chatId = body.senderData?.chatId ?? '';
+    // Танҳо чатҳои шахсӣ (на гурӯҳҳо)
+    if (!chatId.endsWith('@c.us')) return { ok: true };
+    const from = chatId.replace('@c.us', '');
+    const d = body.messageData ?? {};
+    const text =
+      d.textMessageData?.textMessage ?? d.extendedTextMessageData?.text ?? (d.typeMessage === 'quotedMessage' ? d.extendedTextMessageData?.text : undefined) ?? '';
+    const file = d.fileMessageData;
+    const kind = d.typeMessage === 'audioMessage' ? ('VOICE' as const) : d.typeMessage === 'videoMessage' ? ('VIDEO_NOTE' as const) : null;
+    const media =
+      kind && file?.downloadUrl
+        ? {
+            kind,
+            load: async () => {
+              const res = await fetch(file.downloadUrl!, { signal: AbortSignal.timeout(60000) });
+              if (!res.ok) throw new Error(`Green-API файл ${res.status}`);
+              return { data: new Uint8Array(await res.arrayBuffer()), mime: (file.mimeType ?? res.headers.get('content-type') ?? 'audio/ogg').split(';')[0] };
+            },
+          }
+        : null;
+    await this.process(from, text, media).catch((e: Error) => this.logger.error(`${from}: ${e.message}`));
+    return { ok: true };
+  }
+
   private async handle(m: WaMessage) {
-    const found = await this.chat.findByPhone(m.from);
-    const reply = (html: string) => this.whatsapp.send(m.from, htmlToWhatsApp(html));
+    const file = m.audio ? { f: m.audio, kind: 'VOICE' as const } : m.video ? { f: m.video, kind: 'VIDEO_NOTE' as const } : null;
+    const media = file ? { kind: file.kind, load: () => this.whatsapp.download(file.f.id) } : null;
+    const text = m.text?.body ?? m.button?.text ?? m.interactive?.button_reply?.title ?? m.interactive?.list_reply?.title ?? '';
+    return this.process(m.from, text, media);
+  }
+
+  /** Як роҳ барои Meta ва Green-API: команда, матн ё файл аз корманд → ба чати FilialHub */
+  private async process(
+    from: string,
+    rawText: string,
+    media: { kind: 'VOICE' | 'VIDEO_NOTE'; load: () => Promise<{ data: Uint8Array<ArrayBuffer>; mime: string }> } | null,
+  ) {
+    const found = await this.chat.findByPhone(from);
+    const reply = (html: string) => this.whatsapp.send(from, htmlToWhatsApp(html));
     if (!found) return reply('❌ Ин рақам дар системаи FilialHub ёфт нашуд. Ба менеҷер муроҷиат кунед.');
     const user = await this.prisma.user.findUniqueOrThrow({ where: { id: found.id }, include: { branch: true } });
 
-    const media = m.audio ? { file: m.audio, kind: 'VOICE' as const } : m.video ? { file: m.video, kind: 'VIDEO_NOTE' as const } : null;
     if (media) {
       if (!this.whatsapp.configured) return;
       try {
-        const file = await this.whatsapp.download(media.file.id);
+        const file = await media.load();
         if (file.data.byteLength > MEDIA_MAX_BYTES) return reply('Файл хеле калон аст (то 15 МБ).');
         // WhatsApp давомнокиро намедиҳад — тахминан аз ҳаҷм (овози opus ~2 КБ/сония, видео ~60 КБ/сония).
         const duration = Math.max(1, Math.round(file.data.byteLength / (media.kind === 'VOICE' ? 2000 : 60000)));
         const to = await this.chat.routeIncomingMedia(user, file, media.kind, duration, 'WHATSAPP');
         return reply(to ? `✅ Фиристода шуд ба <b>${to.fullName}</b>.` : 'Қабулкунанда ёфт нашуд.');
       } catch (e) {
-        this.logger.warn(`Файл аз ${m.from}: ${(e as Error).message}`);
+        this.logger.warn(`Файл аз ${from}: ${(e as Error).message}`);
         return reply('❌ Файлро гирифта натавонистем, дубора кӯшиш кунед.');
       }
     }
 
-    const text = (m.text?.body ?? m.button?.text ?? m.interactive?.button_reply?.title ?? m.interactive?.list_reply?.title ?? '').trim();
+    const text = rawText.trim();
     if (!text) return reply('Ин навъи паём ҳоло қабул намешавад — матн, овоз ё видео фиристед. «кӯмак» нависед.');
 
     const answer = await this.bot.command(user, text);

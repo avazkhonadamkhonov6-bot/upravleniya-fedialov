@@ -33,8 +33,14 @@ export class IntegrationsController {
       },
       whatsapp: {
         configured: this.whatsapp.configured,
+        provider: this.whatsapp.provider,
+        state: await this.whatsapp.refreshGreenState(),
         template: this.whatsapp.template,
-        webhook: !!process.env.WHATSAPP_VERIFY_TOKEN?.trim(),
+        // Green-API webhook-ро худаш мегузорад (бо RENDER_EXTERNAL_URL); Meta — бо WHATSAPP_VERIFY_TOKEN
+        webhook:
+          this.whatsapp.provider === 'greenapi'
+            ? !!(process.env.GREENAPI_WEBHOOK_BASE ?? process.env.RENDER_EXTERNAL_URL)
+            : !!process.env.WHATSAPP_VERIFY_TOKEN?.trim(),
         lastError: this.whatsapp.lastError,
       },
       dailyReportCron: process.env.DAILY_REPORT_CRON || '0 0 22 * * *',

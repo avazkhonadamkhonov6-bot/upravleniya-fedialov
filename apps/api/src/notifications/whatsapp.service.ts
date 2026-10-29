@@ -1,4 +1,5 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { createHash } from 'node:crypto';
+import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { phoneDigits } from '@filialhub/shared';
 
 export type SendResult = { status: 'SENT' | 'DRY_RUN' | 'FAILED'; error?: string };
@@ -16,14 +17,111 @@ export function htmlToWhatsApp(html: string): string {
     .replace(/&amp;/g, '&');
 }
 
+/** Рақами Тоҷикистон бе коди кишвар (9 рақам) → бо 992 */
+export function waNumber(phone: string): string {
+  const d = phoneDigits(phone);
+  return d.length === 9 ? `992${d}` : d;
+}
+
 /**
- * WhatsApp Cloud API (Meta). Бе WHATSAPP_TOKEN паём фиристода намешавад, танҳо дар лог сабт мешавад.
+ * Green-API (green-api.com): WhatsApp-и оддии телефон бо скани QR пайваст мешавад — Facebook лозим нест.
+ * GREENAPI_ID_INSTANCE, GREENAPI_API_TOKEN ва GREENAPI_API_URL (аз консоли Green-API, масалан https://7103.api.greenapi.com).
+ */
+export class GreenApi {
+  private readonly logger = new Logger('GreenAPI');
+  readonly id = process.env.GREENAPI_ID_INSTANCE?.trim();
+  private readonly token = process.env.GREENAPI_API_TOKEN?.trim();
+  private readonly base = (process.env.GREENAPI_API_URL?.trim() || 'https://api.green-api.com').replace(/\/+$/, '');
+  /** Барои фиристодани файл (овоз/видео); пешфарз — ҳамон суроғаи API */
+  private readonly mediaBase = (process.env.GREENAPI_MEDIA_URL?.trim() || this.base).replace(/\/+$/, '');
+
+  get configured() {
+    return !!(this.id && this.token);
+  }
+
+  /** Сирри webhook аз токен — Green-API онро дар сарлавҳаи Authorization: Bearer … мефиристад */
+  get webhookSecret(): string | null {
+    return this.token ? createHash('sha256').update(`fh-greenapi:${this.token}`).digest('hex').slice(0, 40) : null;
+  }
+
+  private url(method: string, media = false) {
+    return `${media ? this.mediaBase : this.base}/waInstance${this.id}/${method}/${this.token}`;
+  }
+
+  /** Дархост; хатои муваққатӣ (шабака, 429, 5xx) то 3 маротиба такрор мешавад */
+  async call<T = unknown>(method: string, body?: unknown, httpMethod: 'GET' | 'POST' = 'POST'): Promise<T> {
+    for (let i = 1; ; i++) {
+      try {
+        const res = await fetch(this.url(method), {
+          method: httpMethod,
+          headers: body ? { 'Content-Type': 'application/json' } : undefined,
+          body: body ? JSON.stringify(body) : undefined,
+          signal: AbortSignal.timeout(20000),
+        });
+        const text = await res.text();
+        if (res.ok) return (text ? JSON.parse(text) : {}) as T;
+        if ((res.status !== 429 && res.status < 500) || i >= 3) throw new GreenApiError(`HTTP ${res.status}: ${text.slice(0, 300)}`);
+      } catch (e) {
+        if (e instanceof GreenApiError || i >= 3) throw e;
+      }
+      await new Promise((r) => setTimeout(r, 1000 * i));
+    }
+  }
+
+  async sendText(phone: string, text: string): Promise<SendResult> {
+    try {
+      await this.call('sendMessage', { chatId: `${waNumber(phone)}@c.us`, message: text.slice(0, 20000), linkPreview: false });
+      return { status: 'SENT' };
+    } catch (e) {
+      return { status: 'FAILED', error: (e as Error).message.slice(0, 500) };
+    }
+  }
+
+  async sendFile(phone: string, data: Uint8Array<ArrayBuffer>, mime: string, name: string, caption: string): Promise<SendResult> {
+    try {
+      const form = new FormData();
+      form.append('chatId', `${waNumber(phone)}@c.us`);
+      form.append('file', new Blob([data], { type: mime }), name);
+      if (caption) form.append('caption', caption);
+      const res = await fetch(this.url('sendFileByUpload', true), { method: 'POST', body: form, signal: AbortSignal.timeout(60000) });
+      if (!res.ok) throw new Error(`HTTP ${res.status}: ${(await res.text()).slice(0, 300)}`);
+      return { status: 'SENT' };
+    } catch (e) {
+      return { status: 'FAILED', error: (e as Error).message.slice(0, 500) };
+    }
+  }
+
+  /** Ҳолати WhatsApp: authorized — пайваст; notAuthorized — QR-ро скан кунед */
+  async state(): Promise<string> {
+    const r = await this.call<{ stateInstance: string }>('getStateInstance', undefined, 'GET');
+    return r.stateInstance;
+  }
+
+  /** Webhook-ро ба сервери мо мегузорад (танҳо агар фарқ кунад — setSettings инстансро аз нав сар мекунад) */
+  async ensureWebhook(webhookUrl: string) {
+    const cur = await this.call<{ webhookUrl?: string; webhookUrlToken?: string; incomingWebhook?: string }>('getSettings', undefined, 'GET');
+    const token = `Bearer ${this.webhookSecret}`;
+    if (cur.webhookUrl === webhookUrl && cur.incomingWebhook === 'yes' && cur.webhookUrlToken === token) return false;
+    await this.call('setSettings', { webhookUrl, webhookUrlToken: token, incomingWebhook: 'yes', outgoingWebhook: 'no', outgoingMessageWebhook: 'no', outgoingAPIMessageWebhook: 'no', stateWebhook: 'yes' });
+    this.logger.log(`Webhook гузошта шуд: ${webhookUrl}`);
+    return true;
+  }
+}
+
+class GreenApiError extends Error {}
+
+/**
+ * WhatsApp: Green-API (агар GREENAPI_* бошад) ё WhatsApp Cloud API (Meta). Бе калид паём фиристода намешавад, танҳо дар лог сабт мешавад.
  * Эзоҳ: Meta матни озодро танҳо дар давоми 24 соат пас аз паёми охирини корбар иҷозат медиҳад;
  * берун аз он бояд template-и тасдиқшуда истифода шавад.
  */
 @Injectable()
-export class WhatsAppService {
+export class WhatsAppService implements OnModuleInit {
   private readonly logger = new Logger('WhatsApp');
+  /** Green-API — WhatsApp-и оддӣ бо QR, бе Facebook */
+  readonly green = new GreenApi();
+  /** Ҳолати Green-API: authorized | notAuthorized | … (барои саҳифаи «Интегратсияҳо») */
+  greenState: string | null = null;
   private readonly token = process.env.WHATSAPP_TOKEN?.trim();
   private readonly phoneNumberId = process.env.WHATSAPP_PHONE_NUMBER_ID?.trim();
   /**
@@ -35,7 +133,39 @@ export class WhatsAppService {
   lastError: string | null = null;
 
   get configured() {
-    return !!(this.token && this.phoneNumberId);
+    return this.green.configured || !!(this.token && this.phoneNumberId);
+  }
+
+  /** Кадом роҳ: greenapi | meta | null */
+  get provider(): 'greenapi' | 'meta' | null {
+    return this.green.configured ? 'greenapi' : this.token && this.phoneNumberId ? 'meta' : null;
+  }
+
+  async onModuleInit() {
+    if (!this.green.configured) return;
+    // Суроғаи оммавии API барои webhook: Render худаш RENDER_EXTERNAL_URL медиҳад
+    const base = (process.env.GREENAPI_WEBHOOK_BASE ?? process.env.RENDER_EXTERNAL_URL)?.trim().replace(/\/+$/, '');
+    try {
+      this.greenState = await this.green.state();
+      this.logger.log(`Green-API: ${this.greenState}`);
+      if (base?.startsWith('https://')) await this.green.ensureWebhook(`${base}/api/whatsapp/webhook/greenapi`);
+      else this.logger.warn('Green-API: суроғаи оммавӣ нест — ҷавобҳо аз WhatsApp ба сайт намеоянд (GREENAPI_WEBHOOK_BASE)');
+    } catch (e) {
+      this.lastError = `Green-API: ${(e as Error).message}`;
+      this.logger.error(this.lastError);
+    }
+  }
+
+  /** Ҳолати навтарини Green-API (барои саҳифаи «Интегратсияҳо») */
+  async refreshGreenState() {
+    if (!this.green.configured) return null;
+    try {
+      this.greenState = await this.green.state();
+    } catch (e) {
+      this.greenState = 'error';
+      this.lastError = `Green-API: ${(e as Error).message}`;
+    }
+    return this.greenState;
   }
 
   async send(phone: string, text: string): Promise<SendResult> {
@@ -43,6 +173,14 @@ export class WhatsAppService {
     if (!this.configured) {
       this.logger.log(`[dry-run] → ${to}: ${text.split('\n')[0]}`);
       return { status: 'DRY_RUN' };
+    }
+    if (this.green.configured) {
+      const g = await this.green.sendText(phone, text);
+      if (g.error) {
+        this.lastError = g.error;
+        this.logger.warn(`Хатогӣ → ${to}: ${g.error}`);
+      }
+      return g;
     }
     let r = await this.post({ messaging_product: 'whatsapp', to, type: 'text', text: { body: text.slice(0, 4096) } });
     // 131047: 24 соат аз паёми охирини корбар гузашт — Meta матни озодро намегузорад, танҳо шаблон.
@@ -94,15 +232,24 @@ export class WhatsAppService {
    */
   async sendMedia(phone: string, kind: 'VOICE' | 'VIDEO_NOTE', data: Uint8Array<ArrayBuffer>, mime: string, caption: string): Promise<SendResult> {
     const base = mime.split(';')[0];
-    const supported = kind === 'VOICE'
-        ? ['audio/ogg', 'audio/mpeg', 'audio/mp4', 'audio/aac', 'audio/amr'].includes(base)
-        : ['video/mp4', 'video/3gpp'].includes(base);
+    // Green-API ҳар файлро қабул мекунад; Meta — танҳо ин форматҳо
+    const supported =
+      this.green.configured ||
+      (kind === 'VOICE' ? ['audio/ogg', 'audio/mpeg', 'audio/mp4', 'audio/aac', 'audio/amr'].includes(base) : ['video/mp4', 'video/3gpp'].includes(base));
     if (!supported) return this.send(phone, `${caption}
 ${kind === 'VOICE' ? '🎤 Паёми овозӣ' : '🎥 Видеопаём'} — дар FilialHub гӯш кунед.`);
     const to = phoneDigits(phone);
     if (!this.configured) {
       this.logger.log(`[dry-run] → ${to}: ${kind} ${data.byteLength} байт`);
       return { status: 'DRY_RUN' };
+    }
+    if (this.green.configured) {
+      const ext = base.split('/')[1] ?? 'bin';
+      const g = await this.green.sendFile(phone, data, base, `${kind === 'VOICE' ? 'voice' : 'video'}.${ext}`, caption);
+      if (g.status === 'SENT') return g;
+      // Файл нарафт — ақаллан хабар, ки паём дар FilialHub аст
+      this.lastError = g.error ?? null;
+      return this.send(phone, `${caption}\n${kind === 'VOICE' ? '🎤 Паёми овозӣ' : '🎥 Видеопаём'} — дар FilialHub гӯш кунед.`);
     }
     try {
       const form = new FormData();

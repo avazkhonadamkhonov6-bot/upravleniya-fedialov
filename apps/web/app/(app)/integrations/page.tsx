@@ -109,19 +109,38 @@ export default function IntegrationsPage() {
             <span className="grid size-12 place-items-center rounded-2xl bg-[#1fa855]/12 text-[#1fa855]">
               <WhatsAppIcon className="size-6" />
             </span>
-            {!status ? null : status.whatsapp.configured ? <Badge tone="good"><CheckCircle2 className="size-3" /> {tr("Пайваст")}</Badge> : <Badge><CircleDashed className="size-3" /> {tr("Токен нест")}</Badge>}
+            {!status ? null : !status.whatsapp.configured ? (
+              <Badge><CircleDashed className="size-3" /> {tr("Токен нест")}</Badge>
+            ) : status.whatsapp.provider === "greenapi" && status.whatsapp.state !== "authorized" ? (
+              <Badge tone="warn">{tr("QR-ро скан кунед")}</Badge>
+            ) : (
+              <Badge tone="good"><CheckCircle2 className="size-3" /> {tr("Пайваст")}</Badge>
+            )}
           </div>
-          <div className="mt-4 text-lg font-bold text-ink">WhatsApp Cloud API</div>
+          <div className="mt-4 text-lg font-bold text-ink">{status?.whatsapp.provider === "greenapi" ? "WhatsApp (Green-API)" : "WhatsApp Cloud API"}</div>
           <div className="mt-1 text-sm text-muted">{tr("Паём ба рақами телефони ҳар корманд фиристода мешавад.")}</div>
           {status?.whatsapp.configured && (
             <div className="mt-2 space-y-1 text-sm text-muted">
-              <div>
-                {tr("Шаблон (пас аз 24 соат):")}{" "}
-                {status.whatsapp.template ? <b className="text-ink">{status.whatsapp.template}</b> : <span className="text-warn">{tr("нест — WHATSAPP_TEMPLATE")}</span>}
-              </div>
+              {status.whatsapp.provider === "greenapi" ? (
+                <div>
+                  {tr("Ҳолати WhatsApp:")}{" "}
+                  {status.whatsapp.state === "authorized" ? (
+                    <b className="text-good">{tr("пайваст")}</b>
+                  ) : (
+                    <span className="text-warn">
+                      {status.whatsapp.state ?? "—"} — {tr("дар console.green-api.com QR-ро бо WhatsApp скан кунед")}
+                    </span>
+                  )}
+                </div>
+              ) : (
+                <div>
+                  {tr("Шаблон (пас аз 24 соат):")}{" "}
+                  {status.whatsapp.template ? <b className="text-ink">{status.whatsapp.template}</b> : <span className="text-warn">{tr("нест — WHATSAPP_TEMPLATE")}</span>}
+                </div>
+              )}
               <div>
                 {tr("Ҷавобҳо ба сайт (webhook):")}{" "}
-                {status.whatsapp.webhook ? <b className="text-ink">{tr("танзим шуд")}</b> : <span className="text-warn">{tr("нест — WHATSAPP_VERIFY_TOKEN")}</span>}
+                {status.whatsapp.webhook ? <b className="text-ink">{tr("танзим шуд")}</b> : <span className="text-warn">{status.whatsapp.provider === "greenapi" ? "GREENAPI_WEBHOOK_BASE" : tr("нест — WHATSAPP_VERIFY_TOKEN")}</span>}
               </div>
               {status.whatsapp.lastError && <div className="break-words text-brand">{tr("Хатои охирин:")} {status.whatsapp.lastError}</div>}
             </div>

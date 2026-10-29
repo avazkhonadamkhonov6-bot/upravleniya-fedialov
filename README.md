@@ -72,6 +72,13 @@
 3. Дар Render бот худкор **webhook** мегузорад (`RENDER_EXTERNAL_URL`), яъне ҳатто вақте ки сервери ройгон «хоб» аст, паёми Telegram онро бедор мекунад. Дар /integrations «Режим: webhook» бояд бошад.
 4. Ҳар корбар: Профил → «WhatsApp ва Telegram» → «Пайваст кардан» (ё ба бот `/start` ва рақами телефон). Telegram ба корбари пайвастнашуда навишта наметавонад.
 
+**WhatsApp бе Facebook (Green-API)**
+1. green-api.com → сабти ном → **Create instance** (нақшаи Developer — ройгон).
+2. Дар консол QR-ро бо WhatsApp-и телефон скан кунед (WhatsApp → Дастгоҳҳои пайваст → Пайваст кардан).
+3. Аз консол `idInstance`, `apiTokenInstance` ва `apiUrl`-ро гиред → Render → filialhub-api → Environment: `GREENAPI_ID_INSTANCE`, `GREENAPI_API_TOKEN`, `GREENAPI_API_URL`.
+4. Webhook худкор гузошта мешавад; дар `/integrations` бояд «WhatsApp (Green-API) — пайваст» бошад.
+5. Эзоҳ: Green-API норасмӣ аст — WhatsApp метавонад рақамро барои паёмҳои зиёд баста кунад; рақами алоҳидаи ширкатро истифода баред.
+
 **WhatsApp (Meta Cloud API)**
 1. developers.facebook.com → My Apps → Create app (Business) → WhatsApp → API Setup.
 2. `WHATSAPP_PHONE_NUMBER_ID` ва токенро гиред. Токени муваққатӣ 24 соат кор мекунад — барои доимӣ: Business Settings → System users → токен бо иҷозати `whatsapp_business_messaging` → `WHATSAPP_TOKEN`.

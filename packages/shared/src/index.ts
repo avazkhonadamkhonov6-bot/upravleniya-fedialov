@@ -486,6 +486,10 @@ export interface IntegrationStatus {
   };
   whatsapp: {
     configured: boolean;
+    /** greenapi — WhatsApp-и оддӣ бо QR (бе Facebook); meta — WhatsApp Cloud API */
+    provider: 'greenapi' | 'meta' | null;
+    /** Green-API: authorized — пайваст; notAuthorized — QR-ро скан кунед */
+    state: string | null;
     /** Номи шаблон барои паём пас аз 24 соат */
     template: string | null;
     /** Webhook (ҷавобҳо аз WhatsApp ба сайт) танзим шудааст */

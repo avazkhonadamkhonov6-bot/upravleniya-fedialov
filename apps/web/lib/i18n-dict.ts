@@ -1019,6 +1019,10 @@ export const DICT: Record<string, [ru: string, en: string]> = {
   ],
   "Бозор": ["Маркет", "Market"],
   "Паёмҳои дар навбат:": ["Сообщений в очереди:", "Queued updates:"],
+  "QR-ро скан кунед": ["Отсканируйте QR", "Scan the QR"],
+  "Ҳолати WhatsApp:": ["Состояние WhatsApp:", "WhatsApp state:"],
+  "пайваст": ["подключён", "connected"],
+  "дар console.green-api.com QR-ро бо WhatsApp скан кунед": ["отсканируйте QR в console.green-api.com через WhatsApp", "scan the QR at console.green-api.com with WhatsApp"],
   "@номи_корбар ё рақами телефон": ["@имя_пользователя или номер телефона", "@username or phone number"],
   "Telegram: @номи_корбар ё рақами телефон нависед (на почта)": ["Telegram: укажите @имя_пользователя или номер телефона (не почту)", "Telegram: enter @username or phone number (not an email)"],
 };
