@@ -75,6 +75,7 @@ model Organization {
   waMediaUrl    String?
   onlineOrders  OnlineOrder[]
   reviews       Review[]
+  storeViews    StoreView[]
   createdAt     DateTime       @default(now())
   branches      Branch[]
   users         User[]
@@ -494,6 +495,17 @@ model OnlineOrderItem {
   unitPrice     Decimal     @db.Decimal(10, 2)
 
   @@index([onlineOrderId])
+}
+
+/// Шумораи кушодани саҳифаи мағоза дар бозори онлайн, рӯз ба рӯз (статистикаи ройгон, бе cookie)
+model StoreView {
+  organizationId Int
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  /// Рӯз бо вақти маҳаллӣ (UTC 00:00-и ҳамон сана)
+  day            DateTime     @db.Date
+  views          Int          @default(0)
+
+  @@id([organizationId, day])
 }
 
 /// Баҳои мизоҷ ба мағоза (1–5 ⭐) — танҳо пас аз фармоиши расонидашуда, як баҳо барои як фармоиш

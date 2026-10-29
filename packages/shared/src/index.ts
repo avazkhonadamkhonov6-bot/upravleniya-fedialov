@@ -906,6 +906,14 @@ export interface StoreSummary {
   reviewCount: number;
 }
 
+/** Кушодани саҳифаи мағоза дар бозори онлайн */
+export interface StoreVisits {
+  series: { day: string; views: number }[];
+  today: number;
+  week: number;
+  month: number;
+}
+
 export interface StoreReview {
   id: number;
   rating: number;

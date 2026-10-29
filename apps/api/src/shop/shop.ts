@@ -30,8 +30,10 @@ import {
   type Payment,
   type StoreDetail,
   type StoreSummary,
+  type StoreVisits,
 } from '@filialhub/shared';
-import { AuthClient, AuthUser, ClientOnly, CurrentClient, CurrentUser, Feature, Public } from '../auth/decorators';
+import { AuthClient, AuthUser, ClientOnly, CurrentClient, CurrentUser, Feature, Public, Roles } from '../auth/decorators';
+import { localDay } from '../common/time';
 import { branchWhere } from '../common/access';
 import { toClient } from '../common/serializers';
 import { AlertsService } from '../core/alerts.service';
@@ -168,6 +170,7 @@ export class ShopService {
 
   /** Вақти охирин фармоишҳои миз барои ҳар филиал (ҳимоя аз спам) */
   private tableHits = new Map<number, number[]>();
+  private viewHits = new Map<number, { at: number; n: number }>();
 
   /** Мағозаҳои кушода: бизнес ҷамъиятӣ, ақаллан як филиали фаъол ва як маҳсулот */
   async stores(type?: string): Promise<StoreSummary[]> {
@@ -377,6 +380,33 @@ export class ShopService {
     return toOnline(await this.prisma.onlineOrder.findUniqueOrThrow({ where: { id }, include: orderInclude }));
   }
 
+  /** Як кушодани саҳифаи мағоза (браузер дар як сессия як бор мефиристад) */
+  async view(id: number) {
+    // Ҳимояи оддӣ аз ҳисобкунии сунъӣ: на зиёда аз 600 дар як дақиқа барои як мағоза
+    const now = Date.now();
+    const hit = this.viewHits.get(id);
+    if (hit && now - hit.at < 60_000 && hit.n >= 600) return;
+    this.viewHits.set(id, hit && now - hit.at < 60_000 ? { at: hit.at, n: hit.n + 1 } : { at: now, n: 1 });
+    const day = new Date(`${localDay(new Date())}T00:00:00Z`);
+    await this.prisma.storeView
+      .upsert({ where: { organizationId_day: { organizationId: id, day } }, create: { organizationId: id, day, views: 1 }, update: { views: { increment: 1 } } })
+      .catch(() => {}); // мағозаи нест — бе хато
+  }
+
+  /** Статистикаи бозор барои соҳиб: кушодани саҳифа дар 30 рӯзи охир */
+  async visits(user: AuthUser): Promise<StoreVisits> {
+    const days = 30;
+    const from = new Date(`${localDay(new Date(Date.now() - (days - 1) * 86_400_000))}T00:00:00Z`);
+    const rows = await this.prisma.storeView.findMany({ where: { organizationId: user.organizationId, day: { gte: from } }, orderBy: { day: 'asc' } });
+    const byDay = new Map(rows.map((r) => [r.day.toISOString().slice(0, 10), r.views]));
+    const series = Array.from({ length: days }, (_, i) => {
+      const day = new Date(from.getTime() + i * 86_400_000).toISOString().slice(0, 10);
+      return { day, views: byDay.get(day) ?? 0 };
+    });
+    const sum = (n: number) => series.slice(-n).reduce((s, d) => s + d.views, 0);
+    return { series, today: sum(1), week: sum(7), month: sum(30) };
+  }
+
   // ---------- Тарафи ширкат ----------
 
   async staffList(user: AuthUser, q: { status?: OnlineOrderStatus; branchId?: number }) {
@@ -466,6 +496,13 @@ export class ShopController {
   }
 
   @Public()
+  @Post('stores/:id/view')
+  @HttpCode(204)
+  view(@Param('id', ParseIntPipe) id: number) {
+    return this.shop.view(id);
+  }
+
+  @Public()
   @Post('table-orders')
   table(@Body() dto: TableOrderDto) {
     return this.shop.tableOrder(dto);
@@ -496,6 +533,12 @@ export class ShopController {
 @Feature('online')
 export class OnlineOrdersController {
   constructor(private readonly shop: ShopService) {}
+
+  @Get('visits')
+  @Roles('CHEF', 'MANAGER')
+  visits(@CurrentUser() user: AuthUser) {
+    return this.shop.visits(user);
+  }
 
   @Get()
   list(@CurrentUser() user: AuthUser, @Query('status') status?: string, @Query('branchId') branchId?: string) {

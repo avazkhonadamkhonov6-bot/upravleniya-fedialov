@@ -11,7 +11,8 @@ import { tr } from "@/lib/i18n";
 import { useApi } from "@/lib/use-api";
 import { useVisibleInterval } from "@/lib/use-interval";
 import { useServerEvent } from "@/lib/events";
-import { useBusiness } from "@/lib/auth";
+import { useAuth, useBusiness } from "@/lib/auth";
+import { VisitsCard } from "@/components/visits-card";
 import { ProductIcon, StatusIcon } from "@/components/glyph";
 
 const TONE: Record<OnlineOrderStatus, "brand" | "warn" | "blue" | "good" | "neutral"> = {
@@ -36,6 +37,8 @@ export default function OnlineOrdersPage() {
   useServerEvent("orders", refresh);
   useVisibleInterval(refresh, 30000);
   const { restaurant } = useBusiness();
+  const { user } = useAuth();
+  const canSeeVisits = user?.role === "CHEF" || user?.role === "MANAGER";
 
   const count = (s: OnlineOrderStatus) => all?.filter((o) => o.status === s).length ?? 0;
 
@@ -52,6 +55,7 @@ export default function OnlineOrdersPage() {
           )
         }
       />
+      {canSeeVisits && <VisitsCard />}
       <div className="scrollbar-none -mx-4 mb-5 flex gap-2 overflow-x-auto px-4 sm:mx-0 sm:px-0">
         <FilterChip on={!status} onClick={() => setStatus("")}>
           {tr("Ҳама")} <b className="tabular">{all?.length ?? 0}</b>

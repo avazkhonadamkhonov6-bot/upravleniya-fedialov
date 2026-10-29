@@ -10,6 +10,11 @@ export function startOfLocalDay(date = new Date(), addDays = 0): Date {
   return new Date(local.getTime() - OFFSET_MS);
 }
 
+/** Санаи маҳаллӣ «2026-10-29» */
+export function localDay(date = new Date()): string {
+  return new Date(date.getTime() + OFFSET_MS).toISOString().slice(0, 10);
+}
+
 /** Оғози ҳафтаи ҷорӣ (душанбе) */
 export function startOfLocalWeek(date = new Date()): Date {
   const local = new Date(date.getTime() + OFFSET_MS);

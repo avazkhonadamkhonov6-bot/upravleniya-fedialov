@@ -4,7 +4,7 @@ import { BUSINESS_TYPE_LABELS, isFractionalUnit, type StoreDetail } from "@filia
 import { ArrowLeft, CheckCircle2, MapPin, Minus, Phone, Plus, ShoppingCart, Star, UtensilsCrossed } from "lucide-react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { useState, ViewTransition } from "react";
+import { useEffect, useState, ViewTransition } from "react";
 import { ErrorBox, Modal, money, cn } from "@/components/ui";
 import { api } from "@/lib/api";
 import { useCart, type CartStore } from "@/lib/cart";
@@ -28,6 +28,16 @@ export function StoreView({ store }: { store: StoreDetail }) {
   const table = store.type === "RESTAURANT" ? params.get("table")?.slice(0, 10) || null : null;
   const tableBranch = Number(params.get("b")) || undefined;
   const [checkout, setCheckout] = useState(false);
+
+  // Статистикаи соҳиб: як кушодан дар як сессия (бе cookie ва бе маълумоти шахсӣ)
+  useEffect(() => {
+    const key = `fh-viewed-${store.id}`;
+    try {
+      if (sessionStorage.getItem(key)) return;
+      sessionStorage.setItem(key, "1");
+    } catch {}
+    void fetch(`/api/shop/stores/${store.id}/view`, { method: "POST", keepalive: true }).catch(() => {});
+  }, [store.id]);
 
   const th = storeTheme(store.type);
   const categories = [...new Set(store.catalog.map((p) => p.category))];
