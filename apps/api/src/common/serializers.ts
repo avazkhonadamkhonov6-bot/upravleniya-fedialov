@@ -69,6 +69,7 @@ export function toProduct(p: Product, hideCost = false): ProductDto {
     cost,
     profit: Math.round(profit * 100) / 100,
     margin: hideCost || price === 0 ? 0 : Math.round((profit / price) * 1000) / 10,
+    barcode: p.barcode,
     isActive: p.isActive,
   };
 }

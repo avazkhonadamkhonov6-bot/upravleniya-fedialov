@@ -3,7 +3,7 @@
 import { isFractionalUnit, PAYMENT_LABELS, POINTS_RATE, type Branch, type Customer, type Order, type Payment, type Product } from "@filialhub/shared";
 import { Banknote, CheckCircle2, CreditCard, Gift, Minus, Plus, Search, ShoppingCart, Trash2, UserPlus, X } from "lucide-react";
 import { useSearchParams } from "next/navigation";
-import { Suspense, useMemo, useState } from "react";
+import { Suspense, useMemo, useRef, useState } from "react";
 import { CustomerForm, prettyPhone, SegmentBadge } from "@/components/crm";
 import { useToast } from "@/components/toast";
 import { Avatar, Button, Card, Empty, ErrorBox, Input, Modal, money, PageHeader, Select, Skeleton, cn } from "@/components/ui";
@@ -39,8 +39,28 @@ function Pos() {
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState<Order | null>(null);
 
+  const [query, setQuery] = useState("");
+  const cartRef = useRef<HTMLDivElement>(null);
+
   const active = useMemo(() => products?.filter((p) => p.isActive) ?? [], [products]);
   const categories = [...new Set(active.map((p) => p.category))];
+  const q = query.trim().toLowerCase();
+  const shown = active.filter((p) => (!category || p.category === category) && (!q || p.name.toLowerCase().includes(q) || p.barcode?.includes(q)));
+
+  /** Enter дар ҷустуҷӯ (сканер ҳамин тавр кор мекунад): штрих-коди дақиқ ё ягона натиҷа → ба сабад */
+  function pick(e: React.FormEvent) {
+    e.preventDefault();
+    if (!q) return;
+    const exact = active.find((p) => p.barcode && p.barcode === q);
+    const hit = exact ?? (shown.length === 1 ? shown[0] : undefined);
+    if (!hit) {
+      toast.error(tr("Мол ёфт нашуд"), query.trim());
+      return;
+    }
+    add(hit.id, 1);
+    setDone(null);
+    setQuery("");
+  }
   const lines = Object.entries(cart)
     .map(([id, qty]) => ({ product: active.find((p) => p.id === Number(id))!, qty }))
     .filter((l) => l.product && l.qty > 0);
@@ -113,6 +133,18 @@ function Pos() {
 
       <div className="grid grid-cols-[minmax(0,1fr)] gap-6 lg:grid-cols-[minmax(0,1fr)_380px]">
         <div>
+          <form onSubmit={pick} className="relative mb-3">
+            <Search className="pointer-events-none absolute top-1/2 left-4 size-4 -translate-y-1/2 text-muted" />
+            <Input
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder={tr("Ҷустуҷӯ: ном ё штрих-код (сканер)")}
+              aria-label={tr("Ҷустуҷӯи мол")}
+              autoComplete="off"
+              enterKeyHint="search"
+              className="pl-11"
+            />
+          </form>
           <div className="mb-4 flex gap-2 overflow-x-auto pb-1">
             {["", ...categories].map((c) => (
               <button
@@ -133,11 +165,11 @@ function Pos() {
                 <Skeleton key={i} className="h-40" />
               ))}
             </div>
+          ) : shown.length === 0 ? (
+            <Empty icon="🔍" title={tr("Мол ёфт нашуд")} text={q ? tr("Номи дигар ё штрих-кодро санҷед.") : undefined} />
           ) : (
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-4">
-              {active
-                .filter((p) => !category || p.category === category)
-                .map((p) => {
+              {shown.map((p) => {
                   const qty = cart[p.id] ?? 0;
                   return (
                     <button
@@ -161,11 +193,12 @@ function Pos() {
                       </span>
                     </button>
                   );
-                })}
+              })}
             </div>
           )}
         </div>
 
+        <div ref={cartRef} className="scroll-mt-4">
         <Card className="flex h-fit flex-col lg:sticky lg:top-10">
           <div className="mb-4 flex items-center gap-2">
             <ShoppingCart className="size-5 text-brand" />
@@ -204,7 +237,7 @@ function Pos() {
                       </div>
                     </div>
                     <div className="flex items-center gap-1 rounded-xl bg-surface-2 p-1">
-                      <button onClick={() => add(p.id, -1)} className="grid size-7 cursor-pointer place-items-center rounded-lg hover:bg-surface" aria-label={tr("Кам")}>
+                      <button onClick={() => add(p.id, -1)} className="grid size-9 cursor-pointer place-items-center rounded-lg hover:bg-surface sm:size-7" aria-label={tr("Кам")}>
                         {qty === 1 ? <Trash2 className="size-3.5 text-brand" /> : <Minus className="size-3.5" />}
                       </button>
                       {isFractionalUnit(p.unit) ? (
@@ -221,7 +254,7 @@ function Pos() {
                       ) : (
                         <span className="w-6 text-center text-sm font-bold tabular">{qty}</span>
                       )}
-                      <button onClick={() => add(p.id, 1)} className="grid size-7 cursor-pointer place-items-center rounded-lg hover:bg-surface" aria-label={tr("Зиёд")}>
+                      <button onClick={() => add(p.id, 1)} className="grid size-9 cursor-pointer place-items-center rounded-lg hover:bg-surface sm:size-7" aria-label={tr("Зиёд")}>
                         <Plus className="size-3.5" />
                       </button>
                     </div>
@@ -287,7 +320,23 @@ function Pos() {
             </>
           )}
         </Card>
+        </div>
       </div>
+
+      {/* Телефон: сабад дар поёни саҳифа аст — ҳамагӣ ва тугма ҳамеша дар назар (болои менюи поён) */}
+      {lines.length > 0 && !done && <div aria-hidden className="h-16 lg:hidden" />}
+      {lines.length > 0 && !done && (
+        <div className="fixed inset-x-3 bottom-[calc(env(safe-area-inset-bottom)+72px)] z-40 lg:hidden">
+          <button
+            onClick={() => cartRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })}
+            className="brand-gradient flex h-14 w-full cursor-pointer items-center gap-3 rounded-2xl px-5 text-white shadow-[0_14px_34px_-12px_rgba(22,18,15,0.5)] active:scale-[0.98]"
+          >
+            <ShoppingCart className="size-5" />
+            <span className="text-sm font-semibold">{count} {tr("дона")}</span>
+            <span className="ml-auto text-lg font-extrabold tabular">{money(total)}</span>
+          </button>
+        </div>
+      )}
     </>
   );
 }

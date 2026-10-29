@@ -307,6 +307,7 @@ export function ProductForm({ product, onDone }: { product?: Product; onDone: ()
     unit: product?.unit ?? defaultUnit(type),
     price: product?.price ?? 0,
     cost: product?.cost ?? 0,
+    barcode: product?.barcode ?? "",
     isActive: product?.isActive ?? true,
   });
   const { busy, error, run } = useSubmit(onDone);
@@ -318,7 +319,7 @@ export function ProductForm({ product, onDone }: { product?: Product; onDone: ()
 
   const save = (e: React.FormEvent) => {
     e.preventDefault();
-    const body = { name: f.name, category: f.category, emoji: f.emoji, unit: f.unit, price, cost, ...(product ? { isActive: f.isActive } : {}) };
+    const body = { name: f.name, category: f.category, emoji: f.emoji, unit: f.unit, price, cost, barcode: f.barcode.trim(), ...(product ? { isActive: f.isActive } : {}) };
     run(() => (product ? api(`/products/${product.id}`, { method: "PATCH", json: body }) : api("/products", { method: "POST", json: body })));
   };
   const remove = () => {
@@ -383,6 +384,10 @@ export function ProductForm({ product, onDone }: { product?: Product; onDone: ()
           </datalist>
         </Field>
       </div>
+      <Field label={tr("Штрих-код")} hint={tr("Ихтиёрӣ. Курсорро ба ин ҷо гузоред ва молро скан кунед.")}>
+        {/* Сканер пас аз рақам Enter мезанад — формаро намефиристем */}
+        <Input value={f.barcode} onChange={set("barcode")} onKeyDown={(e) => e.key === "Enter" && e.preventDefault()} maxLength={64} inputMode="numeric" autoComplete="off" />
+      </Field>
       <div className="grid grid-cols-2 gap-4">
         <Field label={tr("Нархи фурӯш (барои 1 {0})", f.unit)}>
           <Input type="number" min={0} step="0.5" required value={f.price} onChange={set("price")} />

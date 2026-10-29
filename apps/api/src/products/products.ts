@@ -37,6 +37,9 @@ export class CreateProductDto {
 
   @Type(() => Number) @IsNumber() @Min(0, { message: 'Арзиши аслӣ манфӣ буда наметавонад' })
   cost: number;
+
+  @IsOptional() @IsString() @MaxLength(64)
+  barcode?: string;
 }
 
 export class UpdateProductDto {
@@ -57,6 +60,9 @@ export class UpdateProductDto {
 
   @IsOptional() @Type(() => Number) @IsNumber() @Min(0)
   cost?: number;
+
+  @IsOptional() @IsString() @MaxLength(64)
+  barcode?: string;
 
   @IsOptional() @IsBoolean()
   isActive?: boolean;
@@ -86,6 +92,7 @@ export class ProductsService {
         organizationId: user.organizationId,
         emoji: dto.emoji || DEFAULT_PRODUCT_EMOJI[type] || '📦',
         unit: dto.unit?.trim() || defaultUnit(type),
+        barcode: dto.barcode?.trim() || null,
       },
     });
     this.audit.log(user, 'CREATE', 'product', p.id, `Маҳсулоти нав: ${p.name} — ${Number(p.price)} сомонӣ`);
@@ -94,7 +101,10 @@ export class ProductsService {
 
   async update(user: AuthUser, id: number, dto: UpdateProductDto) {
     const before = await this.ensure(user, id);
-    const p = await this.prisma.product.update({ where: { id }, data: dto });
+    const p = await this.prisma.product.update({
+      where: { id },
+      data: { ...dto, ...(dto.barcode !== undefined ? { barcode: dto.barcode.trim() || null } : {}) },
+    });
     const changes = [
       dto.price !== undefined && Number(before.price) !== dto.price && `нарх: ${Number(before.price)} → ${dto.price}`,
       dto.cost !== undefined && Number(before.cost) !== dto.cost && `арзиши аслӣ: ${Number(before.cost)} → ${dto.cost}`,

@@ -374,6 +374,8 @@ export interface Product {
   cost: number;
   profit: number;
   margin: number;
+  /** Штрих-код (агар бошад) */
+  barcode: string | null;
   isActive: boolean;
 }
 

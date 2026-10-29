@@ -162,12 +162,15 @@ model Product {
   unit           String            @default("дона")
   price          Decimal           @db.Decimal(10, 2)
   cost           Decimal           @db.Decimal(10, 2)
+  /// Штрих-код (EAN/UPC) — сканер дар POS молро фавран меёбад
+  barcode        String?
   isActive       Boolean           @default(true)
   createdAt      DateTime          @default(now())
   items          OrderItem[]
   onlineItems    OnlineOrderItem[]
 
   @@index([organizationId])
+  @@index([organizationId, barcode])
 }
 
 model Order {
