@@ -1,11 +1,13 @@
 "use client";
 
 import { BUSINESS_TYPE_LABELS, isFractionalUnit, type StoreDetail } from "@filialhub/shared";
-import { ArrowLeft, MapPin, Minus, Phone, Plus, ShoppingCart, Star } from "lucide-react";
+import { ArrowLeft, CheckCircle2, MapPin, Minus, Phone, Plus, ShoppingCart, Star, UtensilsCrossed } from "lucide-react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { useState, ViewTransition } from "react";
-import { money, cn } from "@/components/ui";
-import { useCart } from "@/lib/cart";
+import { ErrorBox, Modal, money, cn } from "@/components/ui";
+import { api } from "@/lib/api";
+import { useCart, type CartStore } from "@/lib/cart";
 import { flyToCart } from "@/lib/fx";
 import { tr } from "@/lib/i18n";
 import { storeTheme } from "@/lib/store-theme";
@@ -21,13 +23,18 @@ export function StoreView({ store }: { store: StoreDetail }) {
   const cart = useCart();
   const [category, setCategory] = useState("");
   const [picked, setPicked] = useState<number>();
+  // QR дар миз: ?table=5&b=2 — фармоиш бе сабти ном, рост ба ошпаз
+  const params = useSearchParams();
+  const table = store.type === "RESTAURANT" ? params.get("table")?.slice(0, 10) || null : null;
+  const tableBranch = Number(params.get("b")) || undefined;
+  const [checkout, setCheckout] = useState(false);
 
   const th = storeTheme(store.type);
   const categories = [...new Set(store.catalog.map((p) => p.category))];
   const list = store.catalog.filter((p) => !category || p.category === category);
   const mine = cart.stores.find((s) => s.storeId === store.id);
   const total = mine?.lines.reduce((s, l) => s + l.price * l.qty, 0) ?? 0;
-  const meta = { storeId: store.id, storeName: store.name, type: store.type, branchId: mine?.branchId ?? picked ?? store.branchList[0]?.id };
+  const meta = { storeId: store.id, storeName: store.name, type: store.type, branchId: (table && store.branchList.some((b) => b.id === tableBranch) ? tableBranch : undefined) ?? mine?.branchId ?? picked ?? store.branchList[0]?.id };
   const step = (unit: string) => (isFractionalUnit(unit) ? 0.5 : 1);
 
   return (
@@ -68,7 +75,13 @@ export function StoreView({ store }: { store: StoreDetail }) {
         </section>
       </ViewTransition>
 
-      {store.branchList.length > 1 && (
+      {table && (
+        <div className="mt-4 flex items-center gap-2 px-4 py-3 text-sm font-semibold" style={{ background: th.soft, color: th.accent, borderRadius: `calc(${th.radius} * 0.6)` }}>
+          <UtensilsCrossed className="size-4" /> {tr("Мизи {0} — хӯрокро интихоб кунед, мо ба миз меорем", table)}
+        </div>
+      )}
+
+      {!table && store.branchList.length > 1 && (
         <div className="mt-5">
           <div className="mb-2 text-xs font-semibold tracking-wide text-muted uppercase">{tr("Аз кадом филиал?")}</div>
           <div className="scrollbar-none -mx-4 flex gap-2 overflow-x-auto px-4">
@@ -200,7 +213,26 @@ export function StoreView({ store }: { store: StoreDetail }) {
         </section>
       )}
 
-      {mine && mine.lines.length > 0 && (
+      {table && mine && mine.lines.length > 0 && (
+        <button
+          type="button"
+          onClick={() => setCheckout(true)}
+          className="pop fx-shine fixed inset-x-4 bottom-24 z-30 mx-auto flex max-w-md cursor-pointer items-center justify-between overflow-hidden px-5 py-3.5 text-sm font-semibold shadow-2xl md:bottom-6"
+          style={{ background: th.accent, color: th.onAccent, borderRadius: th.radius }}
+        >
+          <span className="flex items-center gap-2">
+            <UtensilsCrossed className="size-5" /> {tr("Фармоиш ба мизи {0}", table)}
+          </span>
+          <span className="tabular">{money(total)}</span>
+        </button>
+      )}
+      {table && mine && (
+        <Modal open={checkout} onClose={() => setCheckout(false)} title={tr("Мизи {0}", table)}>
+          {checkout && <TableCheckout store={store} cartStore={mine} table={table} branchId={meta.branchId} accent={th.accent} onDone={() => cart.clearStore(store.id)} />}
+        </Modal>
+      )}
+
+      {!table && mine && mine.lines.length > 0 && (
         <Link
           href="/shop/cart"
           data-cart-target
@@ -215,6 +247,79 @@ export function StoreView({ store }: { store: StoreDetail }) {
           </span>
         </Link>
       )}
+    </div>
+  );
+}
+
+/** Тасдиқи фармоиш аз миз: рӯйхат, эзоҳ ва фиристодан (бе сабти ном) */
+function TableCheckout({ store, cartStore, table, branchId, accent, onDone }: { store: StoreDetail; cartStore: CartStore; table: string; branchId?: number; accent: string; onDone: () => void }) {
+  const [note, setNote] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [sent, setSent] = useState<number | null>(null);
+  const total = cartStore.lines.reduce((s, l) => s + l.price * l.qty, 0);
+
+  async function send() {
+    setBusy(true);
+    setError(null);
+    try {
+      const order = await api<{ id: number }>("/shop/table-orders", {
+        method: "POST",
+        json: { storeId: store.id, branchId, table, note, items: cartStore.lines.map((l) => ({ productId: l.productId, qty: l.qty })) },
+      });
+      setSent(order.id);
+      onDone();
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  if (sent) {
+    return (
+      <div className="py-6 text-center">
+        <CheckCircle2 className="mx-auto size-14" style={{ color: accent }} />
+        <div className="mt-3 text-lg font-bold text-ink">{tr("Фармоиш #{0} фиристода шуд!", sent)}</div>
+        <p className="mt-1 text-sm text-muted">{tr("Ошпаз онро гирифт. Хӯрок ба мизи {0} оварда мешавад.", table)}</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      <ul className="divide-y divide-line text-sm">
+        {cartStore.lines.map((l) => (
+          <li key={l.productId} className="flex justify-between gap-3 py-2">
+            <span className="text-ink-2">
+              {l.name} × {l.qty} {tr(l.unit)}
+            </span>
+            <span className="shrink-0 font-semibold text-ink tabular">{money(l.price * l.qty)}</span>
+          </li>
+        ))}
+      </ul>
+      <textarea
+        value={note}
+        onChange={(e) => setNote(e.target.value)}
+        maxLength={300}
+        rows={2}
+        placeholder={tr("Эзоҳ ба ошпаз (ихтиёрӣ): бе пиёз, тунд…")}
+        className="w-full resize-none rounded-xl border-[1.5px] border-line bg-surface px-3 py-2 text-sm text-ink outline-none focus:border-brand"
+      />
+      <div className="flex items-end justify-between">
+        <span className="text-sm text-muted">{tr("Пардохт пас аз хӯрок, ба официант")}</span>
+        <span className="text-2xl font-extrabold text-ink tabular">{money(total)}</span>
+      </div>
+      <ErrorBox message={error} />
+      <button
+        type="button"
+        onClick={send}
+        disabled={busy}
+        className="h-12 w-full cursor-pointer rounded-xl text-base font-bold text-white transition disabled:opacity-60"
+        style={{ background: accent }}
+      >
+        {busy ? tr("Фиристода мешавад…") : tr("Фармоиш додан")}
+      </button>
     </div>
   );
 }

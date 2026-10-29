@@ -453,8 +453,11 @@ enum OnlineOrderStatus {
 
 model OnlineOrder {
   id             Int               @id @default(autoincrement())
-  clientId       Int
-  client         Client            @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  /// null — фармоиш аз миз (QR) бе сабти ном
+  clientId       Int?
+  client         Client?           @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  /// Рақами миз барои фармоиш аз QR дар тарабхона
+  table          String?
   organizationId Int
   organization   Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   branchId       Int?

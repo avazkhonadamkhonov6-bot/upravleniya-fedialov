@@ -726,7 +726,7 @@ export interface SearchResult {
 // ---------- Паёмҳо ----------
 
 /** Хабарҳои фаврӣ аз /api/events: браузер дархости мувофиқро фавран такрор мекунад */
-export type ServerEvent = 'messages' | 'calls' | 'alerts';
+export type ServerEvent = 'messages' | 'calls' | 'alerts' | 'orders';
 
 export const CHANNELS = ['WHATSAPP', 'TELEGRAM'] as const;
 export type Channel = (typeof CHANNELS)[number];
@@ -944,6 +944,8 @@ export interface OnlineOrder {
   note: string;
   total: number;
   items: OnlineOrderItem[];
+  /** Рақами миз, агар фармоиш аз QR-и тарабхона бошад */
+  table: string | null;
   /** Баҳои мизоҷ (пас аз «Расонида шуд») */
   review: { rating: number; text: string } | null;
   createdAt: string;

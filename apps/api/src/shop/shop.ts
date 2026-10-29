@@ -5,6 +5,8 @@ import {
   ForbiddenException,
   Get,
   HttpCode,
+  HttpException,
+  HttpStatus,
   Injectable,
   Module,
   NotFoundException,
@@ -37,6 +39,7 @@ import { AuditService } from '../core/audit.service';
 import { Prisma } from '../generated/prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { StockService } from '../products/stock';
+import { EventsService } from '../core/events';
 
 // ---------- DTO ----------
 
@@ -68,6 +71,26 @@ export class PlaceOrderDto {
   /** Нақд ё корт — пул ҳангоми гирифтани мол дода мешавад */
   @IsIn(PAYMENTS, { message: 'Тарзи пардохтро интихоб кунед' })
   payment: Payment;
+
+  @ValidateNested({ each: true })
+  @Type(() => CartItemDto)
+  @ArrayMinSize(1, { message: 'Сабад холӣ аст' })
+  items: CartItemDto[];
+}
+
+/** Фармоиш аз миз тавассути QR (бе воридшавӣ) */
+export class TableOrderDto {
+  @Type(() => Number) @IsInt()
+  storeId: number;
+
+  @IsOptional() @Type(() => Number) @IsInt()
+  branchId?: number;
+
+  @IsString() @MinLength(1) @MaxLength(10, { message: 'Рақами миз нодуруст аст' })
+  table: string;
+
+  @IsOptional() @IsString() @MaxLength(300)
+  note?: string;
 
   @ValidateNested({ each: true })
   @Type(() => CartItemDto)
@@ -124,6 +147,7 @@ function toOnline(o: OrderRow): OnlineOrder {
     note: o.note,
     total: Number(o.total),
     items: o.items.map((i) => ({ productId: i.productId, name: i.name, emoji: i.emoji, unit: i.unit, qty: Number(i.qty), unitPrice: Number(i.unitPrice) })),
+    table: o.table,
     review: o.review,
     createdAt: o.createdAt.toISOString(),
     updatedAt: o.updatedAt.toISOString(),
@@ -139,7 +163,11 @@ export class ShopService {
     private readonly alerts: AlertsService,
     private readonly audit: AuditService,
     private readonly stock: StockService,
+    private readonly events: EventsService,
   ) {}
+
+  /** Вақти охирин фармоишҳои миз барои ҳар филиал (ҳимоя аз спам) */
+  private tableHits = new Map<number, number[]>();
 
   /** Мағозаҳои кушода: бизнес ҷамъиятӣ, ақаллан як филиали фаъол ва як маҳсулот */
   async stores(type?: string): Promise<StoreSummary[]> {
@@ -229,7 +257,8 @@ export class ShopService {
     return toClient(c);
   }
 
-  async placeOrder(client: AuthClient, dto: PlaceOrderDto) {
+  /** Санҷиши мағоза, филиал ва мол; нарх аз база. Барои фармоиши онлайн ва фармоиши миз */
+  private async prepare(dto: { storeId: number; branchId?: number; items: CartItemDto[] }) {
     const store = await this.prisma.organization.findFirst({
       where: { id: dto.storeId, isPublic: true, status: 'APPROVED' },
       include: { branches: { where: { isActive: true }, orderBy: { id: 'asc' } } },
@@ -250,7 +279,11 @@ export class ShopService {
       return { productId: p.id, name: p.name, emoji: p.emoji, unit: p.unit, qty: i.qty, unitPrice: p.price };
     });
     const total = r2(items.reduce((s, i) => s + Number(i.unitPrice) * i.qty, 0));
+    return { store, branch, items, total };
+  }
 
+  async placeOrder(client: AuthClient, dto: PlaceOrderDto) {
+    const { store, branch, items, total } = await this.prepare(dto);
     const order = await this.prisma.onlineOrder.create({
       data: {
         clientId: client.id,
@@ -270,6 +303,43 @@ export class ShopService {
       { icon: '🛍️', title: `Фармоиши онлайн #${order.id}`, body: `${client.fullName} · ${total} сомонӣ · ${dto.payment === 'CARD' ? 'корт' : 'нақд'}`, link: '/online' },
       { includeChefs: true },
     );
+    this.events.emitOrg(store.id, 'orders');
+    return toOnline(order);
+  }
+
+  /**
+   * Фармоиш аз миз (QR дар тарабхона): бе сабти ном. Ошпаз ва официант онро фавран мебинанд.
+   * Ҳимоя аз спам: на зиёда аз 20 фармоиш дар як дақиқа барои як филиал.
+   */
+  async tableOrder(dto: TableOrderDto) {
+    const { store, branch, items, total } = await this.prepare(dto);
+    if (store.type !== 'RESTAURANT') throw new BadRequestException('Фармоиш аз миз танҳо дар тарабхона');
+    const now = Date.now();
+    const recent = (this.tableHits.get(branch.id) ?? []).filter((t) => now - t < 60_000);
+    if (recent.length >= 20) throw new HttpException('Дархостҳо аз ҳад зиёданд. Каме истед ва аз нав кӯшиш кунед.', HttpStatus.TOO_MANY_REQUESTS);
+    this.tableHits.set(branch.id, [...recent, now]);
+
+    const table = dto.table.trim();
+    const order = await this.prisma.onlineOrder.create({
+      data: {
+        organizationId: store.id,
+        branchId: branch.id,
+        table,
+        address: `Мизи ${table}`,
+        phone: '',
+        note: dto.note?.trim() ?? '',
+        payment: 'CASH',
+        total,
+        items: { create: items },
+      },
+      include: orderInclude,
+    });
+    void this.alerts.notifyBranch(
+      branch.id,
+      { icon: '🍽️', title: `Мизи ${table}: фармоиши нав #${order.id}`, body: `${items.length} хӯрок · ${total} сомонӣ`, link: '/online' },
+      { includeChefs: true },
+    );
+    this.events.emitOrg(store.id, 'orders');
     return toOnline(order);
   }
 
@@ -352,6 +422,7 @@ export class ShopService {
       return tx.onlineOrder.update({ where: { id }, data: { status, saleOrderId }, include: orderInclude });
     });
     if (low.length && o.branchId) void this.stock.warn(o.branchId, low);
+    this.events.emitOrg(o.organizationId, 'orders');
     this.audit.log(user, 'UPDATE', 'online-order', id, `Фармоиши онлайн #${id}: ${ONLINE_STATUS_LABELS[o.status]} → ${ONLINE_STATUS_LABELS[status]}`, o.branchId);
     return toOnline(updated);
   }
@@ -392,6 +463,12 @@ export class ShopController {
   @Get('orders')
   orders(@CurrentClient() client: AuthClient) {
     return this.shop.clientOrders(client);
+  }
+
+  @Public()
+  @Post('table-orders')
+  table(@Body() dto: TableOrderDto) {
+    return this.shop.tableOrder(dto);
   }
 
   @ClientOnly()

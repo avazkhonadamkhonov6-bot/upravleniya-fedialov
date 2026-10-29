@@ -11,15 +11,29 @@ import { AuthUser, CurrentUser, Feature } from '../auth/decorators';
 @Injectable()
 export class EventsService {
   private listeners = new Map<number, Set<(type: ServerEvent) => void>>();
+  /** Корбарони пайвастшуда аз рӯи ширкат — барои хабарҳои умумӣ (фармоиши нав) */
+  private orgUsers = new Map<number, Set<number>>();
 
-  subscribe(userId: number, fn: (type: ServerEvent) => void) {
+  subscribe(userId: number, organizationId: number, fn: (type: ServerEvent) => void) {
     let set = this.listeners.get(userId);
     if (!set) this.listeners.set(userId, (set = new Set()));
     set.add(fn);
+    let users = this.orgUsers.get(organizationId);
+    if (!users) this.orgUsers.set(organizationId, (users = new Set()));
+    users.add(userId);
     return () => {
       set.delete(fn);
-      if (!set.size) this.listeners.delete(userId);
+      if (!set.size) {
+        this.listeners.delete(userId);
+        users.delete(userId);
+        if (!users.size) this.orgUsers.delete(organizationId);
+      }
     };
+  }
+
+  /** Ба ҳамаи кормандони пайвасти ширкат */
+  emitOrg(organizationId: number, type: ServerEvent) {
+    this.emit([...(this.orgUsers.get(organizationId) ?? [])], type);
   }
 
   emit(userIds: number | number[], type: ServerEvent) {
@@ -45,7 +59,7 @@ export class EventsController {
     });
     res.flushHeaders();
     res.write('retry: 5000\n\n');
-    const off = this.events.subscribe(user.id, (type) => res.write(`event: ${type}\ndata: {}\n\n`));
+    const off = this.events.subscribe(user.id, user.organizationId, (type) => res.write(`event: ${type}\ndata: {}\n\n`));
     // Пайвасти бекорро прокси мебурад — ҳар 25 сония сатри холӣ
     const ping = setInterval(() => res.write(': ping\n\n'), 25_000);
     req.on('close', () => {

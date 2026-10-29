@@ -1,7 +1,8 @@
 "use client";
 
 import { ONLINE_NEXT, ONLINE_STATUS_LABELS, ONLINE_STATUSES, type OnlineOrder, type OnlineOrderStatus } from "@filialhub/shared";
-import { Banknote, CreditCard, MapPin, MessageSquare, Phone } from "lucide-react";
+import { Banknote, CreditCard, MapPin, MessageSquare, Phone, QrCode } from "lucide-react";
+import Link from "next/link";
 import { useCallback, useState } from "react";
 import { useToast } from "@/components/toast";
 import { Badge, Button, Card, Empty, ErrorBox, formatDate, money, PageHeader, Skeleton, cn } from "@/components/ui";
@@ -9,6 +10,8 @@ import { api, qs } from "@/lib/api";
 import { tr } from "@/lib/i18n";
 import { useApi } from "@/lib/use-api";
 import { useVisibleInterval } from "@/lib/use-interval";
+import { useServerEvent } from "@/lib/events";
+import { useBusiness } from "@/lib/auth";
 import { ProductIcon, StatusIcon } from "@/components/glyph";
 
 const TONE: Record<OnlineOrderStatus, "brand" | "warn" | "blue" | "good" | "neutral"> = {
@@ -29,13 +32,26 @@ export default function OnlineOrdersPage() {
     reloadAll();
   }, [reload, reloadAll]);
 
-  useVisibleInterval(refresh, 15000);
+  // Фармоиши нав (аз ҷумла аз миз) фавран; polling — эҳтиётӣ
+  useServerEvent("orders", refresh);
+  useVisibleInterval(refresh, 30000);
+  const { restaurant } = useBusiness();
 
   const count = (s: OnlineOrderStatus) => all?.filter((o) => o.status === s).length ?? 0;
 
   return (
     <>
-      <PageHeader title={tr("Фармоишҳои онлайн")} subtitle={tr("Фармоишҳои мизоҷон аз бозори онлайн. Ҳар 15 сония нав мешавад.")} />
+      <PageHeader
+        title={tr("Фармоишҳои онлайн")}
+        subtitle={tr("Фармоишҳои мизоҷон аз бозори онлайн ва аз мизҳо — фавран пайдо мешаванд.")}
+        actions={
+          restaurant && (
+            <Link href="/online/tables" className="inline-flex h-10 items-center gap-2 rounded-[14px] border-[1.5px] border-line bg-surface px-3.5 text-sm font-bold text-ink hover:border-ink">
+              <QrCode className="size-4" /> {tr("QR барои мизҳо")}
+            </Link>
+          )
+        }
+      />
       <div className="scrollbar-none -mx-4 mb-5 flex gap-2 overflow-x-auto px-4 sm:mx-0 sm:px-0">
         <FilterChip on={!status} onClick={() => setStatus("")}>
           {tr("Ҳама")} <b className="tabular">{all?.length ?? 0}</b>
@@ -110,7 +126,7 @@ function OrderCard({ order: o, onChange }: { order: OnlineOrder; onChange: () =>
     <Card className={cn("rise flex flex-col", o.status === "NEW" && "")}>
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <div className="font-bold text-ink">#{o.id} · {o.client?.fullName ?? "—"}</div>
+          <div className="font-bold text-ink">#{o.id} · {o.table ? tr("Мизи {0}", o.table) : (o.client?.fullName ?? "—")}</div>
           <div className="text-xs text-muted">
             {formatDate(o.createdAt, true)}
             {o.branch && ` · ${o.branch.name}`}
@@ -136,9 +152,11 @@ function OrderCard({ order: o, onChange }: { order: OnlineOrder; onChange: () =>
           {o.payment === "CARD" ? tr("Корт") : tr("Нақд")} · {o.status === "DELIVERED" ? tr("пардохт шуд") : tr("пардохт ҳангоми гирифтан")}
         </div>
         <div className="flex items-start gap-1.5"><MapPin className="mt-0.5 size-3.5 shrink-0" /> {o.address}</div>
-        <a href={`tel:${o.phone.replace(/\s/g, "")}`} className="flex items-center gap-1 font-semibold text-brand">
-          <Phone className="size-3.5" /> {o.phone}
-        </a>
+        {o.phone && (
+          <a href={`tel:${o.phone.replace(/\s/g, "")}`} className="flex items-center gap-1 font-semibold text-brand">
+            <Phone className="size-3.5" /> {o.phone}
+          </a>
+        )}
         {o.note && <div className="flex items-start gap-1.5"><MessageSquare className="mt-0.5 size-3.5 shrink-0" /> {o.note}</div>}
       </div>
       <div className="mt-auto flex items-center justify-between gap-2 pt-4">
