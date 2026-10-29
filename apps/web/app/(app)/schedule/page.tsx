@@ -213,7 +213,7 @@ function TeamSchedule() {
                                   <div className="text-xs font-bold tabular">
                                     {timeOf(s.startsAt)}–{timeOf(s.endsAt)}
                                   </div>
-                                  <div className="text-[10px] font-medium opacity-80">
+                                  <div className="text-[11px] font-medium opacity-80">
                                     {s.lateMinutes ? <Iconized text={tr("⏰ +{0} дақ", s.lateMinutes)} /> : tr(SHIFT_STATE_LABELS[s.state])}
                                   </div>
                                 </button>

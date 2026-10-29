@@ -106,7 +106,7 @@ function Frame({ children }: { children: React.ReactNode }) {
                 </span>
                 {tr(t.label)}
                 {t.href === "/shop/cart" && count > 0 && (
-                  <span className="brand-gradient absolute top-1.5 left-1/2 ml-2 grid min-w-5 place-items-center rounded-full px-1 text-[10px] font-bold text-white">
+                  <span className="brand-gradient absolute top-1.5 left-1/2 ml-2 grid min-w-5 place-items-center rounded-full px-1 text-[11px] font-bold text-white">
                     {count}
                   </span>
                 )}

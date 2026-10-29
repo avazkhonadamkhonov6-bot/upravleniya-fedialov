@@ -4,6 +4,7 @@ import { catalogLabel, isRestaurant, positionsFor, type BusinessType, type Clien
 import { useRouter } from "next/navigation";
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { api, getToken, setToken } from "./api";
+import { clearApiCache } from "./use-api";
 
 export interface RegisterInput {
   businessName: string;
@@ -114,6 +115,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const logout = useCallback(() => {
     setToken(null);
+    clearApiCache();
     setKind(null);
     setUser(null);
     setClient(null);

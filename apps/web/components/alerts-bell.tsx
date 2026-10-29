@@ -64,7 +64,7 @@ export function AlertsBell({ dark }: { dark?: boolean }) {
       >
         <Bell className="size-5" />
         {unread > 0 && (
-          <span key={unread} className="pop brand-gradient absolute top-1 right-1 grid h-[18px] min-w-[18px] place-items-center rounded-full px-1 text-[10px] font-bold text-white ring-2 ring-surface">
+          <span key={unread} className="pop brand-gradient absolute top-1 right-1 grid h-[18px] min-w-[18px] place-items-center rounded-full px-1 text-[11px] font-bold text-white ring-2 ring-surface">
             {unread > 9 ? "9+" : unread}
           </span>
         )}

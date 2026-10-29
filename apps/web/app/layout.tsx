@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Inter, Manrope } from "next/font/google";
+import { Manrope } from "next/font/google";
 import { MotionFX } from "@/components/motion-fx";
 import { ToastProvider } from "@/components/toast";
 import { AuthProvider } from "@/lib/auth";
@@ -7,17 +7,11 @@ import { LangProvider } from "@/lib/i18n";
 import { SITE_DESCRIPTION, SITE_NAME, SITE_URL } from "@/lib/site";
 import "./globals.css";
 
-const inter = Inter({
-  variable: "--font-inter",
+// Як ҳарф барои тамоми сайт: Manrope — ҳамаи ҳарфҳои тоҷикӣ (ӣ ӯ ҳ ҷ қ ғ), вазнҳо аз матн то сарлавҳа
+const manrope = Manrope({
+  variable: "--font-manrope",
   subsets: ["latin", "cyrillic", "cyrillic-ext"],
-  display: "swap",
-});
-
-// Ҳарфи сарлавҳаҳо ва рақамҳои калон: Manrope (ҳамаи ҳарфҳои тоҷикӣ — ӣ ӯ ҳ ҷ қ ғ) + Inter барои матн
-const display = Manrope({
-  variable: "--font-display-face",
-  subsets: ["latin", "cyrillic", "cyrillic-ext"],
-  weight: ["600", "700", "800"],
+  weight: ["400", "500", "600", "700", "800"],
   display: "swap",
 });
 
@@ -57,7 +51,7 @@ const themeScript = `try{var t=localStorage.getItem('fh-theme');if(t)document.do
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="tg" className={`${inter.variable} ${display.variable} h-full`} suppressHydrationWarning>
+    <html lang="tg" className={`${manrope.variable} h-full`} suppressHydrationWarning>
       <head>
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
       </head>

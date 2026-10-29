@@ -133,7 +133,7 @@ function OrderCard({ order: o, onChange }: { order: OnlineOrder; onChange: () =>
               {i === stepIdx && o.status !== "DELIVERED" && (
                 <span className="step-pulse -mt-2.5 size-2.5 rounded-full" style={{ background: th.accent, "--step": th.accent } as React.CSSProperties} />
               )}
-              <span className={cn("text-[10px] font-semibold sm:text-[11px]", i <= stepIdx ? "text-ink" : "text-muted")}>{tr(ONLINE_STATUS_LABELS[s])}</span>
+              <span className={cn("text-[11px] font-semibold sm:text-[11px]", i <= stepIdx ? "text-ink" : "text-muted")}>{tr(ONLINE_STATUS_LABELS[s])}</span>
             </li>
           ))}
         </ol>

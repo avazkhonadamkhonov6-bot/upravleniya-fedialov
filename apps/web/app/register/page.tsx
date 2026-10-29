@@ -97,7 +97,7 @@ function Register() {
         <div className="pointer-events-none absolute -right-20 -bottom-20 size-[360px] rounded-full bg-[#ff7a1a]" aria-hidden />
         <div className="float-y pointer-events-none absolute top-[110px] right-[56px] size-[90px] rounded-full bg-[#ffc531]" aria-hidden />
         <div className="relative flex max-w-[520px] flex-col gap-5">
-          <h2 className="reveal-up font-display text-[clamp(40px,4.6vw,72px)] leading-[1.02] font-extrabold tracking-[-0.035em] uppercase">{tr("Хуш омадед ба кор.")}</h2>
+          <h2 className="reveal-up font-display text-[clamp(38px,4.2vw,58px)] leading-[1.08] font-extrabold tracking-[-0.03em]">{tr("Хуш омадед ба кор.")}</h2>
           <p className="reveal-up text-lg leading-relaxed text-[#ffe6da]" style={{ animationDelay: "0.15s" }}>
             {tr("Бизнеси худро созед. Филиалҳо, кормандон ва касса баъдтар ҳам илова мешаванд.")}
           </p>

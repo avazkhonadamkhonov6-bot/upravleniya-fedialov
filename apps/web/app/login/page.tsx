@@ -95,7 +95,7 @@ export default function LoginPage() {
         <div className="pointer-events-none absolute -right-20 -bottom-20 size-[360px] rounded-full bg-[#ff7a1a]" aria-hidden />
         <div className="float-y pointer-events-none absolute top-[110px] right-[56px] size-[90px] rounded-full bg-[#ffc531]" aria-hidden />
         <div className="relative flex max-w-[520px] flex-col gap-5">
-          <h1 className="font-display text-[clamp(44px,5.4vw,76px)] leading-[1.02] font-extrabold tracking-[-0.035em] uppercase">
+          <h1 className="font-display text-[clamp(40px,4.4vw,62px)] leading-[1.08] font-extrabold tracking-[-0.03em]">
             <span className="reveal-up block" style={{ animationDelay: "0.1s" }}>
               {tr("Ҳамаи филиалҳо")}
             </span>

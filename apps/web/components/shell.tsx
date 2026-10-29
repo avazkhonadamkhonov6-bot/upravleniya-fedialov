@@ -406,7 +406,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               key={n.href}
               href={n.href}
               className={cn(
-                "flex flex-1 flex-col items-center gap-1 py-2.5 text-[10px] font-semibold transition-colors",
+                "flex flex-1 flex-col items-center gap-1 py-2.5 text-[11px] font-semibold transition-colors",
                 active ? "tab-active text-brand" : "text-muted",
               )}
             >
@@ -417,7 +417,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         })}
         <button
           onClick={() => setMoreOpen(true)}
-          className="flex flex-1 cursor-pointer flex-col items-center gap-1 py-2.5 text-[10px] font-semibold text-muted"
+          className="flex flex-1 cursor-pointer flex-col items-center gap-1 py-2.5 text-[11px] font-semibold text-muted"
         >
           <Menu className="size-5" />
           {tr("Боз")}
@@ -443,7 +443,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             </div>
             {groups.map((g) => (
               <div key={g.title} className="mb-4">
-                <div className="mb-2 text-[10px] font-bold tracking-[0.14em] text-muted uppercase">{tr(g.title)}</div>
+                <div className="mb-2 text-[11px] font-bold tracking-[0.14em] text-muted uppercase">{tr(g.title)}</div>
                 <div className="grid grid-cols-3 gap-2">
                   {g.items.map((n) => (
                     <Link

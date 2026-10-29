@@ -27,7 +27,7 @@ export default function StoresPage() {
         <div className="pointer-events-none absolute -top-16 -right-16 size-[220px] rounded-full bg-[#ff7a1a] sm:size-[300px]" aria-hidden />
         <div className="float-y pointer-events-none absolute right-[30%] bottom-6 hidden size-20 rounded-full bg-[#ffc531] sm:block" aria-hidden />
         <p className="relative text-sm font-semibold text-[#ffe6da]">{client ? tr("Салом, {0}!", client.fullName.split(" ")[0]) : tr("Хуш омадед!")}</p>
-        <h1 className="title-in relative mt-2 max-w-[620px] font-display text-[clamp(22px,6.6vw,48px)] leading-[1.04] font-extrabold tracking-[-0.035em] uppercase">{tr("Аз кадом мағоза фармоиш медиҳед?")}</h1>
+        <h1 className="title-in relative mt-2 max-w-[620px] font-display text-[clamp(26px,5.6vw,44px)] leading-[1.1] font-extrabold tracking-[-0.025em]">{tr("Аз кадом мағоза фармоиш медиҳед?")}</h1>
         {data && (
           <p className="relative mt-4 text-[15px] text-[#ffe6da]">
             {tr("{0} мағоза · {1} навъ · {2} маҳсулот", data.length, byType.length, data.reduce((s, x) => s + x.products, 0))}

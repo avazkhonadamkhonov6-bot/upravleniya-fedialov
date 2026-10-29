@@ -460,7 +460,7 @@ function DeliveryMark({ channel, status }: { channel: Channel; status: DeliveryS
   return (
     <span title={`${channel === "WHATSAPP" ? "WhatsApp" : "Telegram"}: ${tr(s.label)}`} className="flex items-center gap-0.5">
       {channel === "WHATSAPP" ? <WhatsAppIcon className="size-3" /> : <TelegramIcon className="size-3" />}
-      <Badge tone={s.tone} className="px-1.5 py-0 text-[10px]">
+      <Badge tone={s.tone} className="px-1.5 py-0 text-[11px]">
         {tr(s.label)}
       </Badge>
     </span>

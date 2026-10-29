@@ -35,7 +35,7 @@ export function PageHeader({
       <div className="flex gap-3">
         <span className="bar-grow brand-gradient mt-1 w-1.5 shrink-0 rounded-full sm:mt-1.5" aria-hidden />
         <div className="title-in">
-          <h1 className="font-display text-2xl font-bold tracking-tight text-ink sm:text-[28px]">{iconize(title)}</h1>
+          <h1 className="font-display text-[26px] leading-tight font-extrabold tracking-[-0.025em] text-ink sm:text-[30px]">{iconize(title)}</h1>
           {subtitle && <p className="mt-1 text-sm text-muted">{subtitle}</p>}
         </div>
       </div>
@@ -51,7 +51,7 @@ export function Card({ className, children }: { className?: string; children: Re
 export function CardTitle({ children, extra }: { children: React.ReactNode; extra?: React.ReactNode }) {
   return (
     <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-      <h2 className="flex items-center gap-2 text-base font-semibold text-ink">
+      <h2 className="flex items-center gap-2 text-[17px] font-bold tracking-[-0.01em] text-ink">
         <span className="brand-gradient size-1.5 shrink-0 rounded-full" aria-hidden />
         {iconize(children)}
       </h2>

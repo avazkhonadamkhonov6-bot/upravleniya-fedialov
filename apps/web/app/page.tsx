@@ -96,7 +96,7 @@ const jsonLd = {
   offers: { "@type": "Offer", price: "0", priceCurrency: "TJS" },
 };
 
-const H2 = "font-display text-[clamp(24px,7vw,52px)] leading-[1.04] font-extrabold tracking-[-0.03em] uppercase";
+const H2 = "font-display text-[clamp(28px,5.6vw,46px)] leading-[1.1] font-extrabold tracking-[-0.025em]";
 
 export default function HomePage() {
   return (
@@ -139,7 +139,7 @@ export default function HomePage() {
             <span className="size-2 rounded-full bg-[#dc3b1c]" /> Платформа барои бизнесҳои Тоҷикистон
           </span>
           <h1
-            className="reveal-up font-display text-[clamp(28px,8.6vw,56px)] leading-[1.04] lg:text-[clamp(48px,5.2vw,78px)] font-extrabold tracking-[-0.035em] uppercase"
+            className="reveal-up font-display text-[clamp(34px,8vw,52px)] leading-[1.08] font-extrabold tracking-[-0.03em] lg:text-[clamp(48px,4.6vw,68px)]"
             style={{ animationDelay: "80ms" }}
           >
             Ҳамаи филиалҳо <span className="text-[#dc3b1c]">дар як ҷо.</span>
@@ -230,7 +230,7 @@ export default function HomePage() {
               className={`flex min-h-[220px] flex-col justify-between gap-6 rounded-[28px] p-8 transition hover:-translate-y-1 ${p.cls}`}
             >
               <span className={`text-sm font-semibold ${p.topCls}`}>{p.top}</span>
-              <span className="font-display text-[clamp(22px,6.4vw,34px)] leading-[1.06] font-bold uppercase">{p.big}</span>
+              <span className="font-display text-[clamp(22px,5.6vw,30px)] leading-[1.15] font-bold tracking-[-0.02em]">{p.big}</span>
             </Link>
           ))}
         </div>
@@ -359,7 +359,7 @@ export default function HomePage() {
       <section className="mx-auto max-w-[1280px] px-4 pb-20 sm:px-8 sm:pb-[88px]">
         <div className="flex flex-wrap items-center gap-10 rounded-[36px] bg-white p-6 sm:p-12">
           <div className="flex min-w-0 flex-[1_1_400px] flex-col gap-[18px]">
-            <h2 className="font-display text-[clamp(22px,6.4vw,44px)] leading-[1.04] font-extrabold tracking-[-0.03em] uppercase">Мизоҷон онлайн мехаранд</h2>
+            <h2 className="font-display text-[clamp(24px,5vw,38px)] leading-[1.12] font-extrabold tracking-[-0.025em]">Мизоҷон онлайн мехаранд</h2>
             <p className="text-[17px] leading-relaxed text-[#4a3f35]">
               Маҳсулотро интихоб мекунанд, ба сабад мегузоранд ва ҳолати фармоишро то дами дар пайгирӣ мекунанд.
             </p>
@@ -382,7 +382,7 @@ export default function HomePage() {
       {/* CTA */}
       <section className="bg-[#ffc531]">
         <div className="mx-auto flex max-w-[1280px] flex-wrap items-center justify-between gap-8 px-4 py-20 sm:px-8 sm:py-[88px]">
-          <h2 className="max-w-[760px] font-display text-[clamp(28px,8vw,72px)] leading-[1.02] font-extrabold tracking-[-0.035em] uppercase">
+          <h2 className="max-w-[760px] font-display text-[clamp(30px,6.4vw,60px)] leading-[1.06] font-extrabold tracking-[-0.03em]">
             Бизнеси худро имрӯз созед.
           </h2>
           <div className="flex flex-wrap gap-3">
