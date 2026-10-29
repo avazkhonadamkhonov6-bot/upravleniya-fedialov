@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { api, getToken, setToken } from "./api";
 import { clearApiCache } from "./use-api";
+import { listenForErrors } from "./report-error";
 
 export interface RegisterInput {
   businessName: string;
@@ -65,6 +66,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [client, setClient] = useState<Client | null>(null);
   const [loading, setLoading] = useState(true);
+
+  // AuthProvider дар ҳар саҳифа ҳаст — хатоҳои браузерро аз ҳамин ҷо ба сервер мефиристем
+  useEffect(listenForErrors, []);
 
   useEffect(() => {
     const check = !getToken()

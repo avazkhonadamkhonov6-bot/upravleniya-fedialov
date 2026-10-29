@@ -4,12 +4,14 @@ import { RotateCw, TriangleAlert } from "lucide-react";
 import Link from "next/link";
 import { useEffect } from "react";
 import { tr } from "@/lib/i18n";
+import { reportError } from "@/lib/report-error";
 import { Button } from "./ui";
 
 /** Экрани хато барои error.tsx: ба ҷои саҳифаи сафед — паём ва тугмаи «Аз нав кӯшиш» */
 export function ErrorView({ error, retry, home = "/" }: { error: unknown; retry: () => void; home?: string }) {
   useEffect(() => {
     console.error(error);
+    reportError(error);
   }, [error]);
 
   return (
