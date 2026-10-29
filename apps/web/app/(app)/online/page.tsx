@@ -109,7 +109,7 @@ function OrderCard({ order: o, onChange }: { order: OnlineOrder; onChange: () =>
   }
 
   return (
-    <Card className={cn("rise flex flex-col", o.status === "NEW" && "glow-border")}>
+    <Card className={cn("rise flex flex-col", o.status === "NEW" && "")}>
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <div className="font-bold text-ink">#{o.id} · {o.client?.fullName ?? "—"}</div>

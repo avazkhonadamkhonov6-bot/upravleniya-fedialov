@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Inter } from "next/font/google";
+import { Inter, Unbounded } from "next/font/google";
 import { MotionFX } from "@/components/motion-fx";
 import { ToastProvider } from "@/components/toast";
 import { AuthProvider } from "@/lib/auth";
@@ -10,6 +10,14 @@ import "./globals.css";
 const inter = Inter({
   variable: "--font-inter",
   subsets: ["latin", "cyrillic", "cyrillic-ext"],
+  display: "swap",
+});
+
+// Ҳарфи сарлавҳаҳо ва рақамҳои калон (дизайни FilialHub: Unbounded + Inter)
+const unbounded = Unbounded({
+  variable: "--font-unbounded",
+  subsets: ["latin", "cyrillic", "cyrillic-ext"],
+  weight: ["600", "700", "800"],
   display: "swap",
 });
 
@@ -49,7 +57,7 @@ const themeScript = `try{var t=localStorage.getItem('fh-theme');if(t)document.do
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="tg" className={`${inter.variable} h-full`} suppressHydrationWarning>
+    <html lang="tg" className={`${inter.variable} ${unbounded.variable} h-full`} suppressHydrationWarning>
       <head>
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
       </head>

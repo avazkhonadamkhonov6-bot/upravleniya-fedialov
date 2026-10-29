@@ -1007,4 +1007,15 @@ export const DICT: Record<string, [ru: string, en: string]> = {
   "Ҷавобҳо ба сайт (webhook):": ["Ответы на сайт (webhook):", "Replies to site (webhook):"],
   "танзим шуд": ["настроен", "configured"],
   "нест — WHATSAPP_VERIFY_TOKEN": ["нет — WHATSAPP_VERIFY_TOKEN", "missing — WHATSAPP_VERIFY_TOKEN"],
+
+  // ---------- Дизайни нав ----------
+  "Интихоб": ["Выбор", "Choose"],
+  "Тоҷикӣ · Русӣ · English": ["Таджикский · Русский · English", "Tajik · Russian · English"],
+  "Равшан ва тира": ["Светлая и тёмная тема", "Light and dark"],
+  "Хуш омадед ба кор.": ["Добро пожаловать в работу.", "Welcome to work."],
+  "Бизнеси худро созед. Филиалҳо, кормандон ва касса баъдтар ҳам илова мешаванд.": [
+    "Создайте свой бизнес. Филиалы, сотрудников и кассу можно добавить позже.",
+    "Create your business. Branches, staff and the till can be added later.",
+  ],
+  "Бозор": ["Маркет", "Market"],
 };

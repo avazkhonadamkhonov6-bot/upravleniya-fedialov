@@ -410,8 +410,8 @@ function MySchedule() {
   return (
     <>
       <PageHeader title={tr("Ҷадвали ман")} subtitle={shifts ? tr("{0} смена · {1} соат кор кардед · {2} бор дер", shifts.length, hours.toFixed(1), late) : tr("Боркунӣ…")} actions={<WeekNav week={week} setWeek={setWeek} />} />
-      <div className="rise relative mb-6 overflow-hidden rounded-[24px] bg-[#170d0f] p-6 text-white shadow-card">
-        <div className="absolute -top-20 -right-20 size-64 rounded-full bg-[#e4002b] opacity-40 blur-3xl" />
+      <div className="rise relative mb-6 overflow-hidden rounded-[24px] bg-[#16120f] p-6 text-white shadow-card">
+        <div className="absolute -top-16 -right-16 size-52 rounded-full bg-[#dc3b1c]" />
         <div className="relative flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <div className="text-sm text-white/60">{tr("Давомот")}</div>

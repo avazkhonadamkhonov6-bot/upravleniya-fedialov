@@ -14,6 +14,7 @@ import {
 } from "@filialhub/shared";
 import {
   BarChart3,
+  ChevronsUpDown,
   Building2,
   CalendarClock,
   ClipboardList,
@@ -49,6 +50,7 @@ import { LangSwitcher } from "./lang-switcher";
 import { ShiftButton } from "./shift-button";
 import { Avatar, cn } from "./ui";
 import { tr } from "@/lib/i18n";
+import { BrandMark } from "./brand-mark";
 import { BusinessIcon } from "./glyph";
 import { PendingBusiness } from "./pending-business";
 
@@ -150,12 +152,16 @@ export function useTheme() {
 export function Logo({ light, compact, org }: { light?: boolean; compact?: boolean; org?: Organization | null }) {
   return (
     <div className="flex min-w-0 items-center gap-2.5">
-      <div className="brand-gradient grid size-10 shrink-0 place-items-center rounded-2xl text-xl shadow-lg shadow-red-500/30">
-        <BusinessIcon type={org?.type ?? "RESTAURANT"} className="size-5 text-white" />
-      </div>
+      {org ? (
+        <div className="brand-fire grid size-10 shrink-0 place-items-center rounded-[12px]">
+          <BusinessIcon type={org.type} className="size-5 text-white" />
+        </div>
+      ) : (
+        <BrandMark className="size-10" />
+      )}
       <div className={cn("min-w-0 leading-tight", compact && "hidden sm:block")}>
-        <div className={cn("truncate text-lg font-extrabold tracking-tight", light ? "text-white" : "text-ink")}>{org?.name ?? "FilialHub"}</div>
-        <div className={cn("truncate text-[11px] font-medium", light ? "text-white/50" : "hidden text-muted sm:block")}>
+        <div className={cn("truncate font-display text-base font-bold tracking-tight", light ? "text-white" : "text-ink")}>{org?.name ?? "FilialHub"}</div>
+        <div className={cn("truncate text-[11px] font-medium", light ? "text-[#a89c90]" : "hidden text-muted sm:block")}>
           {org ? `${tr(BUSINESS_TYPE_LABELS[org.type])} · FilialHub` : tr("CRM · идоракунии филиалҳо")}
         </div>
       </div>
@@ -181,6 +187,16 @@ function useUnreadMessages(enabled: boolean) {
     };
   }, [enabled]);
   return count;
+}
+
+/** «Фирӯз Раҳимзода» → «ФР» */
+function initials(name: string) {
+  return name
+    .split(" ")
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((p) => p[0].toUpperCase())
+    .join("");
 }
 
 function isActive(pathname: string, href: string) {
@@ -231,7 +247,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         <div className="grid min-h-screen place-items-center">
           <div className="relative grid size-20 place-items-center">
             <div className="spin-ring absolute inset-0" />
-            <div className="pop brand-gradient grid size-12 place-items-center rounded-2xl text-white shadow-lg shadow-red-500/30"><Store className="size-6" /></div>
+            <div className="pop brand-gradient grid size-12 place-items-center rounded-2xl text-white"><Store className="size-6" /></div>
           </div>
         </div>
         <div hidden>{children}</div>
@@ -254,16 +270,33 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   return (
     <div className="min-h-screen lg:pl-72">
       {/* Sidebar */}
-      <aside className="fixed inset-y-0 left-0 z-30 hidden w-72 flex-col overflow-hidden bg-[#140b0d] lg:flex">
-        <div className="pointer-events-none absolute inset-x-0 top-0 h-72 bg-[radial-gradient(ellipse_at_top_left,rgba(228,0,43,0.38),transparent_65%)]" />
-        <div className="pointer-events-none absolute -bottom-24 -left-16 size-72 rounded-full bg-[#ff5a36] opacity-10 blur-3xl" />
-        <div className="relative px-5 pt-5">
-          <Logo light org={user.organization} />
+      <aside className="fixed inset-y-0 left-0 z-30 hidden w-72 flex-col overflow-hidden bg-[#16120f] lg:flex">
+        <div className="relative flex flex-col gap-4 px-4 pt-5">
+          <Link href={homePath(user)} className="flex items-center gap-2.5 px-2">
+            <BrandMark className="size-8" />
+            <span className="font-display text-[17px] font-bold text-white">FilialHub</span>
+          </Link>
+          {user.organization && (
+            <Link
+              href="/profile"
+              title={tr("Бизнеси ман")}
+              className="flex w-full items-center gap-2.5 rounded-[14px] border border-[#3a2f27] bg-[#241d18] p-2.5 text-left transition hover:border-[#5a4c41]"
+            >
+              <span className="grid size-[34px] flex-none place-items-center rounded-[10px] bg-[#dc3b1c] text-sm font-extrabold text-white">
+                {user.organization.name.trim().charAt(0).toUpperCase()}
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="block truncate text-sm font-bold text-white">{user.organization.name}</span>
+                <span className="block truncate text-xs text-[#a89c90]">{tr(BUSINESS_TYPE_LABELS[user.organization.type])}</span>
+              </span>
+              <ChevronsUpDown className="size-4 flex-none text-[#a89c90]" />
+            </Link>
+          )}
         </div>
-        <nav className="scrollbar-none relative mt-6 flex-1 space-y-5 overflow-y-auto px-3 pb-4">
+        <nav className="scrollbar-none relative mt-5 flex-1 space-y-3.5 overflow-y-auto px-3.5 pb-4">
           {groups.map((g) => (
             <div key={g.title}>
-              <div className="mb-1.5 px-3 text-[10px] font-bold tracking-[0.14em] text-white/30 uppercase">{tr(g.title)}</div>
+              <div className="mb-0.5 px-2.5 py-1 text-[11px] font-bold tracking-[0.08em] text-[#8c8075] uppercase">{tr(g.title)}</div>
               <div className="space-y-0.5">
                 {g.items.map((n) => {
                   const active = isActive(pathname, n.href);
@@ -273,21 +306,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                       href={n.href}
                       style={{ animationDelay: `${80 + all.indexOf(n) * 35}ms` }}
                       className={cn(
-                        "slide-in-left group flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition",
-                        active ? "nav-active text-white" : "text-white/55 hover:bg-white/5 hover:text-white",
+                        "slide-in-left group flex min-h-11 items-center gap-[11px] rounded-xl px-2.5 py-2.5 text-sm font-medium transition",
+                        active ? "nav-active font-bold text-white" : "text-[#d9cfc4] hover:bg-white/5 hover:text-white",
                       )}
                     >
-                      <span
-                        className={cn(
-                          "grid size-8 place-items-center rounded-lg transition",
-                          active ? "brand-gradient text-white shadow-lg shadow-red-500/30" : "bg-white/5 group-hover:bg-white/10",
-                        )}
-                      >
-                        <n.icon className="size-4" />
-                      </span>
-                      {tr(n.label)}
+                      <n.icon className="size-[19px] flex-none" />
+                      <span className="flex-1">{tr(n.label)}</span>
                       {n.href === "/messages" && unread > 0 && (
-                        <span key={unread} className="pop brand-gradient ml-auto grid h-5 min-w-5 place-items-center rounded-full px-1.5 text-[11px] font-bold text-white">
+                        <span key={unread} className={cn("pop grid h-5 min-w-5 place-items-center rounded-full px-1.5 text-[11px] font-extrabold text-[#16120f]", active ? "bg-white" : "bg-[#ff7a1a]")}>
                           {unread}
                         </span>
                       )}
@@ -298,19 +324,19 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             </div>
           ))}
         </nav>
-        <div className="relative m-3 rounded-2xl border border-white/5 bg-white/[0.04] p-3">
-          <div className="flex items-center gap-3">
-            <Avatar name={user.fullName} size={38} />
+        <div className="relative mx-3.5 mb-4 px-1 py-1.5">
+          <div className="flex items-center gap-2.5">
+            <span className="grid size-9 flex-none place-items-center rounded-full bg-[#ffc531] text-sm font-extrabold text-[#16120f]">{initials(user.fullName)}</span>
             <div className="min-w-0 flex-1">
-              <div className="truncate text-sm font-semibold text-white">{user.fullName}</div>
-              <div className="truncate text-xs text-white/50">
+              <div className="truncate text-sm font-bold text-white">{user.fullName}</div>
+              <div className="truncate text-xs text-[#a89c90]">
                 {roleLabel}
                 {user.branch ? ` · ${user.branch.name.replace("FilialHub ", "")}` : ""}
               </div>
             </div>
             <button
               onClick={logout}
-              className="grid size-9 cursor-pointer place-items-center rounded-lg text-white/50 transition hover:bg-[#e4002b] hover:text-white"
+              className="grid size-9 cursor-pointer place-items-center rounded-lg text-[#a89c90] transition hover:bg-[#dc3b1c] hover:text-white"
               aria-label={tr("Баромад")}
               title={tr("Баромад")}
             >
@@ -322,18 +348,18 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
       {/* Top bar */}
       <header className="glass sticky top-0 z-20 border-b border-line">
-        <div className="mx-auto flex h-16 max-w-[1400px] items-center gap-2 px-4 sm:gap-3 sm:px-6 lg:px-10">
+        <div className="mx-auto flex h-16 max-w-[1400px] items-center gap-2 px-4 sm:gap-3 sm:px-6 lg:h-[76px] lg:px-7">
           <div className="lg:hidden">
             <Logo compact org={user.organization} />
           </div>
-          <div className="hidden min-w-0 items-center gap-2 text-sm text-muted lg:flex">
-            {current && <current.icon className="size-4" />}
-            <span className="truncate font-medium text-ink-2">{current ? tr(current.label) : "FilialHub"}</span>
+          <div className="hidden min-w-0 flex-col lg:flex">
+            <span className="truncate text-xs font-medium text-muted">{user.organization?.name ?? "FilialHub"}</span>
+            <span className="truncate font-display text-[19px] font-bold tracking-tight text-ink">{current ? tr(current.label) : "FilialHub"}</span>
           </div>
           {canSearch ? (
           <button
             onClick={() => setPaletteOpen(true)}
-            className="ml-auto flex h-10 cursor-pointer items-center gap-2 rounded-xl border border-line bg-surface px-3 text-sm text-muted transition hover:border-brand/40 hover:text-ink lg:ml-6 lg:w-80"
+            className="ml-auto flex h-10 cursor-pointer items-center gap-2.5 rounded-[14px] bg-surface-2 px-3 text-sm font-medium text-muted transition hover:text-ink lg:ml-6 lg:h-11 lg:w-[380px] lg:px-3.5"
             aria-label={tr("Ҷустуҷӯ")}
           >
             <Search className="size-4" />
@@ -352,7 +378,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <LangSwitcher />
             <button
               onClick={toggle}
-              className="grid size-10 cursor-pointer place-items-center rounded-xl text-ink-2 transition hover:bg-surface-2"
+              className="grid size-10 cursor-pointer place-items-center rounded-[14px] border border-line bg-surface text-ink transition hover:border-ink-2/40 lg:size-11"
               aria-label={theme === "dark" ? tr("Мавзӯи равшан") : tr("Мавзӯи торик")}
               title={theme === "dark" ? tr("Равшан") : tr("Торик")}
             >

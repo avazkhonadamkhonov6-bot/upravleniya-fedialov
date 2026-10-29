@@ -19,7 +19,7 @@ export function HeroFX({ className, children }: { className?: string; children: 
     let frame = 0;
     let lastSpark = 0;
     let last: PointerEvent | null = null;
-    const COLORS = ["#ff5a6e", "#f59e0b", "#ec4899", "#a78bfa", "#38bdf8"];
+    const COLORS = ["#ff7a1a", "#f59e0b", "#ec4899", "#a78bfa", "#38bdf8"];
 
     const apply = () => {
       frame = 0;

@@ -57,7 +57,8 @@ export function PendingBusiness({ user }: { user: User }) {
 
   return (
     <div className="relative min-h-screen overflow-hidden px-4 py-8 sm:py-14">
-      <div className="blob-drift pointer-events-none absolute -top-32 -right-32 size-80 rounded-full bg-brand opacity-15 blur-3xl" />
+      <div className="pointer-events-none absolute -top-24 -right-24 size-64 rounded-full bg-[#ff7a1a]" />
+      <div className="float-y pointer-events-none absolute top-40 right-16 size-12 rounded-full bg-[#ffc531]" />
       <div className="relative mx-auto w-full max-w-xl space-y-5">
         <div className="flex items-center justify-between gap-3">
           <Logo org={org} />

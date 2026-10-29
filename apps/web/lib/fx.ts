@@ -50,7 +50,7 @@ export function bumpCart() {
   });
 }
 
-const COLORS = ["#e4002b", "#ff5a36", "#f59e0b", "#16a34a", "#2563eb", "#7c3aed", "#ec4899"];
+const COLORS = ["#dc3b1c", "#ff7a1a", "#f59e0b", "#16a34a", "#2563eb", "#ffc531", "#ec4899"];
 
 /** Конфетти аз нуқтаи (x, y) — масалан ҳангоми фиристодани фармоиш */
 export function confetti(x = window.innerWidth / 2, y = window.innerHeight / 2, count = 90) {

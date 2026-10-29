@@ -101,7 +101,7 @@ function BusinessRow({ b, onChanged }: { b: AdminBusiness; onChanged: () => void
   return (
     <div className="rounded-2xl border border-line bg-surface-2/50 p-4 transition hover:border-brand/30">
       <div className="flex flex-col gap-4 md:flex-row md:items-start">
-        <div className="brand-gradient grid size-12 shrink-0 place-items-center rounded-2xl text-white shadow-lg shadow-red-500/20">
+        <div className="brand-gradient grid size-12 shrink-0 place-items-center rounded-2xl text-white">
           <BusinessIcon type={b.type} className="size-6" />
         </div>
         <div className="min-w-0 flex-1">

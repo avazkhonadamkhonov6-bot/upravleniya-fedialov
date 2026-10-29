@@ -29,7 +29,7 @@ export function SalaryCard({ user }: { user: User }) {
 
       <div className="mt-5 rounded-2xl bg-brand-soft p-4">
         <div className="flex items-center gap-3">
-          <span className="brand-gradient grid size-11 shrink-0 place-items-center rounded-xl text-white shadow-lg shadow-red-500/25">
+          <span className="brand-gradient grid size-11 shrink-0 place-items-center rounded-xl text-white">
             <CalendarCheck className="size-5" />
           </span>
           <div className="min-w-0">

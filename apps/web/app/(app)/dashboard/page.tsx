@@ -240,8 +240,8 @@ function StaffHome() {
     <>
       <PageHeader title={`${greeting()}, ${u.fullName.split(" ")[0]} 👋`} subtitle={tr("Саҳифаи корманд")} actions={<ShiftButton />} />
       <div className="grid grid-cols-[minmax(0,1fr)] gap-6 lg:grid-cols-2">
-        <div className="rise relative overflow-hidden rounded-[24px] bg-[#170d0f] p-7 text-white shadow-card">
-          <div className="absolute -top-20 -right-20 size-64 rounded-full bg-[#e4002b] opacity-40 blur-3xl" />
+        <div className="rise relative overflow-hidden rounded-[24px] bg-[#16120f] p-7 text-white shadow-card">
+          <div className="absolute -top-16 -right-16 size-52 rounded-full bg-[#dc3b1c]" />
           <div className="relative grid size-16 place-items-center rounded-2xl bg-white/10"><PositionIcon position={u.position} className="size-9" /></div>
           <div className="relative mt-4 text-sm text-white/60">{tr("Вазифаи шумо")}</div>
           <div className="relative text-3xl font-bold">{u.position ? tr(POSITION_LABELS[u.position]) : tr("Корманд")}</div>

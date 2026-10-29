@@ -321,9 +321,9 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
     <CallsContext.Provider value={{ startCall, busy: phase !== "idle" }}>
       {children}
       {phase !== "idle" && (
-        <div className="call-in fixed inset-0 z-[70] flex flex-col overflow-hidden bg-[#0f0a0b] text-white" role="dialog" aria-label={tr("Занг")}>
-          <div className="pointer-events-none absolute -top-40 -left-40 size-[520px] rounded-full bg-[#e4002b] opacity-30 blur-[120px]" />
-          <div className="pointer-events-none absolute -right-32 -bottom-40 size-[460px] rounded-full bg-[#ff5a36] opacity-20 blur-[120px]" />
+        <div className="call-in fixed inset-0 z-[70] flex flex-col overflow-hidden bg-[#120e0c] text-white" role="dialog" aria-label={tr("Занг")}>
+          <div className="pointer-events-none absolute -top-40 -left-40 size-[420px] rounded-full bg-[#dc3b1c] opacity-60" />
+          <div className="pointer-events-none absolute -right-24 -bottom-24 size-[260px] rounded-full bg-[#ff7a1a] opacity-50" />
           <audio ref={remoteAudio} autoPlay />
 
           {video && phase !== "incoming" ? (
@@ -357,7 +357,7 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
           <div className="relative z-10 mt-auto flex items-center justify-center gap-5 p-8 pb-[calc(2rem+env(safe-area-inset-bottom))]">
             {phase === "incoming" ? (
               <>
-                <CallButton onClick={decline} label={tr("Рад кардан")} className="bg-[#e4002b] hover:bg-[#c80026]">
+                <CallButton onClick={decline} label={tr("Рад кардан")} className="bg-[#dc3b1c] hover:bg-[#b8300f]">
                   <PhoneOff className="size-7" />
                 </CallButton>
                 <CallButton onClick={accept} label={tr("Ҷавоб додан")} className="call-bounce bg-[#1fa855] hover:bg-[#178a45]">
@@ -366,15 +366,15 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
               </>
             ) : (
               <>
-                <CallButton onClick={toggleMute} label={muted ? tr("Микрофонро фаъол кардан") : tr("Микрофонро хомӯш кардан")} className={muted ? "bg-white text-[#0f0a0b]" : "bg-white/15 hover:bg-white/25"}>
+                <CallButton onClick={toggleMute} label={muted ? tr("Микрофонро фаъол кардан") : tr("Микрофонро хомӯш кардан")} className={muted ? "bg-white text-[#120e0c]" : "bg-white/15 hover:bg-white/25"}>
                   {muted ? <MicOff className="size-6" /> : <Mic className="size-6" />}
                 </CallButton>
                 {video && (
-                  <CallButton onClick={toggleCam} label={camOff ? tr("Камераро фаъол кардан") : tr("Камераро хомӯш кардан")} className={camOff ? "bg-white text-[#0f0a0b]" : "bg-white/15 hover:bg-white/25"}>
+                  <CallButton onClick={toggleCam} label={camOff ? tr("Камераро фаъол кардан") : tr("Камераро хомӯш кардан")} className={camOff ? "bg-white text-[#120e0c]" : "bg-white/15 hover:bg-white/25"}>
                     {camOff ? <VideoOff className="size-6" /> : <Video className="size-6" />}
                   </CallButton>
                 )}
-                <CallButton onClick={hangUp} label={tr("Қатъ кардан")} className="bg-[#e4002b] hover:bg-[#c80026]">
+                <CallButton onClick={hangUp} label={tr("Қатъ кардан")} className="bg-[#dc3b1c] hover:bg-[#b8300f]">
                   <PhoneOff className="size-7" />
                 </CallButton>
               </>

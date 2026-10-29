@@ -3,42 +3,49 @@
 @custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
 
 :root {
-  --bg: #f6f3f0;
+  /* Палитраи FilialHub (дизайни 2026-10): сурх #DC3B1C (барои матн каме тиратар — контраст 4.5:1), норанҷӣ #FF7A1A, зард #FFC531, сиёҳ #16120F, крем #FBF6EF, рег #F3EBDF */
+  --bg: #fbf6ef;
   --surface: #ffffff;
-  --surface-2: #faf8f6;
-  --ink: #1d1517;
-  --ink-2: #4a4044;
-  --muted: #8a7f82;
-  --line: #ece6e2;
-  --brand: #e4002b;
-  --brand-2: #ff5a36;
-  --brand-soft: #fde8eb;
-  --chart-revenue: #e4002b;
-  --chart-profit: #2563eb;
-  --good: #0f8a4a;
-  --good-soft: #e3f5ea;
-  --warn: #b45309;
-  --warn-soft: #fdf1e1;
-  --shadow: 0 1px 2px rgb(29 21 23 / 0.04), 0 8px 24px -12px rgb(29 21 23 / 0.12);
+  --surface-2: #f3ebdf;
+  --ink: #16120f;
+  --ink-2: #3e342d;
+  --muted: #6b5d50;
+  --line: #e8ddcf;
+  --brand: #c9351a;
+  --brand-2: #ff7a1a;
+  --brand-soft: #ffece3;
+  --brand-ink: #a82a10;
+  --sun: #ffc531;
+  --night: #16120f;
+  --chart-revenue: #dc3b1c;
+  --chart-profit: #1f5fad;
+  --good: #17663a;
+  --good-soft: #e3f4e9;
+  --warn: #7a5600;
+  --warn-soft: #fff1c9;
+  --shadow: 0 1px 2px rgb(22 18 15 / 0.04), 0 10px 28px -16px rgb(22 18 15 / 0.14);
 }
 
 [data-theme="dark"] {
-  --bg: #120d0e;
-  --surface: #1c1617;
-  --surface-2: #231c1d;
-  --ink: #f6eeee;
-  --ink-2: #cdbfc1;
-  --muted: #8f8184;
-  --line: #2f2627;
-  --brand: #f0384a;
-  --brand-2: #ff7350;
-  --brand-soft: #3a1a1f;
-  --chart-revenue: #f0384a;
-  --chart-profit: #4c8df0;
-  --good: #3ccf7f;
-  --good-soft: #13301f;
-  --warn: #f5a623;
-  --warn-soft: #33260f;
+  --bg: #1a1512;
+  --surface: #241d18;
+  --surface-2: #2c241e;
+  --ink: #f5eee6;
+  --ink-2: #d9cfc4;
+  --muted: #b3a79b;
+  --line: #3a2f27;
+  --brand: #ec5634;
+  --brand-2: #ff9a3d;
+  --brand-soft: #3d1a11;
+  --brand-ink: #ffb59e;
+  --sun: #ffc531;
+  --night: #120e0c;
+  --chart-revenue: #ec5634;
+  --chart-profit: #7fa8ff;
+  --good: #7fe0a6;
+  --good-soft: #173a26;
+  --warn: #ffd66b;
+  --warn-soft: #3b2e12;
   --shadow: 0 1px 2px rgb(0 0 0 / 0.3), 0 12px 32px -16px rgb(0 0 0 / 0.6);
 }
 
@@ -53,11 +60,15 @@
   --color-brand: var(--brand);
   --color-brand-2: var(--brand-2);
   --color-brand-soft: var(--brand-soft);
+  --color-brand-ink: var(--brand-ink);
+  --color-sun: var(--sun);
+  --color-night: var(--night);
   --color-good: var(--good);
   --color-good-soft: var(--good-soft);
   --color-warn: var(--warn);
   --color-warn-soft: var(--warn-soft);
   --font-sans: var(--font-inter);
+  --font-display: var(--font-unbounded), var(--font-inter), sans-serif;
   --shadow-card: var(--shadow);
 }
 
@@ -86,12 +97,17 @@ body {
 .card {
   background: var(--surface);
   border: 1px solid var(--line);
-  border-radius: 20px;
+  border-radius: 22px;
   box-shadow: var(--shadow);
 }
 
+/* Дизайни FilialHub ҳамвор аст: тугмаҳо ва нишонаҳо якранги сурх */
 .brand-gradient {
-  background: linear-gradient(135deg, var(--brand) 0%, var(--brand-2) 100%);
+  background: var(--brand);
+}
+/* Танҳо логотип — сурх→норанҷӣ */
+.brand-fire {
+  background: linear-gradient(135deg, #dc3b1c 0%, #ff7a1a 100%);
 }
 
 .tabular {
@@ -235,9 +251,10 @@ body {
   animation: pulse-ring 1.6s infinite;
 }
 
+/* Менюи паҳлӯ: банди фаъол — пурра сурх (дизайни FilialHub) */
 .nav-active {
-  background: linear-gradient(90deg, rgb(228 0 43 / 0.28), rgb(255 90 54 / 0.08));
-  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.06);
+  background: #dc3b1c;
+  box-shadow: 0 8px 20px -10px rgb(220 59 28 / 0.7);
 }
 
 .scrollbar-none {
@@ -441,13 +458,13 @@ aside nav a:hover span:first-child {
 @keyframes call-pulse {
   0% {
     box-shadow:
-      0 0 0 0 rgb(228 0 43 / 0.45),
-      0 0 0 0 rgb(228 0 43 / 0.25);
+      0 0 0 0 rgb(220 59 28 / 0.45),
+      0 0 0 0 rgb(220 59 28 / 0.25);
   }
   100% {
     box-shadow:
-      0 0 0 28px rgb(228 0 43 / 0),
-      0 0 0 56px rgb(228 0 43 / 0);
+      0 0 0 28px rgb(220 59 28 / 0),
+      0 0 0 56px rgb(220 59 28 / 0);
   }
 }
 .call-pulse {
@@ -717,7 +734,7 @@ main tbody tr,
   z-index: 60;
   height: 3px;
   transform-origin: left;
-  background: linear-gradient(90deg, var(--brand), var(--brand-2), #ffb36b);
+  background: linear-gradient(90deg, var(--brand), var(--brand-2), #ffc531);
   box-shadow: 0 0 12px var(--brand);
   animation: route-progress 0.7s cubic-bezier(0.2, 0.7, 0.2, 1) forwards;
   pointer-events: none;
@@ -769,6 +786,7 @@ main tbody tr,
 }
 .nav-active::before {
   content: "";
+  display: none;
   position: absolute;
   top: 22%;
   bottom: 22%;
@@ -1023,7 +1041,7 @@ main tbody tr,
   height: 55vmax;
   border-radius: 9999px;
   filter: blur(90px);
-  opacity: 0.16;
+  opacity: 0.1;
   animation: aurora 26s ease-in-out infinite alternate;
 }
 .aurora::before {
@@ -1032,7 +1050,7 @@ main tbody tr,
   right: -14vmax;
 }
 .aurora::after {
-  background: #7c3aed;
+  background: #ffc531;
   bottom: -26vmax;
   left: -18vmax;
   animation-duration: 32s;
@@ -1053,7 +1071,7 @@ main tbody tr,
 
 /* 7. Матни градиентии ҷилодор */
 .text-aurora {
-  background: linear-gradient(90deg, var(--brand), #f59e0b, #ec4899, #7c3aed, var(--brand));
+  background: linear-gradient(90deg, var(--brand), #f59e0b, #ec4899, #ffc531, var(--brand));
   background-size: 300% 100%;
   -webkit-background-clip: text;
   background-clip: text;

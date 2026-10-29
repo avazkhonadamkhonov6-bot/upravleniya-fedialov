@@ -59,9 +59,9 @@ function BranchView() {
           )}
         </div>
       )}
-      <div className="rise relative mb-6 overflow-hidden rounded-[24px] bg-[#170d0f] p-6 text-white shadow-card sm:p-8">
-        <div className="absolute -top-24 -right-10 size-72 rounded-full bg-[#e4002b] opacity-45 blur-3xl" />
-        <div className="absolute -bottom-24 left-1/3 size-64 rounded-full bg-[#ff5a36] opacity-20 blur-3xl" />
+      <div className="rise relative mb-6 overflow-hidden rounded-[24px] bg-[#16120f] p-6 text-white shadow-card sm:p-8">
+        <div className="absolute -top-20 -right-16 size-60 rounded-full bg-[#dc3b1c]" />
+        <div className="absolute right-48 -bottom-10 size-20 rounded-full bg-[#ffc531]" />
         <div className="relative flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
           <div>
             <div className="flex items-center gap-2">

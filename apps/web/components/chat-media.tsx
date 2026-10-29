@@ -39,7 +39,7 @@ export function VoiceBubble({ id, mediaId, seconds, mine }: { id: number; mediaI
         aria-label={playing ? tr("Таваққуф") : tr("Гӯш кардан")}
         className={cn(
           "grid size-10 shrink-0 cursor-pointer place-items-center rounded-full transition active:scale-90 disabled:cursor-wait",
-          mine ? "bg-white/25 text-white hover:bg-white/35" : "brand-gradient text-white shadow-md shadow-red-500/25",
+          mine ? "bg-white/25 text-white hover:bg-white/35" : "brand-gradient text-white shadow-md",
         )}
       >
         {!url && !error ? <Loader2 className="size-4 animate-spin" /> : playing ? <Pause className="size-4" /> : <Play className="ml-0.5 size-4" />}
@@ -212,7 +212,7 @@ export function VoiceRecorder({ onSend, onCancel }: { onSend: (r: Recording) => 
           rec.stop();
         }}
         disabled={!rec.recording}
-        className="brand-gradient grid size-9 cursor-pointer place-items-center rounded-full text-white shadow-md shadow-red-500/30 transition active:scale-90 disabled:opacity-50"
+        className="brand-gradient grid size-9 cursor-pointer place-items-center rounded-full text-white shadow-md transition active:scale-90 disabled:opacity-50"
         aria-label={tr("Фиристодан")}
       >
         <Send className="size-4" />
@@ -266,7 +266,7 @@ export function VideoNoteRecorder({ onSend, onClose }: { onSend: (r: Recording) 
         <div className="relative size-72 sm:size-80">
           <svg className="absolute inset-0 size-full -rotate-90" viewBox="0 0 100 100" aria-hidden>
             <circle cx="50" cy="50" r="48.5" fill="none" stroke="rgb(255 255 255 / 0.2)" strokeWidth="2" />
-            <circle cx="50" cy="50" r="48.5" fill="none" stroke="#e4002b" strokeWidth="3" strokeLinecap="round" pathLength={100} strokeDasharray={`${progress * 100} 100`} className="transition-[stroke-dasharray] duration-300" />
+            <circle cx="50" cy="50" r="48.5" fill="none" stroke="#dc3b1c" strokeWidth="3" strokeLinecap="round" pathLength={100} strokeDasharray={`${progress * 100} 100`} className="transition-[stroke-dasharray] duration-300" />
           </svg>
           <div className="absolute inset-[6px] overflow-hidden rounded-full bg-black">
             <video ref={preview} autoPlay muted playsInline className="size-full object-cover" style={{ transform: "scaleX(-1)" }} />
@@ -278,7 +278,7 @@ export function VideoNoteRecorder({ onSend, onClose }: { onSend: (r: Recording) 
           </div>
           {rec.recording && (
             <span className="absolute top-3 left-1/2 flex -translate-x-1/2 items-center gap-1.5 rounded-full bg-black/60 px-2.5 py-1 text-xs font-semibold text-white tabular">
-              <span className="size-2 animate-pulse rounded-full bg-[#e4002b]" /> {clock(rec.seconds)} / {clock(VIDEO_NOTE_MAX_SECONDS)}
+              <span className="size-2 animate-pulse rounded-full bg-[#dc3b1c]" /> {clock(rec.seconds)} / {clock(VIDEO_NOTE_MAX_SECONDS)}
             </span>
           )}
         </div>
@@ -294,7 +294,7 @@ export function VideoNoteRecorder({ onSend, onClose }: { onSend: (r: Recording) 
             <button
               onClick={start}
               disabled={!ready}
-              className="grid size-16 cursor-pointer place-items-center rounded-full bg-[#e4002b] text-white shadow-xl shadow-red-500/40 transition active:scale-90 disabled:opacity-50"
+              className="grid size-16 cursor-pointer place-items-center rounded-full bg-[#dc3b1c] text-white transition active:scale-90 disabled:opacity-50"
               aria-label={tr("Сабтро оғоз кардан")}
             >
               <Video className="size-7" />
@@ -305,7 +305,7 @@ export function VideoNoteRecorder({ onSend, onClose }: { onSend: (r: Recording) 
                 sendOnStop.current = true;
                 rec.stop();
               }}
-              className="grid size-16 cursor-pointer place-items-center rounded-full bg-white text-[#e4002b] shadow-xl transition active:scale-90"
+              className="grid size-16 cursor-pointer place-items-center rounded-full bg-white text-[#dc3b1c] shadow-xl transition active:scale-90"
               aria-label={tr("Фиристодан")}
             >
               <Send className="size-7" />
@@ -333,7 +333,7 @@ export function RecordButtons({ onVoice, onVideo, disabled }: { onVoice: () => v
       <button
         onClick={onVoice}
         disabled={disabled}
-        className="brand-gradient grid size-11 shrink-0 cursor-pointer place-items-center rounded-xl text-white shadow-md shadow-red-500/25 transition active:scale-90 disabled:opacity-50"
+        className="brand-gradient grid size-11 shrink-0 cursor-pointer place-items-center rounded-xl text-white shadow-md transition active:scale-90 disabled:opacity-50"
         aria-label={tr("Паёми овозӣ")}
         title={tr("Паёми овозӣ")}
       >

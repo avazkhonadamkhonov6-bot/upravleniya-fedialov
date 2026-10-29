@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";
 import { LangSwitcher } from "@/components/lang-switcher";
+import { BrandMark } from "@/components/brand-mark";
 import { Logo } from "@/components/shell";
 import { Button, ErrorBox, Field, Input, cn } from "@/components/ui";
 import { useAuth } from "@/lib/auth";
@@ -13,6 +14,18 @@ import { tr } from "@/lib/i18n";
 import { BusinessIcon } from "@/components/glyph";
 
 type Role = "chef" | "client";
+
+/** Ранги ҳар навъи бизнес (аз дизайн) */
+const TYPE_DOT: Record<BusinessType, string> = {
+  RESTAURANT: "#DC3B1C",
+  GROCERY: "#1E7A45",
+  CLOTHING: "#16120F",
+  PLUMBING: "#1F5FAD",
+  ELECTRONICS: "#2B2F5C",
+  PHARMACY: "#2BA597",
+  BUILDING: "#E0A500",
+  OTHER: "#FF7A1A",
+};
 
 /**
  * Сабти ном бо ду нақш:
@@ -35,6 +48,15 @@ function Register() {
   const [f, setF] = useState({ businessName: "", fullName: "", email: "", phone: "", address: "", password: "" });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Саҳифа пинҳон нигоҳ дошта мешавад — ҳангоми баромадан ҳолати «интизорӣ» ва паролро тоза мекунем.
+  useEffect(
+    () => () => {
+      setBusy(false);
+      setF((x) => ({ ...x, password: "" }));
+    },
+    [],
+  );
 
   useEffect(() => {
     if (busy) return;
@@ -65,9 +87,30 @@ function Register() {
   const set = (k: keyof typeof f) => (e: React.ChangeEvent<HTMLInputElement>) => setF({ ...f, [k]: e.target.value });
 
   return (
-    <div className="relative flex min-h-screen justify-center overflow-hidden p-4 sm:p-12">
-      <div className="blob-drift pointer-events-none absolute -top-32 -right-32 size-80 rounded-full bg-brand opacity-15 blur-3xl" />
-      <div className="blob-drift-slow pointer-events-none absolute -bottom-32 -left-24 size-72 rounded-full bg-brand-2 opacity-15 blur-3xl" />
+    <div className="grid min-h-screen lg:grid-cols-[1fr_1.2fr]">
+      {/* Қисми сурх (дизайни FilialHub) */}
+      <aside className="relative hidden overflow-hidden bg-[#dc3b1c] px-12 py-10 text-white lg:sticky lg:top-0 lg:flex lg:h-screen lg:flex-col lg:justify-between lg:gap-10">
+        <Link href="/" className="relative flex items-center gap-2.5" aria-label="FilialHub">
+          <BrandMark dark className="size-9" />
+          <span className="font-display text-xl font-bold">FilialHub</span>
+        </Link>
+        <div className="pointer-events-none absolute -right-20 -bottom-20 size-[360px] rounded-full bg-[#ff7a1a]" aria-hidden />
+        <div className="float-y pointer-events-none absolute top-[110px] right-[56px] size-[90px] rounded-full bg-[#ffc531]" aria-hidden />
+        <div className="relative flex max-w-[520px] flex-col gap-5">
+          <h2 className="reveal-up font-display text-[clamp(40px,4.6vw,72px)] leading-[1.02] font-extrabold tracking-[-0.035em] uppercase">{tr("Хуш омадед ба кор.")}</h2>
+          <p className="reveal-up text-lg leading-relaxed text-[#ffe6da]" style={{ animationDelay: "0.15s" }}>
+            {tr("Бизнеси худро созед. Филиалҳо, кормандон ва касса баъдтар ҳам илова мешаванд.")}
+          </p>
+        </div>
+        <div className="relative flex flex-wrap gap-2.5">
+          {[tr("Тоҷикӣ · Русӣ · English"), tr("Равшан ва тира")].map((t) => (
+            <span key={t} className="rounded-full bg-[#16120f]/20 px-3.5 py-2.5 text-sm font-semibold">
+              {t}
+            </span>
+          ))}
+        </div>
+      </aside>
+    <div className="relative flex justify-center overflow-hidden p-4 sm:p-12">
       <LangSwitcher className="absolute top-4 right-4 z-10" />
       <div className="relative w-full max-w-2xl pt-10 sm:pt-0">
         <div className="mb-8 flex items-center justify-between gap-3">
@@ -76,7 +119,7 @@ function Register() {
             <ArrowLeft className="size-4" /> {tr("Даромадан")}
           </Link>
         </div>
-        <h1 className="text-2xl font-bold tracking-tight text-ink sm:text-3xl">{tr("Сабти ном")}</h1>
+        <h1 className="font-display text-2xl font-bold tracking-tight text-ink sm:text-3xl">{tr("Сабти ном")}</h1>
         <p className="mt-2 text-muted">{tr("Шумо кистед?")}</p>
 
         <div className="mt-5 grid grid-cols-2 gap-3" role="tablist">
@@ -114,7 +157,7 @@ function Register() {
           {role === "chef" && (
             <div>
               <div className="mb-2 text-xs font-semibold tracking-wide text-muted uppercase">{tr("Бизнеси шумо чист?")}</div>
-              <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+              <div className="flex flex-wrap gap-2">
                 {BUSINESS_TYPES.map((t) => (
                   <button
                     key={t}
@@ -122,12 +165,13 @@ function Register() {
                     onClick={() => setType(t)}
                     aria-pressed={type === t}
                     className={cn(
-                      "card flex cursor-pointer flex-col items-start gap-2 p-3 text-left transition hover:-translate-y-0.5 hover:border-brand/40",
-                      type === t && "border-brand ring-4 ring-brand/15",
+                      "inline-flex min-h-11 cursor-pointer items-center gap-2 rounded-full border-[1.5px] px-3.5 text-sm font-semibold transition",
+                      type === t ? "border-ink bg-ink text-bg" : "border-line bg-surface text-ink hover:border-ink-2/40",
                     )}
                   >
-                    <span className="grid size-10 place-items-center rounded-xl bg-brand-soft text-brand"><BusinessIcon type={t} className="size-5" /></span>
-                    <span className="text-sm font-semibold text-ink">{tr(BUSINESS_TYPE_LABELS[t])}</span>
+                    <span className="size-2.5 rounded-full" style={{ background: TYPE_DOT[t] }} aria-hidden />
+                    <BusinessIcon type={t} className="size-4" />
+                    {tr(BUSINESS_TYPE_LABELS[t])}
                   </button>
                 ))}
               </div>
@@ -170,6 +214,7 @@ function Register() {
           </p>
         </form>
       </div>
+    </div>
     </div>
   );
 }

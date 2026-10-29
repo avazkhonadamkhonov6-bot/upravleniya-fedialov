@@ -2,85 +2,86 @@ import {
   ArrowRight,
   BarChart3,
   BrickWall,
-  Building2,
   CalendarClock,
-  ChefHat,
-  Coffee,
-  Crown,
+  Check,
+  ClipboardList,
   Droplets,
-  HeartHandshake,
+  Gift,
+  History,
   MessagesSquare,
   Pill,
-  Rocket,
+  Send,
   Shirt,
   ShoppingBag,
   ShoppingBasket,
   Smartphone,
-  Store,
-  UserRound,
   UtensilsCrossed,
+  Users,
   Wallet,
   type LucideIcon,
 } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { AuthRedirect } from "@/components/auth-redirect";
-import { HeroFX } from "@/components/hero-fx";
+import { BrandMark } from "@/components/brand-mark";
 import { SITE_DESCRIPTION, SITE_NAME, SITE_URL } from "@/lib/site";
 
-// Саҳифаи ҷамъиятӣ — Server Component: HTML-и тайёр барои Google; эффектҳои курсор дар HeroFX (client).
+// Саҳифаи ҷамъиятӣ — Server Component: HTML-и тайёр барои Google. Услуб: дизайни FilialHub (сурх, сиёҳ, зард, крем).
 export const metadata: Metadata = {
   title: { absolute: `${SITE_NAME} — CRM, филиалҳо ва бозори онлайн` },
   description: SITE_DESCRIPTION,
   alternates: { canonical: "/" },
 };
 
-const FEATURES: { icon: LucideIcon; title: string; text: string }[] = [
-  { icon: BarChart3, title: "Фурӯш ва фоида", text: "Рӯзона, ҳафтаина ва моҳона барои ҳар филиал: фурӯш, арзиши аслӣ, хароҷот ва фоидаи соф." },
-  { icon: Building2, title: "Ҳамаи филиалҳо", text: "Рейтинги филиалҳо, кормандон аз рӯи вазифа ва менеҷери ҳар филиал дар як экран." },
-  { icon: Wallet, title: "Касса (POS)", text: "Фурӯши зуд бо сабад, пардохти нақд ё корт, бонуси мизоҷ ва таърихи чекҳо." },
-  { icon: HeartHandshake, title: "Мизоҷон ва бонус", text: "5% бонус аз ҳар харид, сегментҳо (VIP, доимӣ, нав), зодрӯзҳо." },
-  { icon: CalendarClock, title: "Ҷадвал ва давомот", text: "Сменаҳо, омад/рафт, дер омадан ва вазифаҳо дар Kanban." },
-  { icon: MessagesSquare, title: "Telegram ва WhatsApp", text: "Ҳисоботи рӯзона ба шеф ва менеҷерҳо, чат бо кормандон." },
+const BARS = [
+  ["Дш", 46],
+  ["Сш", 58],
+  ["Чш", 52],
+  ["Пш", 70],
+  ["Ҷм", 88],
+  ["Шб", 100],
+  ["Як", 74],
+] as const;
+
+/** Навъҳои бизнес — ҳар кадом ранги худро дар бозор дорад */
+const KINDS: { name: string; mood: string; icon: LucideIcon; cls: string; chip: string }[] = [
+  { name: "Тарабхона", mood: "Сурх ва гарм", icon: UtensilsCrossed, cls: "bg-[#dc3b1c] text-white", chip: "bg-white/20" },
+  { name: "Хӯрокворӣ", mood: "Сабз ва тоза", icon: ShoppingBasket, cls: "bg-[#1e7a45] text-white", chip: "bg-white/20" },
+  { name: "Либос", mood: "Сиёҳ ва мӯдбоб", icon: Shirt, cls: "bg-[#16120f] text-white", chip: "bg-white/15" },
+  { name: "Сантехника", mood: "Кабуд ва равшан", icon: Droplets, cls: "bg-[#1f5fad] text-white", chip: "bg-white/20" },
+  { name: "Электроника", mood: "Торик ва дақиқ", icon: Smartphone, cls: "bg-[#2b2f5c] text-white", chip: "bg-white/15" },
+  { name: "Дорухона", mood: "Софу ором", icon: Pill, cls: "bg-[#ddf1ee] text-[#0e5a52]", chip: "bg-white" },
+  { name: "Маводи сохтмонӣ", mood: "Зарду боқувват", icon: BrickWall, cls: "bg-[#ffc531] text-[#16120f]", chip: "bg-black/10" },
 ];
 
-/** Лентаи навъҳои бизнес (такрор — барои давомнокии беканор) */
-const BUSINESSES: [LucideIcon, string][] = [
-  [UtensilsCrossed, "Тарабхона"],
-  [ShoppingBasket, "Хӯрокворӣ"],
-  [Shirt, "Либос"],
-  [Droplets, "Сантехника"],
-  [Smartphone, "Техника"],
-  [Pill, "Дорухона"],
-  [BrickWall, "Маводи сохтмонӣ"],
-  [Coffee, "Қаҳвахона"],
-  [Store, "Мағоза"],
+const FEATURES: { t: string; d: string; icon: LucideIcon; cls: string }[] = [
+  { t: "Панели асосӣ", d: "Фурӯш, фоида ва хароҷот барои рӯз, ҳафта ва моҳ — бо графикҳо.", icon: BarChart3, cls: "bg-[#ffe9dc] text-[#c23215]" },
+  { t: "Филиалҳо ва кормандон", d: "Рӯйхат, маълумот ва маоши ҳар корманд дар ҳар филиал.", icon: Users, cls: "bg-[#16120f] text-white" },
+  { t: "Касса (POS)", d: "Фурӯши тез, пардохт бо нақд ё корт.", icon: Wallet, cls: "bg-[#fff1c9] text-[#7a5600]" },
+  { t: "Мизоҷон ва бонус", d: "Аз ҳар харид 5% бонус худкор ҷамъ мешавад.", icon: Gift, cls: "bg-[#ffe9dc] text-[#c23215]" },
+  { t: "Вазифаҳо", d: "Тахтаи Kanban: вазифа диҳед ва пешравиро бинед.", icon: ClipboardList, cls: "bg-[#e3f4e9] text-[#17663a]" },
+  { t: "Ҷадвал ва давомот", d: "Кӣ кай омад, кай рафт ва кӣ дер монд.", icon: CalendarClock, cls: "bg-[#ffe9dc] text-[#c23215]" },
+  { t: "Хароҷот ва фоидаи соф", d: "Ҳамаи хароҷотро нависед ва фоидаи аслиро бинед.", icon: Wallet, cls: "bg-[#16120f] text-white" },
+  { t: "Фармоишҳои онлайн", d: "Фармоишҳо аз бозор рост ба панел меоянд.", icon: ShoppingBag, cls: "bg-[#fff1c9] text-[#7a5600]" },
+  { t: "Чат бо кормандон", d: "Пайваст ба WhatsApp ва Telegram: овоз, видео, занг.", icon: MessagesSquare, cls: "bg-[#ffe9dc] text-[#c23215]" },
+  { t: "Ҳисоботи ҳаррӯза", d: "Ҳар шаб ба Telegram ва WhatsApp меояд.", icon: Send, cls: "bg-[#e3f4e9] text-[#17663a]" },
+  { t: "Таърих ва ҷустуҷӯ", d: "Таърихи амалҳо, огоҳиномаҳо ва ҷустуҷӯи умумӣ.", icon: History, cls: "bg-[#ffe9dc] text-[#c23215]" },
 ];
 
-const STATS = [
-  { value: "8", label: "навъи бизнес" },
-  { value: "3", label: "забон" },
-  { value: "24/7", label: "бозори онлайн" },
-  { value: "100%", label: "ҷудоии маълумот" },
+const ROLES: { n: string; t: string; d: string; cls: string }[] = [
+  { n: "01", t: "Соҳиб", d: "Ҳама чизро мебинад.", cls: "bg-[#dc3b1c] text-white" },
+  { n: "02", t: "Менеҷер", d: "Танҳо филиали худашро.", cls: "bg-[#16120f] text-white" },
+  { n: "03", t: "Кассир", d: "Касса, таърихи фурӯш, профил.", cls: "bg-[#ffc531] text-[#16120f]" },
+  { n: "04", t: "Пешхизмат", d: "Меню ва профил.", cls: "bg-white text-[#16120f]" },
+  { n: "05", t: "Ошпаз · фаррош", d: "Профил ва маош.", cls: "bg-[#f3ebdf] text-[#16120f]" },
+  { n: "06", t: "Мизоҷ", d: "Танҳо бозори онлайн.", cls: "bg-[#ffe9dc] text-[#16120f]" },
 ];
 
-const ROLES: { icon: LucideIcon; role: string; sees: string }[] = [
-  { icon: Crown, role: "Шеф", sees: "Ҳамаи филиалҳо, ҳамаи менеҷерҳо ва кормандон — илова, таҳрир ва нест кардан." },
-  { icon: UserRound, role: "Менеҷер", sees: "Танҳо филиали худ: кормандон, фурӯш, мизоҷон, ҷадвал ва хароҷот." },
-  { icon: Wallet, role: "Кассир ва фурӯшанда", sees: "Фурӯши нав ва сабад, фармоишҳои онлайн, таърихи фурӯш, профил." },
-  { icon: UtensilsCrossed, role: "Официант", sees: "Меню ва нархҳо, профил." },
-  { icon: ChefHat, role: "Ошпаз ва фаррош", sees: "Профил, маош ва рӯзи гирифтани он." },
-  { icon: ShoppingBag, role: "Мизоҷ", sees: "Мағозаҳо, сабад, фармоишҳо ва профил — пардохт пас аз гирифтан." },
-];
-
-/** Плиткаҳои шинокунанда: [иконка, ҷой, андоза, чуқурии parallax, кунҷ, таъхир] */
-const FLOATERS: [LucideIcon, string, string, string, string, string][] = [
-  [UtensilsCrossed, "top-[20%] right-[12%]", "size-20", "3", "-10deg", "0s"],
-  [ShoppingBasket, "top-[50%] right-[25%]", "size-16", "2", "8deg", "1.2s"],
-  [Shirt, "top-[13%] right-[33%]", "size-14", "-1", "12deg", "2.1s"],
-  [Droplets, "top-[64%] right-[7%]", "size-16", "-2", "-6deg", "0.6s"],
-  [Pill, "top-[38%] right-[3%]", "size-12", "1", "14deg", "1.7s"],
-  [Smartphone, "top-[72%] right-[38%]", "size-12", "3", "-12deg", "0.9s"],
+const STEPS: { n: string; t: string; d: string; box: string; dot: string }[] = [
+  { n: "1", t: "Нав", d: "Фармоиш фиристода шуд", box: "bg-[#fbf6ef]", dot: "bg-[#16120f] text-white" },
+  { n: "2", t: "Қабул шуд", d: "Мағоза тайёр мекунад", box: "bg-[#ffe9dc]", dot: "bg-[#dc3b1c] text-white" },
+  { n: "3", t: "Дар роҳ", d: "Курйер меояд", box: "bg-[#fff1c9]", dot: "bg-[#ffc531] text-[#16120f]" },
+  { n: "4", t: "Гирифта шуд", d: "+5% бонус ҷамъ шуд", box: "bg-[#e3f4e9]", dot: "bg-[#1e8a4c] text-white" },
 ];
 
 const jsonLd = {
@@ -95,149 +96,325 @@ const jsonLd = {
   offers: { "@type": "Offer", price: "0", priceCurrency: "TJS" },
 };
 
+const H2 = "font-display text-[clamp(24px,7vw,52px)] leading-[1.04] font-extrabold tracking-[-0.03em] uppercase";
+
 export default function HomePage() {
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen bg-[#fbf6ef] text-[#16120f]">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/</g, "\\u003c") }} />
       <AuthRedirect />
 
-      <HeroFX className="relative overflow-hidden bg-[#0e080a] text-white">
-        <div className="grid-pan pointer-events-none absolute inset-0 opacity-60" />
-        <div className="blob-drift pointer-events-none absolute -top-40 -left-40 size-[560px] rounded-full bg-[#e4002b] opacity-40 blur-[120px]" />
-        <div className="blob-drift-slow pointer-events-none absolute -right-24 -bottom-32 size-[460px] rounded-full bg-[#7c3aed] opacity-30 blur-[120px]" />
-        <div className="blob-drift pointer-events-none absolute top-1/3 left-1/2 size-[300px] rounded-full bg-[#f59e0b] opacity-15 blur-[110px]" />
-
-        {/* Плиткаҳои шишагӣ: шино мекунанд ва ба тарафи курсор мераванд */}
-        <div className="pointer-events-none absolute inset-0 hidden select-none lg:block" aria-hidden>
-          {FLOATERS.map(([Icon, pos, size, depth, r, delay], i) => (
-            <div key={i} className={`absolute ${pos}`} data-parallax={depth}>
-              <div className="float-y" style={{ "--r": r, animationDelay: delay } as React.CSSProperties}>
-                <span className={`glass-tile ${size}`}>
-                  <Icon className="size-1/2" strokeWidth={1.6} />
-                </span>
-              </div>
-            </div>
+      {/* Меню */}
+      <header className="relative z-10 mx-auto flex max-w-[1280px] flex-wrap items-center gap-x-6 gap-y-3 px-4 py-5 sm:px-8">
+        <Link href="/" className="flex items-center gap-2.5" aria-label={SITE_NAME}>
+          <BrandMark className="size-9" />
+          <span className="font-display text-xl font-bold tracking-tight">{SITE_NAME}</span>
+        </Link>
+        <nav aria-label="Менюи асосӣ" className="order-3 flex w-full flex-wrap gap-1 sm:order-none sm:w-auto sm:flex-1">
+          {[
+            ["#features", "Имкониятҳо"],
+            ["#who", "Барои кӣ"],
+            ["#roles", "Нақшҳо"],
+            ["/shop", "Бозор"],
+          ].map(([href, label]) => (
+            <Link key={href} href={href} className="rounded-full px-3.5 py-2.5 text-[15px] font-medium transition hover:bg-[#f3ebdf]">
+              {label}
+            </Link>
           ))}
+        </nav>
+        <div className="ml-auto flex items-center gap-2">
+          <Link href="/login" className="rounded-[14px] border-[1.5px] border-[#16120f] px-4 py-2.5 text-[15px] font-semibold transition hover:bg-[#16120f] hover:text-white">
+            Ворид шудан
+          </Link>
+          <Link href="/register" className="rounded-[14px] bg-[#dc3b1c] px-4 py-3 text-[15px] font-bold text-white transition hover:bg-[#c23215]">
+            Бизнес созед
+          </Link>
         </div>
+      </header>
 
-        <header className="relative mx-auto flex max-w-6xl items-center justify-between px-4 py-5 sm:px-6">
-          <Link href="/" className="flex items-center gap-2.5" aria-label={SITE_NAME}>
-            <span className="brand-gradient grid size-10 place-items-center rounded-2xl shadow-lg shadow-red-500/30 transition duration-500 hover:rotate-[-12deg]">
-              <Store className="size-5" />
-            </span>
-            <span className="text-lg font-extrabold tracking-tight">{SITE_NAME}</span>
-          </Link>
-          <Link href="/login" className="rounded-xl bg-white/10 px-4 py-2 text-sm font-semibold backdrop-blur transition hover:bg-white/20">
-            Даромадан
-          </Link>
-        </header>
-
-        <div className="relative mx-auto max-w-6xl px-4 pt-10 pb-16 sm:px-6 sm:pt-16 sm:pb-20">
-          <p className="reveal-up mb-5 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs font-semibold text-white/75 backdrop-blur">
-            <span className="live-dot size-2 rounded-full bg-[#3ccf7f]" /> CRM ва бозори онлайн · Тоҷикистон
-          </p>
-          <h1 className="reveal-up max-w-3xl text-4xl leading-[1.02] font-extrabold tracking-tight sm:text-7xl" style={{ animationDelay: "80ms" }}>
-            Бизнеси шумо — <span className="text-aurora">дар як ҷо.</span>
+      {/* Hero */}
+      <section className="mx-auto flex max-w-[1280px] flex-wrap items-center gap-12 px-4 pt-6 pb-16 sm:px-8 sm:pt-8 sm:pb-[72px]">
+        <div className="flex min-w-0 flex-[1_1_520px] flex-col gap-7">
+          <span className="reveal-up inline-flex items-center gap-2 self-start rounded-full bg-[#ffe9dc] px-3.5 py-2 text-sm font-semibold text-[#a82a10]">
+            <span className="size-2 rounded-full bg-[#dc3b1c]" /> Платформа барои бизнесҳои Тоҷикистон
+          </span>
+          <h1
+            className="reveal-up font-display text-[clamp(28px,8.6vw,56px)] leading-[1.04] lg:text-[clamp(48px,5.2vw,78px)] font-extrabold tracking-[-0.035em] uppercase"
+            style={{ animationDelay: "80ms" }}
+          >
+            Ҳамаи филиалҳо <span className="text-[#dc3b1c]">дар як ҷо.</span>
           </h1>
-          <p className="reveal-up mt-6 max-w-2xl text-lg text-white/65" style={{ animationDelay: "160ms" }}>
-            Тарабхона, мағозаи хӯрокворӣ, либос ё сантехника: филиалҳо, кормандон, фурӯш ва фоида — рӯзона, ҳафтаина ва моҳона. Мизоҷон бошанд аз
-            бозори онлайн фармоиш медиҳанд ва пас аз гирифтан пардохт мекунанд.
+          <p className="reveal-up max-w-[560px] text-lg leading-relaxed text-[#4a3f35] sm:text-xl" style={{ animationDelay: "160ms" }}>
+            Фурӯш, касса, кормандон, хароҷот ва фармоишҳои онлайн — ҳама аз як панел. Мизоҷони шумо бошанд аз мағозаатон онлайн мехаранд.
           </p>
-          <div className="reveal-up mt-9 flex flex-wrap gap-3" style={{ animationDelay: "240ms" }}>
+          <div className="reveal-up flex flex-wrap gap-3" style={{ animationDelay: "240ms" }}>
+            <Link href="/register" className="fx-btn inline-flex items-center gap-2.5 rounded-2xl bg-[#dc3b1c] px-6 py-4 text-[17px] font-bold text-white transition hover:bg-[#c23215]">
+              Бизнеси нав созед <ArrowRight className="size-[18px]" strokeWidth={2.4} />
+            </Link>
+            <Link href="/shop" className="fx-btn inline-flex items-center gap-2.5 rounded-2xl bg-[#16120f] px-6 py-4 text-[17px] font-bold text-white transition hover:bg-black">
+              Ба бозор равед
+            </Link>
+          </div>
+          <ul className="flex flex-wrap gap-x-5 gap-y-2 text-sm font-medium text-[#4a3f35]">
+            {["Тоҷикӣ, русӣ, англисӣ", "Компютер ва телефон", "Ҳисобот ба Telegram ва WhatsApp"].map((t) => (
+              <li key={t} className="inline-flex items-center gap-2">
+                <Check className="size-[18px] text-[#1e8a4c]" strokeWidth={2.4} /> {t}
+              </li>
+            ))}
+          </ul>
+        </div>
+
+        {/* Намунаи панел */}
+        <div className="relative min-h-[460px] min-w-0 flex-[1_1_480px] sm:min-h-[520px]" aria-hidden>
+          <div className="absolute inset-[24px_0_0_40px] rounded-[36px] bg-[#dc3b1c]" />
+          <div className="absolute top-0 right-6 size-[120px] rounded-full bg-[#ffc531]" />
+          <div className="relative mt-[72px] mr-6 flex flex-col gap-[18px] rounded-3xl bg-white p-6 shadow-[0_30px_60px_-20px_rgba(80,30,10,0.35)]">
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="text-[13px] font-medium text-[#6b5d50]">Фурӯши имрӯз · ҳамаи филиалҳо</div>
+                <div className="mt-1 font-display text-[36px] font-bold tracking-tight">
+                  18 450 <span className="text-lg text-[#6b5d50]">с.</span>
+                </div>
+              </div>
+              <span className="rounded-full bg-[#e3f4e9] px-2.5 py-1.5 text-[13px] font-bold text-[#17663a]">+12%</span>
+            </div>
+            <div className="flex h-[140px] items-end gap-2.5">
+              {BARS.map(([d, h], i) => (
+                <div key={d} className="flex h-full flex-1 flex-col items-center justify-end gap-1.5">
+                  <div className={`w-full rounded-lg ${i === 5 ? "bg-[#dc3b1c]" : i === 4 ? "bg-[#ff7a1a]" : "bg-[#f3ebdf]"}`} style={{ height: `${h}%` }} />
+                  <span className="text-[11px] font-semibold text-[#6b5d50]">{d}</span>
+                </div>
+              ))}
+            </div>
+            <div className="grid grid-cols-3 gap-2.5">
+              {[
+                ["Фоида", "6 120 с."],
+                ["Хароҷот", "3 980 с."],
+                ["Фармоиш", "34"],
+              ].map(([l, v]) => (
+                <div key={l} className="min-w-0 rounded-[14px] bg-[#fbf6ef] p-2.5 sm:p-3">
+                  <div className="truncate text-xs text-[#6b5d50]">{l}</div>
+                  <div className="mt-0.5 truncate text-[15px] font-bold sm:text-[17px]">{v}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+          <div className="absolute bottom-[18px] left-0 flex max-w-[280px] items-center gap-3 rounded-[18px] bg-[#16120f] px-4 py-3.5 text-white shadow-[0_20px_40px_-16px_rgba(0,0,0,0.5)]">
+            <span className="grid size-10 flex-none place-items-center rounded-xl bg-[#ff7a1a] text-[#16120f]">
+              <ShoppingBag className="size-5" strokeWidth={2.2} />
+            </span>
+            <div>
+              <div className="text-sm font-bold">Фармоиши нав #1042</div>
+              <div className="text-[13px] text-[#cfc4b8]">Оши палов ×2 · 96 с.</div>
+            </div>
+          </div>
+          <div className="absolute right-0 bottom-[70px] rounded-[18px] bg-[#ffc531] px-4 py-3.5 font-bold shadow-[0_20px_40px_-16px_rgba(120,80,0,0.45)]">
+            <div className="text-xs font-semibold">Бонуси мизоҷ</div>
+            <div className="font-display text-[22px]">+5%</div>
+          </div>
+        </div>
+      </section>
+
+      {/* Се роҳ */}
+      <section className="mx-auto max-w-[1280px] px-4 pt-6 pb-20 sm:px-8">
+        <div className="grid gap-4 sm:grid-cols-3">
+          {[
+            { href: "/login", top: "Ман аллакай ҳисоб дорам", big: "Ворид шудан →", cls: "bg-[#16120f] text-white", topCls: "text-[#ffc531]" },
+            { href: "/register", top: "Барои соҳибкор", big: "Бизнеси нав созед →", cls: "bg-[#dc3b1c] text-white", topCls: "text-[#ffe1d3]" },
+            { href: "/shop", top: "Барои мизоҷ", big: "Ба бозор барои харид →", cls: "bg-[#ffc531] text-[#16120f]", topCls: "text-[#5a4200]" },
+          ].map((p) => (
             <Link
-              href="/login"
-              data-magnetic
-              className="fx-btn brand-gradient inline-flex items-center gap-2 rounded-xl px-6 py-3 font-semibold shadow-lg shadow-red-500/30"
+              key={p.href}
+              href={p.href}
+              data-reveal
+              className={`flex min-h-[220px] flex-col justify-between gap-6 rounded-[28px] p-8 transition hover:-translate-y-1 ${p.cls}`}
             >
-              Ворид шудан <ArrowRight className="size-4" />
+              <span className={`text-sm font-semibold ${p.topCls}`}>{p.top}</span>
+              <span className="font-display text-[clamp(22px,6.4vw,34px)] leading-[1.06] font-bold uppercase">{p.big}</span>
             </Link>
-            <Link href="/shop" data-magnetic className="fx-btn fx-shine inline-flex items-center gap-2 rounded-xl bg-white px-6 py-3 font-semibold text-[#e4002b]">
-              <ShoppingBag className="size-4" /> Харид аз мағозаҳо
-            </Link>
-            <Link href="/register" data-magnetic className="inline-flex items-center gap-2 rounded-xl border border-white/15 px-6 py-3 font-semibold text-white/85 hover:bg-white/5">
-              <Rocket className="size-4" /> Бизнеси худро созед
-            </Link>
-            <a href="#roles" className="rounded-xl border border-white/15 px-6 py-3 font-semibold text-white/85 transition hover:bg-white/5">
-              Кӣ чӣ мебинад?
-            </a>
-          </div>
-
-          <dl className="reveal-up mt-14 grid max-w-3xl grid-cols-2 gap-3 sm:grid-cols-4" style={{ animationDelay: "320ms" }}>
-            {STATS.map((x) => (
-              <div key={x.label} className="rounded-2xl border border-white/10 bg-white/5 p-4 backdrop-blur transition hover:-translate-y-1 hover:border-white/25 hover:bg-white/10">
-                <dt className="text-xs text-white/55">{x.label}</dt>
-                <dd className="mt-1 text-2xl font-extrabold tracking-tight">{x.value}</dd>
-              </div>
-            ))}
-          </dl>
-        </div>
-
-        {/* Лентаи навъҳои бизнес */}
-        <div className="relative overflow-hidden border-y border-white/10 bg-white/[0.03] py-4 [mask-image:linear-gradient(90deg,transparent,#000_12%,#000_88%,transparent)]">
-          <div className="marquee gap-3">
-            {[...BUSINESSES, ...BUSINESSES].map(([Icon, name], i) => (
-              <span
-                key={i}
-                className="inline-flex shrink-0 items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm font-semibold whitespace-nowrap text-white/80"
-              >
-                <Icon className="size-4 text-[#ff8a96]" /> {name}
-              </span>
-            ))}
-          </div>
-        </div>
-      </HeroFX>
-
-      <main className="mx-auto max-w-6xl px-4 py-16 sm:px-6">
-        <h2 data-reveal className="text-2xl font-extrabold tracking-tight text-ink sm:text-4xl">
-          Ҳама чиз барои <span className="text-aurora">кори шумо</span>
-        </h2>
-        <ul className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {FEATURES.map((f, i) => (
-            <li key={f.title} data-reveal data-tilt="9" className="card p-6" style={{ "--reveal-delay": `${(i % 3) * 90}ms` } as React.CSSProperties}>
-              <div data-depth className="brand-gradient grid size-14 place-items-center rounded-2xl text-white shadow-[0_14px_30px_-12px_var(--brand)]">
-                <f.icon className="size-7" />
-              </div>
-              <h3 className="mt-4 font-semibold text-ink">{f.title}</h3>
-              <p className="mt-1 text-sm text-muted">{f.text}</p>
-            </li>
           ))}
-        </ul>
+        </div>
+      </section>
 
-        <h2 id="roles" data-reveal className="mt-24 scroll-mt-6 text-2xl font-extrabold tracking-tight text-ink sm:text-4xl">
-          Нақшҳо ва дастрасӣ
-        </h2>
-        <p className="mt-2 text-muted">Ҳуқуқҳо дар сервер санҷида мешаванд — на танҳо дар интерфейс.</p>
-        <ul className="mt-8 grid gap-3 sm:grid-cols-2">
-          {ROLES.map((r, i) => (
-            <li key={r.role} data-reveal className="card flex items-center gap-4 p-4" style={{ "--reveal-delay": `${i * 70}ms` } as React.CSSProperties}>
-              <span className="grid size-12 shrink-0 place-items-center rounded-2xl bg-brand-soft text-brand">
-                <r.icon className="size-6" />
+      {/* Барои кӣ */}
+      <section id="who" className="mx-auto flex max-w-[1280px] scroll-mt-6 flex-col gap-8 px-4 pt-10 pb-20 sm:px-8">
+        <div className="flex flex-wrap items-end justify-between gap-4">
+          <h2 data-reveal className={H2}>Барои кӣ?</h2>
+          <p className="max-w-[460px] text-[17px] leading-relaxed text-[#4a3f35]">
+            Ҳар кас метавонад бизнеси худро созад. Ҳар навъи мағоза дар бозор услуби худро мегирад.
+          </p>
+        </div>
+        <ul className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-7">
+          {KINDS.map((k, i) => (
+            <li
+              key={k.name}
+              data-reveal
+              className={`flex min-h-[170px] flex-col justify-between rounded-[22px] p-5 ${k.cls}`}
+              style={{ "--reveal-delay": `${i * 50}ms` } as React.CSSProperties}
+            >
+              <span className={`grid size-12 place-items-center rounded-[14px] ${k.chip}`}>
+                <k.icon className="size-6" />
               </span>
               <div>
-                <h3 className="font-semibold text-ink">{r.role}</h3>
-                <p className="text-sm text-muted">{r.sees}</p>
+                <div className="text-base font-extrabold [overflow-wrap:anywhere] sm:text-lg">{k.name}</div>
+                <div className="mt-1 text-[13px] opacity-85">{k.mood}</div>
               </div>
             </li>
           ))}
         </ul>
+      </section>
 
-        <div
-          data-reveal
-          className="glow-border brand-gradient relative mt-24 flex flex-col items-start gap-4 overflow-hidden rounded-3xl p-8 text-white sm:flex-row sm:items-center sm:justify-between sm:p-10"
-        >
-          <Rocket className="pointer-events-none absolute -top-6 -right-4 size-40 opacity-15" aria-hidden />
-          <div>
-            <h2 className="text-2xl font-extrabold">Санҷед бо ҳисоби демо</h2>
-            <p className="mt-1 text-white/80">Шеф, менеҷер, кассир, мағоза ё мизоҷ — парол: demo1234</p>
+      {/* Имкониятҳо */}
+      <section id="features" className="scroll-mt-6 rounded-t-[40px] bg-white">
+        <div className="mx-auto flex max-w-[1280px] flex-col gap-10 px-4 py-20 sm:px-8 sm:py-[88px]">
+          <div className="flex flex-wrap items-end justify-between gap-4">
+            <h2 data-reveal className={H2}>
+              Ҳама чиз
+              <br />
+              <span className="text-[#dc3b1c]">барои кор</span>
+            </h2>
+            <p className="max-w-[460px] text-[17px] leading-relaxed text-[#4a3f35]">
+              Панели корӣ барои соҳиб ва кормандон. На ҷадвали хушки бухгалтерӣ — балки асбоби зинда, ки ҳар рӯз бо он кор кардан осон аст.
+            </p>
           </div>
-          <Link href="/login" className="fx-btn fx-shine relative rounded-xl bg-white px-6 py-3 font-semibold text-[#e4002b] transition hover:-translate-y-0.5">
-            Даромадан
-          </Link>
+          <ul className="grid gap-3.5 sm:grid-cols-2 lg:grid-cols-4">
+            {FEATURES.map((f, i) => (
+              <li
+                key={f.t}
+                data-reveal
+                className="flex min-h-[160px] flex-col gap-3.5 rounded-[22px] bg-[#fbf6ef] p-[22px]"
+                style={{ "--reveal-delay": `${(i % 4) * 60}ms` } as React.CSSProperties}
+              >
+                <span className={`grid size-11 place-items-center rounded-[13px] ${f.cls}`}>
+                  <f.icon className="size-[22px]" />
+                </span>
+                <h3 className="text-[17px] font-bold">{f.t}</h3>
+                <p className="text-sm leading-normal text-[#5a4e43]">{f.d}</p>
+              </li>
+            ))}
+            <li className="flex min-h-[160px] flex-col justify-between gap-3.5 rounded-[22px] bg-[#dc3b1c] p-[22px] text-white">
+              <div className="font-display text-[22px] leading-tight font-bold">Ҳамаашро худ санҷед</div>
+              <Link href="/login" className="self-start rounded-xl bg-white px-4 py-3 font-bold text-[#16120f]">
+                Панелро бинед →
+              </Link>
+            </li>
+          </ul>
         </div>
-      </main>
+      </section>
 
-      <footer className="border-t border-line py-8 text-center text-sm text-muted">
-        © {SITE_NAME} · Душанбе, Тоҷикистон
+      {/* Ҳисобот */}
+      <section className="bg-[#16120f] text-white">
+        <div className="mx-auto flex max-w-[1280px] flex-wrap items-center gap-12 px-4 py-20 sm:px-8 sm:py-[88px]">
+          <div className="flex min-w-0 flex-[1_1_460px] flex-col gap-5">
+            <span className="text-sm font-bold tracking-[0.08em] text-[#ffc531] uppercase">Ҳар шаб</span>
+            <h2 data-reveal className={H2}>Ҳисоботи рӯз ба Telegram ва WhatsApp</h2>
+            <p className="max-w-[520px] text-[17px] leading-relaxed text-[#cfc4b8]">
+              Фурӯш, фоида, кӣ дер монд ва кадом филиал пеш аст — худаш меояд. Чат бо кормандон ҳам ба ин мессенҷерҳо пайваст аст: паёми овозӣ, видео, занги
+              аудио ва видео.
+            </p>
+          </div>
+          <div className="flex min-w-0 flex-[1_1_420px] flex-col gap-3 rounded-[28px] bg-[#241d18] p-6" aria-hidden>
+            <div className="flex items-center gap-3 border-b border-[#3a2f27] pb-3">
+              <BrandMark className="size-10" />
+              <div>
+                <div className="font-bold">FilialHub · Ҳисобот</div>
+                <div className="text-[13px] text-[#a89c90]">бот</div>
+              </div>
+            </div>
+            <div className="max-w-[380px] self-start rounded-[4px_18px_18px_18px] bg-[#322822] px-[18px] py-4 text-[15px] leading-[1.7]">
+              <b>Ҳисоботи имрӯз</b>
+              <br />
+              Фурӯш: <b>18 450 с.</b> (+12%)
+              <br />
+              Фоидаи соф: <b>6 120 с.</b>
+              <br />
+              Беҳтарин филиал: Рӯдакӣ
+              <br />
+              Дер монданд: 2 нафар
+              <br />
+              Фармоишҳои онлайн: 34
+            </div>
+            <div className="self-end rounded-[18px_4px_18px_18px] bg-[#dc3b1c] px-4 py-3 text-[15px]">Раҳмат! Фардо менеҷерҳо ҷамъ шаванд.</div>
+          </div>
+        </div>
+      </section>
+
+      {/* Нақшҳо */}
+      <section id="roles" className="mx-auto flex max-w-[1280px] scroll-mt-6 flex-col gap-8 px-4 py-20 sm:px-8 sm:py-[88px]">
+        <h2 data-reveal className={`${H2} max-w-[900px]`}>
+          Ҳар кас танҳо <span className="text-[#dc3b1c]">чизи ба худаш лозимиро</span> мебинад
+        </h2>
+        <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+          {ROLES.map((r) => (
+            <li key={r.n} data-reveal className={`flex min-h-[150px] flex-col gap-2.5 rounded-[22px] p-[22px] ${r.cls}`}>
+              <span className="text-[13px] font-bold opacity-80">{r.n}</span>
+              <span className="font-display text-lg font-bold [overflow-wrap:anywhere] sm:text-xl">{r.t}</span>
+              <span className="text-sm leading-normal">{r.d}</span>
+            </li>
+          ))}
+        </ul>
+      </section>
+
+      {/* Бозор */}
+      <section className="mx-auto max-w-[1280px] px-4 pb-20 sm:px-8 sm:pb-[88px]">
+        <div className="flex flex-wrap items-center gap-10 rounded-[36px] bg-white p-6 sm:p-12">
+          <div className="flex min-w-0 flex-[1_1_400px] flex-col gap-[18px]">
+            <h2 className="font-display text-[clamp(22px,6.4vw,44px)] leading-[1.04] font-extrabold tracking-[-0.03em] uppercase">Мизоҷон онлайн мехаранд</h2>
+            <p className="text-[17px] leading-relaxed text-[#4a3f35]">
+              Маҳсулотро интихоб мекунанд, ба сабад мегузоранд ва ҳолати фармоишро то дами дар пайгирӣ мекунанд.
+            </p>
+            <Link href="/shop" className="self-start rounded-[14px] bg-[#16120f] px-[22px] py-4 font-bold text-white">
+              Бозорро кушоед
+            </Link>
+          </div>
+          <ol className="grid min-w-0 flex-[1_1_520px] grid-cols-2 gap-2.5 sm:grid-cols-4">
+            {STEPS.map((s) => (
+              <li key={s.n} className={`flex flex-col gap-2.5 rounded-[20px] p-[18px] ${s.box}`}>
+                <span className={`grid size-8 place-items-center rounded-full font-extrabold ${s.dot}`}>{s.n}</span>
+                <b>{s.t}</b>
+                <span className="text-[13px] text-[#5a4e43]">{s.d}</span>
+              </li>
+            ))}
+          </ol>
+        </div>
+      </section>
+
+      {/* CTA */}
+      <section className="bg-[#ffc531]">
+        <div className="mx-auto flex max-w-[1280px] flex-wrap items-center justify-between gap-8 px-4 py-20 sm:px-8 sm:py-[88px]">
+          <h2 className="max-w-[760px] font-display text-[clamp(28px,8vw,72px)] leading-[1.02] font-extrabold tracking-[-0.035em] uppercase">
+            Бизнеси худро имрӯз созед.
+          </h2>
+          <div className="flex flex-wrap gap-3">
+            <Link href="/register" className="rounded-2xl bg-[#dc3b1c] px-6 py-4 text-[17px] font-bold text-white">
+              Бизнес созед
+            </Link>
+            <Link href="/login" className="rounded-2xl bg-[#16120f] px-6 py-4 text-[17px] font-bold text-white">
+              Ворид шудан
+            </Link>
+          </div>
+        </div>
+      </section>
+
+      <footer className="bg-[#16120f] text-[#cfc4b8]">
+        <div className="mx-auto flex max-w-[1280px] flex-wrap items-center justify-between gap-8 px-4 py-12 sm:px-8">
+          <div className="flex items-center gap-2.5 text-white">
+            <BrandMark className="size-8" solid />
+            <span className="font-display text-lg font-bold">{SITE_NAME}</span>
+          </div>
+          <nav aria-label="Пойин" className="flex flex-wrap gap-6 text-[15px]">
+            <Link href="#features" className="hover:text-white">
+              Имкониятҳо
+            </Link>
+            <Link href="/shop" className="hover:text-white">
+              Бозор
+            </Link>
+            <Link href="#roles" className="hover:text-white">
+              Нақшҳо
+            </Link>
+          </nav>
+          <span className="text-sm">© 2026 {SITE_NAME} · Душанбе</span>
+        </div>
       </footer>
     </div>
   );

@@ -9,6 +9,7 @@ import { CartProvider, useCart } from "@/lib/cart";
 import { tr } from "@/lib/i18n";
 import { LangSwitcher } from "./lang-switcher";
 import { useTheme } from "./shell";
+import { BrandMark } from "./brand-mark";
 import { cn } from "./ui";
 
 const TABS = [
@@ -39,23 +40,22 @@ function Frame({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="min-h-screen pb-24 md:pb-10">
-      <header className="sticky top-0 z-30 border-b border-line bg-surface/85 backdrop-blur-xl">
-        <div className="mx-auto flex h-16 max-w-6xl items-center gap-3 px-4">
+      <header className="sticky top-0 z-30 border-b border-line bg-surface/95 backdrop-blur-xl">
+        <div className="mx-auto flex h-16 max-w-[1280px] items-center gap-3 px-4 sm:px-8 md:h-[72px]">
           <Link href="/shop" className="flex items-center gap-2.5">
-            <span className="brand-gradient grid size-9 place-items-center rounded-xl text-lg shadow-lg shadow-red-500/20 transition duration-500 text-white hover:rotate-[-12deg] hover:scale-110"><ShoppingBag className="size-5" /></span>
-            <span className="leading-tight">
-              <span className="block text-base font-extrabold tracking-tight text-ink">FilialHub</span>
-              <span className="block text-[11px] font-medium text-muted">{tr("Бозори онлайн")}</span>
+            <BrandMark solid className="size-[34px]" />
+            <span className="font-display text-base font-bold whitespace-nowrap text-ink sm:text-lg">
+              FilialHub <span className="text-brand">{tr("Бозор")}</span>
             </span>
           </Link>
-          <nav className="ml-6 hidden items-center gap-1 md:flex">
+          <nav className="ml-6 hidden h-full items-stretch gap-1 md:flex">
             {TABS.map((t) => (
               <Link
                 key={t.href}
                 href={t.href}
                 className={cn(
-                  "relative flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-semibold transition",
-                  active(pathname, t.href) ? "bg-brand-soft text-brand" : "text-ink-2 hover:bg-surface-2 hover:text-ink",
+                  "relative flex items-center gap-2 border-b-[3px] px-3.5 text-sm transition",
+                  active(pathname, t.href) ? "border-brand font-bold text-ink" : "border-transparent font-semibold text-ink-2 hover:text-ink",
                 )}
               >
                 <span data-cart-target={t.href === "/shop/cart" ? "" : undefined} className="inline-flex">
@@ -63,16 +63,16 @@ function Frame({ children }: { children: React.ReactNode }) {
                 </span>{" "}
                 {tr(t.label)}
                 {t.href === "/shop/cart" && count > 0 && (
-                  <span className="brand-gradient grid min-w-5 place-items-center rounded-full px-1.5 text-[11px] font-bold text-white">{count}</span>
+                  <span className="grid min-w-5 place-items-center rounded-full bg-brand px-1.5 text-[11px] font-bold text-white">{count}</span>
                 )}
               </Link>
             ))}
           </nav>
-          <div className="ml-auto flex items-center gap-1">
+          <div className="ml-auto flex items-center gap-1.5">
             <LangSwitcher />
             <button
               onClick={toggle}
-              className="grid size-9 cursor-pointer place-items-center rounded-xl text-ink-2 hover:bg-surface-2"
+              className="grid size-10 cursor-pointer place-items-center rounded-[14px] border border-line bg-surface text-ink hover:border-ink-2/40"
               aria-label={theme === "dark" ? tr("Мавзӯи равшан") : tr("Мавзӯи торик")}
             >
               {theme === "dark" ? <Sun className="size-4" /> : <Moon className="size-4" />}
@@ -80,7 +80,7 @@ function Frame({ children }: { children: React.ReactNode }) {
             {!loading && !client && (
               <Link
                 href={user ? "/dashboard" : "/login"}
-                className="brand-gradient ml-1 inline-flex h-9 items-center gap-1.5 rounded-xl px-3 text-sm font-semibold text-white"
+                className="ml-1 inline-flex h-10 items-center gap-1.5 rounded-[14px] bg-brand px-3.5 text-sm font-bold text-white"
               >
                 <LogIn className="size-4" /> {user ? tr("Панели ман") : tr("Даромадан")}
               </Link>
@@ -91,7 +91,7 @@ function Frame({ children }: { children: React.ReactNode }) {
 
       <div className="aurora" aria-hidden />
       <ViewTransition key={pathname} enter="page-swap" exit="page-swap" default="none">
-        <main className="mx-auto max-w-6xl px-4 py-6">{children}</main>
+        <main className="mx-auto max-w-[1280px] px-4 py-6 sm:px-8 sm:py-7">{children}</main>
       </ViewTransition>
 
       {/* Менюи поён: телефон ва планшет */}

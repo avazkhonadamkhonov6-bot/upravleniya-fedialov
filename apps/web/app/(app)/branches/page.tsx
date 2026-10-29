@@ -101,9 +101,9 @@ export default function BranchesPage() {
         <div className="stagger grid gap-5 md:grid-cols-2 xl:grid-cols-3">
           {data.map((b, i) => (
             <div key={b.id} data-tilt="5" className="rise card group flex flex-col overflow-hidden" style={{ animationDelay: `${i * 50}ms` }}>
-              <div className="relative h-24 overflow-hidden bg-[#170d0f] px-5 pt-4">
-                <div className="absolute -top-10 -right-6 size-40 rounded-full bg-[#e4002b] opacity-50 blur-2xl" />
-                <div className="absolute -bottom-12 left-10 size-32 rounded-full bg-[#ff5a36] opacity-30 blur-2xl" />
+              <div className="relative h-24 overflow-hidden bg-[#16120f] px-5 pt-4">
+                <div className="absolute -top-10 -right-8 size-32 rounded-full bg-[#dc3b1c]" />
+                <div className="absolute -bottom-8 right-20 size-12 rounded-full bg-[#ffc531]" />
                 <div className="relative flex items-start justify-between">
                   <div className="flex items-center gap-1.5 text-xs font-medium text-white/60">
                     <MapPin className="size-3.5" /> {b.city}

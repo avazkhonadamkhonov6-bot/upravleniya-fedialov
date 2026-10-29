@@ -49,30 +49,30 @@ function Kpi({
       data-tilt="6"
       className={
         accent
-          ? "rise glow-border relative overflow-hidden rounded-[20px] bg-[#170d0f] p-5 text-white shadow-card"
+          ? "rise relative overflow-hidden rounded-[22px] bg-[#dc3b1c] p-5 text-white shadow-card"
           : "rise card p-5"
       }
       style={{ animationDelay: `${delay}ms` }}
     >
-      {accent && <div className="absolute -top-16 -right-16 size-48 rounded-full bg-[#e4002b] opacity-40 blur-3xl" />}
+      {accent && <div className="absolute -top-8 -right-8 size-32 rounded-full bg-[#ff7a1a] opacity-60" />}
       <div className="relative flex items-center justify-between">
-        <span className={accent ? "text-sm font-medium text-white/60" : "text-sm font-medium text-muted"}>{label}</span>
+        <span className={accent ? "text-sm font-medium text-white/85" : "text-sm font-medium text-muted"}>{label}</span>
         <span className={accent ? "grid size-9 place-items-center rounded-xl bg-white/10" : "grid size-9 place-items-center rounded-xl bg-brand-soft text-brand"}>
           {icon}
         </span>
       </div>
-      <div className="relative mt-3 text-2xl font-bold tracking-tight tabular sm:text-[26px]"><CountUp value={revenue} /></div>
+      <div className="relative mt-3 font-display text-2xl font-bold tracking-tight tabular sm:text-[26px]"><CountUp value={revenue} /></div>
       <div className="relative mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
         <span className={accent ? "text-white/80" : "text-ink-2"}>
-          {tr("Фоида:")}{" "}<b className="tabular" style={{ color: accent ? "#8db8ff" : "var(--chart-profit)" }}><CountUp value={profit} /></b>
+          {tr("Фоида:")}{" "}<b className="tabular" style={{ color: accent ? "#fff1c9" : "var(--chart-profit)" }}><CountUp value={profit} /></b>
         </span>
         {net !== undefined && (
-          <span className={accent ? "text-white/70" : "text-muted"}>
+          <span className={accent ? "text-white/85" : "text-muted"}>
             {tr("соф:")}{" "}<b className={accent ? "text-white tabular" : "text-ink tabular"}><CountUp value={net} /></b>
           </span>
         )}
       </div>
-      <div className={accent ? "relative mt-3 flex items-center justify-between text-xs text-white/50" : "relative mt-3 flex items-center justify-between text-xs text-muted"}>
+      <div className={accent ? "relative mt-3 flex items-center justify-between text-xs text-white/80" : "relative mt-3 flex items-center justify-between text-xs text-muted"}>
         <span>{orders.toLocaleString(locale())} {tr("фармоиш")}</span>
         {extra}
       </div>

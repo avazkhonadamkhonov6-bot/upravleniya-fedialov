@@ -64,7 +64,7 @@ export function ShiftButton({ compact }: { compact?: boolean }) {
       disabled={busy}
       className={cn(
         "flex h-10 cursor-pointer items-center gap-2 rounded-xl px-3.5 text-sm font-semibold transition disabled:opacity-60",
-        onShift ? "bg-good-soft text-good hover:brightness-95" : "brand-gradient text-white shadow-[0_8px_20px_-8px_var(--brand)] hover:brightness-110",
+        onShift ? "bg-good-soft text-good hover:brightness-95" : "brand-gradient text-white hover:brightness-110",
       )}
     >
       {onShift ? (

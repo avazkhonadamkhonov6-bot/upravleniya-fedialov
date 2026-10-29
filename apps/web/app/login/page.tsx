@@ -5,6 +5,7 @@ import { ArrowRight, Banknote, Brush, Building2, ChefHat, Crown, Loader2, Lock, 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
+import { BrandMark } from "@/components/brand-mark";
 import { Logo } from "@/components/shell";
 import { Button, ErrorBox, Field, Input, cn } from "@/components/ui";
 import { useAuth } from "@/lib/auth";
@@ -25,13 +26,6 @@ const DEMO = [
   { email: "client@filialhub.tj", label: "Мизоҷ", desc: "Харид аз мағозаҳо", icon: ShoppingCart },
 ];
 
-/** Эмодзиҳои шинокунанда дар қисми тира: [эмодзи, мавқеъ, кунҷ, таъхир] */
-const FLOATERS: [string, string, number, number][] = [
-  ["🍗", "top-[18%] right-[14%] text-5xl", -12, 0],
-  ["🍔", "top-[38%] right-[30%] text-4xl", 10, 1.2],
-  ["🍟", "top-[12%] left-[42%] text-3xl", 8, 2.1],
-  ["🥤", "top-[52%] right-[8%] text-4xl", -6, 0.6],
-];
 
 const reducedMotion = () => typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
@@ -46,6 +40,18 @@ export default function LoginPage() {
   const [welcome, setWelcome] = useState<{ name: string; x: number; y: number } | null>(null);
   // Ҳангоми аниматсияи «Хуш омадед» худкор нагузарем — гузаришро худи аниматсия мекунад.
   const welcoming = useRef(false);
+
+  // Next.js саҳифаи пештар дидашударо пинҳон нигоҳ медорад (state боқӣ мемонад). Ҳангоми баромадан аз саҳифа
+  // экрани «Хуш омадед»-ро тоза мекунем — вагарна пас аз «Баромад» ҳамон экран боз намоён мешавад.
+  useEffect(
+    () => () => {
+      welcoming.current = false;
+      setWelcome(null);
+      setBusy(null);
+      setPassword("");
+    },
+    [],
+  );
 
   useEffect(() => {
     if (welcoming.current) return;
@@ -80,70 +86,57 @@ export default function LoginPage() {
 
   return (
     <div className="grid min-h-screen lg:grid-cols-[1.1fr_1fr]">
-      {/* Hero */}
-      <div className="relative hidden overflow-hidden bg-[#170d0f] p-12 text-white lg:flex lg:flex-col">
-        <div className="grid-pan pointer-events-none absolute inset-0" />
-        <div className="blob-drift absolute -top-40 -left-40 size-[560px] rounded-full bg-[#e4002b] opacity-40 blur-[120px]" />
-        <div className="blob-drift-slow absolute -right-24 -bottom-32 size-[420px] rounded-full bg-[#ff5a36] opacity-25 blur-[120px]" />
-        {FLOATERS.map(([emoji, pos, r, delay]) => (
-          <div key={emoji} className={cn("pointer-events-none absolute select-none", pos)} aria-hidden>
-            <div className="reveal-up" style={{ animationDelay: `${0.4 + delay / 3}s` }}>
-              <div className="float-y drop-shadow-[0_12px_24px_rgba(228,0,43,0.35)]" style={{ "--r": `${r}deg`, animationDelay: `${delay}s` } as React.CSSProperties}>
-                <span className="grid size-16 place-items-center rounded-2xl border border-white/15 bg-white/10 text-white backdrop-blur-md">
-                  <Glyph e={emoji} className="size-8" />
-                </span>
-              </div>
-            </div>
-          </div>
-        ))}
-        <div className="reveal-up relative">
-          <Logo light />
-        </div>
-        <div className="relative mt-auto max-w-lg">
-          <h1 className="text-5xl leading-[1.05] font-extrabold tracking-tight">
+      {/* Қисми сурх (дизайни FilialHub): доираҳои норанҷӣ ва зард, сарлавҳаи калон */}
+      <div className="relative hidden overflow-hidden bg-[#dc3b1c] px-12 py-10 text-white lg:sticky lg:top-0 lg:flex lg:h-screen lg:flex-col lg:justify-between lg:gap-10">
+        <Link href="/" className="reveal-up relative flex items-center gap-2.5" aria-label="FilialHub">
+          <BrandMark dark className="size-9" />
+          <span className="font-display text-xl font-bold">FilialHub</span>
+        </Link>
+        <div className="pointer-events-none absolute -right-20 -bottom-20 size-[360px] rounded-full bg-[#ff7a1a]" aria-hidden />
+        <div className="float-y pointer-events-none absolute top-[110px] right-[56px] size-[90px] rounded-full bg-[#ffc531]" aria-hidden />
+        <div className="relative flex max-w-[520px] flex-col gap-5">
+          <h1 className="font-display text-[clamp(44px,5.4vw,76px)] leading-[1.02] font-extrabold tracking-[-0.035em] uppercase">
             <span className="reveal-up block" style={{ animationDelay: "0.1s" }}>
               {tr("Ҳамаи филиалҳо")}
             </span>
-            {/* Ду span: як унсур танҳо як animation дошта метавонад (пайдошавӣ + ҷило) */}
-            <span className="reveal-up block" style={{ animationDelay: "0.25s" }}>
-              <span className="text-shine bg-gradient-to-r from-[#ff5a6e] via-[#ffb36b] to-[#ff5a6e] bg-clip-text text-transparent">{tr("дар як ҷо.")}</span>
+            <span className="reveal-up block text-[#16120f]" style={{ animationDelay: "0.25s" }}>
+              {tr("дар як ҷо.")}
             </span>
           </h1>
-          <p className="reveal-up mt-5 text-lg text-white/60" style={{ animationDelay: "0.4s" }}>
+          <p className="reveal-up text-lg leading-relaxed text-[#ffe6da]" style={{ animationDelay: "0.4s" }}>
             {tr("Фурӯш, фоида ва кормандони ҳар филиал — рӯзона, ҳафтаина ва моҳона. Ҳисобот мустақим ба Telegram ва WhatsApp.")}
           </p>
-          <div className="mt-10 grid grid-cols-3 gap-3">
-            {[
-              ["👑", tr("Шеф"), tr("ҳамаро мебинад")],
-              ["🧑‍💼", tr("Менеҷер"), tr("филиали худ")],
-              ["👨‍🍳", tr("Кормандон"), tr("ошпаз · официант · кассир · фаррош")],
-            ].map(([e, t, d], i) => (
-              <div
-                key={t}
-                className="reveal-up rounded-2xl border border-white/10 bg-white/5 p-4 backdrop-blur transition duration-300 hover:-translate-y-1 hover:border-white/25 hover:bg-white/10"
-                style={{ animationDelay: `${0.55 + i * 0.1}s` }}
-              >
-                <div className="grid size-10 place-items-center rounded-xl bg-white/10 text-white"><Glyph e={e} className="size-5" /></div>
-                <div className="mt-2 text-sm font-semibold">{t}</div>
-                <div className="text-xs text-white/50">{d}</div>
-              </div>
-            ))}
-          </div>
+        </div>
+        <div className="relative flex flex-wrap gap-2.5">
+          {[tr("Тоҷикӣ · Русӣ · English"), tr("Равшан ва тира"), "Telegram · WhatsApp"].map((t) => (
+            <span key={t} className="rounded-full bg-[#16120f]/20 px-3.5 py-2.5 text-sm font-semibold">
+              {t}
+            </span>
+          ))}
         </div>
       </div>
 
       {/* Form */}
       <div className="relative flex items-center justify-center overflow-hidden p-6 sm:p-12">
-        {/* Дар телефон қисми тира нест — доираҳои ранга дар паси форма */}
-        <div className="blob-drift pointer-events-none absolute -top-32 -right-32 size-80 rounded-full bg-brand opacity-15 blur-3xl lg:hidden" />
-        <div className="blob-drift-slow pointer-events-none absolute -bottom-32 -left-24 size-72 rounded-full bg-brand-2 opacity-15 blur-3xl lg:hidden" />
+        {/* Дар телефон қисми сурх нест — ду доираи хурд дар кунҷ */}
+        <div className="pointer-events-none absolute -top-16 -right-16 size-40 rounded-full bg-[#ff7a1a] opacity-90 lg:hidden" aria-hidden />
+        <div className="pointer-events-none absolute top-16 right-20 size-10 rounded-full bg-[#ffc531] lg:hidden" aria-hidden />
         <LangSwitcher className="absolute top-4 right-4 z-10" />
-        <div className="login-stagger relative w-full max-w-md">
+        <div className="login-stagger relative w-full max-w-md pt-12 sm:pt-6">
           <div className="mb-10 lg:hidden">
             <Logo />
           </div>
+          {/* Ворид шудан / Бизнеси нав — мисли ҷадвалаки дизайн */}
+          <div role="tablist" aria-label={tr("Интихоб")} className="mb-8 grid grid-cols-2 rounded-2xl bg-surface-2 p-[5px]">
+            <span role="tab" aria-selected className="grid h-12 place-items-center rounded-xl bg-surface text-[15px] font-bold text-ink shadow-[0_4px_12px_-4px_rgba(60,30,10,0.25)]">
+              {tr("Ворид шудан")}
+            </span>
+            <Link role="tab" aria-selected={false} href="/register" className="grid h-12 place-items-center rounded-xl text-[15px] font-bold text-muted transition hover:text-ink">
+              {tr("Бизнеси нав")}
+            </Link>
+          </div>
           <div>
-            <h2 className="text-3xl font-bold tracking-tight text-ink">
+            <h2 className="font-display text-[28px] font-bold tracking-tight text-ink">
               {hello}
               {wave && <span className="wave inline-block align-middle text-brand"><Glyph e={wave} className="size-8" /></span>}
             </h2>
@@ -188,7 +181,7 @@ export default function LoginPage() {
                   disabled={!!busy}
                   onClick={(e) => submit(e, { email: d.email, password: "demo1234" })}
                   className={cn(
-                    "group card flex cursor-pointer items-center gap-3 p-3 text-left transition duration-200 hover:-translate-y-1 hover:border-brand/40 hover:shadow-[0_18px_40px_-18px_var(--brand)] disabled:cursor-wait sm:flex-col sm:items-start",
+                    "group card flex cursor-pointer items-center gap-3 p-3 text-left transition duration-200 hover:-translate-y-1 hover:border-brand/40 hover: disabled:cursor-wait sm:flex-col sm:items-start",
                     busy === d.email && "border-brand/50",
                   )}
                 >

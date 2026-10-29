@@ -1,7 +1,7 @@
 "use client";
 
 import { BUSINESS_TYPE_LABELS, BUSINESS_TYPES, type BusinessType, type StoreSummary } from "@filialhub/shared";
-import { MapPin, Search, ShoppingBag, Store } from "lucide-react";
+import { MapPin, Search, Store } from "lucide-react";
 import Link from "next/link";
 import { useState, ViewTransition } from "react";
 import { ErrorBox, Input, cn } from "@/components/ui";
@@ -23,20 +23,19 @@ export default function StoresPage() {
 
   return (
     <>
-      <section className="brand-gradient relative overflow-hidden rounded-3xl p-6 text-white sm:p-8">
-        <div className="pointer-events-none absolute -top-4 right-4 opacity-20" aria-hidden>
-          <ShoppingBag className="size-28 sm:size-36" />
-        </div>
-        <p className="text-sm font-medium text-white/75">{client ? tr("Салом, {0}!", client.fullName.split(" ")[0]) : tr("Хуш омадед!")}</p>
-        <h1 className="title-in mt-1 text-2xl font-extrabold tracking-tight sm:text-3xl">{tr("Аз кадом мағоза фармоиш медиҳед?")}</h1>
+      <section className="relative overflow-hidden rounded-[32px] bg-[#dc3b1c] p-6 text-white sm:p-10">
+        <div className="pointer-events-none absolute -top-16 -right-16 size-[220px] rounded-full bg-[#ff7a1a] sm:size-[300px]" aria-hidden />
+        <div className="float-y pointer-events-none absolute right-[30%] bottom-6 hidden size-20 rounded-full bg-[#ffc531] sm:block" aria-hidden />
+        <p className="relative text-sm font-semibold text-[#ffe6da]">{client ? tr("Салом, {0}!", client.fullName.split(" ")[0]) : tr("Хуш омадед!")}</p>
+        <h1 className="title-in relative mt-2 max-w-[620px] font-display text-[clamp(22px,6.6vw,48px)] leading-[1.04] font-extrabold tracking-[-0.035em] uppercase">{tr("Аз кадом мағоза фармоиш медиҳед?")}</h1>
         {data && (
-          <p className="mt-3 text-sm text-white/85">
+          <p className="relative mt-4 text-[15px] text-[#ffe6da]">
             {tr("{0} мағоза · {1} навъ · {2} маҳсулот", data.length, byType.length, data.reduce((s, x) => s + x.products, 0))}
           </p>
         )}
         <div className="relative mt-5 max-w-md">
           <Search className="pointer-events-none absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-muted" />
-          <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder={tr("Ҷустуҷӯи мағоза…")} className="pl-10 text-ink" />
+          <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder={tr("Ҷустуҷӯи мағоза…")} className="h-[50px] border-0 pl-10 text-ink" />
         </div>
       </section>
 
@@ -79,8 +78,8 @@ function Chip({ on, onClick, children }: { on: boolean; onClick: () => void; chi
     <button
       onClick={onClick}
       className={cn(
-        "flex shrink-0 cursor-pointer items-center gap-1.5 rounded-full border px-3.5 py-2 text-sm font-semibold whitespace-nowrap transition",
-        on ? "brand-gradient border-transparent text-white" : "border-line bg-surface text-ink-2 hover:text-ink",
+        "flex min-h-11 shrink-0 cursor-pointer items-center gap-2 rounded-full border-[1.5px] px-4 text-sm font-bold whitespace-nowrap transition",
+        on ? "border-ink bg-ink text-bg" : "border-line bg-surface text-ink hover:border-ink-2/40",
       )}
     >
       {children}
@@ -100,7 +99,10 @@ function StoreCard({ store }: { store: StoreSummary }) {
       style={{ borderRadius: th.radius }}
     >
       <ViewTransition name={`store-hero-${store.id}`} share="store-morph" default="none">
-        <div className="relative h-28 overflow-hidden px-5 pt-4 text-white" style={{ background: th.hero, borderRadius: `${th.radius} ${th.radius} 0 0` }}>
+        <div className="relative h-[150px] overflow-hidden px-5 pt-4 text-white" style={{ background: th.hero, borderRadius: `${th.radius} ${th.radius} 0 0` }}>
+          <span className={cn("absolute bottom-4 left-5 max-w-[70%] truncate text-[26px] leading-none", th.titleClass)} style={{ color: th.onAccent }} aria-hidden>
+            {store.name}
+          </span>
           <div className="absolute -right-2 -bottom-3 flex gap-1 text-4xl opacity-80 transition duration-500 group-hover:-translate-y-2 group-hover:scale-125 group-hover:-rotate-6" aria-hidden>
             {(store.preview.length ? store.preview : th.decor).slice(0, 3).map((e, i) => (
               <span key={e} className="float-y" style={{ animationDelay: `${i * 0.5}s` }}>
@@ -108,7 +110,7 @@ function StoreCard({ store }: { store: StoreSummary }) {
               </span>
             ))}
           </div>
-          <span className="inline-flex items-center gap-1 rounded-full bg-white/15 px-2.5 py-1 text-xs font-semibold backdrop-blur">
+          <span className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-extrabold" style={{ background: th.soft, color: th.accent }}>
             <BusinessIcon type={store.type} className="size-3.5" /> {tr(BUSINESS_TYPE_LABELS[store.type])}
           </span>
         </div>

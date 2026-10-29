@@ -112,8 +112,8 @@ export default function ExpensesPage() {
                 <div className={cn("mt-2 text-xl font-bold text-ink tabular", cls)}>{money(value)}</div>
               </div>
             ))}
-            <div className="rise relative overflow-hidden rounded-[20px] bg-[#170d0f] p-5 text-white shadow-card" style={{ animationDelay: "200ms" }}>
-              <div className="absolute -top-12 -right-12 size-40 rounded-full bg-[#2563eb] opacity-40 blur-3xl" />
+            <div className="rise relative overflow-hidden rounded-[20px] bg-[#16120f] p-5 text-white shadow-card" style={{ animationDelay: "200ms" }}>
+              <div className="absolute -top-10 -right-10 size-32 rounded-full bg-[#dc3b1c]" />
               <div className="relative flex items-center justify-between text-sm text-white/60">
                 {tr("Фоидаи соф")}{" "}<Glyph e="🏆" className="size-5" />
               </div>

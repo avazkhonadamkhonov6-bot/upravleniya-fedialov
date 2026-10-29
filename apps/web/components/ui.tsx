@@ -34,7 +34,7 @@ export function PageHeader({
       <div className="flex gap-3">
         <span className="bar-grow brand-gradient mt-1 w-1.5 shrink-0 rounded-full sm:mt-1.5" aria-hidden />
         <div className="title-in">
-          <h1 className="text-2xl font-extrabold tracking-tight text-ink sm:text-3xl">{iconize(title)}</h1>
+          <h1 className="font-display text-2xl font-bold tracking-tight text-ink sm:text-[28px]">{iconize(title)}</h1>
           {subtitle && <p className="mt-1 text-sm text-muted">{subtitle}</p>}
         </div>
       </div>
@@ -69,11 +69,11 @@ export function Button({ variant = "primary", size = "md", loading, className, c
   return (
     <button
       className={cn(
-        "fx-btn inline-flex cursor-pointer items-center justify-center gap-2 rounded-xl font-semibold transition-all duration-150 active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-50",
-        size === "sm" ? "h-9 px-3 text-sm" : "h-11 px-4 text-sm",
+        "fx-btn inline-flex cursor-pointer items-center justify-center gap-2 rounded-[14px] font-bold transition-all duration-150 active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-50",
+        size === "sm" ? "h-10 px-3.5 text-sm" : "h-12 px-5 text-[15px]",
         variant === "primary" &&
-          "brand-gradient text-white shadow-[0_8px_20px_-8px_var(--brand)] hover:-translate-y-px hover:shadow-[0_14px_28px_-10px_var(--brand)] hover:brightness-110",
-        variant === "outline" && "border border-line bg-surface text-ink hover:border-ink-2/25 hover:bg-surface-2",
+          "brand-gradient text-white hover:-translate-y-px hover:brightness-110",
+        variant === "outline" && "border-[1.5px] border-line bg-surface text-ink hover:border-ink hover:bg-surface",
         variant === "ghost" && "text-ink-2 hover:bg-surface-2",
         variant === "danger" && "bg-brand-soft text-brand hover:brightness-95",
         className,
@@ -90,7 +90,7 @@ export function Button({ variant = "primary", size = "md", loading, className, c
 export function Field({ label, children, hint }: { label: string; children: React.ReactNode; hint?: string }) {
   return (
     <label className="block">
-      <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-muted">{label}</span>
+      <span className="mb-2 block text-sm font-semibold text-ink">{label}</span>
       {children}
       {hint && <span className="mt-1 block text-xs text-muted">{hint}</span>}
     </label>
@@ -98,7 +98,7 @@ export function Field({ label, children, hint }: { label: string; children: Reac
 }
 
 const inputCls =
-  "h-11 rounded-xl border border-line bg-surface-2 px-3.5 text-sm text-ink outline-none transition placeholder:text-muted focus:border-brand focus:bg-surface focus:ring-4 focus:ring-brand/10";
+  "h-12 rounded-[14px] border-[1.5px] border-line bg-surface px-4 text-[15px] text-ink outline-none transition placeholder:text-muted focus:border-brand focus:ring-4 focus:ring-brand-soft";
 
 export function Input(props: React.InputHTMLAttributes<HTMLInputElement>) {
   return <input {...props} className={cn(inputCls, widthOf(props.className), props.className)} />;
@@ -280,7 +280,7 @@ export function Empty({ icon, title, text }: { icon?: React.ReactNode; title: st
   return (
     <div className="flex flex-col items-center justify-center py-14 text-center">
       {/* Эмоҷии кӯҳна ҳамчун сатр меояд — ба иконкаи аслӣ табдил медиҳем */}
-      <div className="empty-float mb-4 grid size-16 place-items-center rounded-2xl bg-brand-soft text-brand shadow-[0_12px_30px_-14px_var(--brand)]">
+      <div className="empty-float mb-4 grid size-16 place-items-center rounded-2xl bg-brand-soft text-brand">
         {typeof icon === "string" ? <Glyph e={icon} className="size-7" /> : (icon ?? <Leaf className="size-7" />)}
       </div>
       <p className="font-semibold text-ink">{title}</p>
@@ -333,14 +333,14 @@ export function Segmented<T extends string>({
   options: { value: T; label: string }[];
 }) {
   return (
-    <div className="inline-flex rounded-xl bg-surface-2 p-1 ring-1 ring-line">
+    <div className="inline-flex rounded-[14px] bg-surface-2 p-1">
       {options.map((o) => (
         <button
           key={o.value}
           onClick={() => onChange(o.value)}
           className={cn(
-            "cursor-pointer rounded-lg px-3 py-1.5 text-sm font-semibold transition",
-            value === o.value ? "bg-surface text-ink shadow-sm" : "text-muted hover:text-ink",
+            "h-9 cursor-pointer rounded-[11px] px-3.5 text-sm font-bold whitespace-nowrap transition",
+            value === o.value ? "bg-brand text-white" : "text-ink-2 hover:text-ink",
           )}
         >
           {tr(o.label)}
