@@ -30,6 +30,17 @@ const nextConfig: NextConfig = {
       },
     ];
   },
+  // Суроғаи кӯҳнаи мағоза (/shop/store?id=12) → суроғаи нави SEO (/shop/12); саҳифа canonical-и пурраро медиҳад.
+  async redirects() {
+    return [
+      {
+        source: "/shop/store",
+        has: [{ type: "query", key: "id", value: "(?<id>\\d+)" }],
+        destination: "/shop/:id",
+        permanent: true,
+      },
+    ];
+  },
   // Дархостҳои /api/* ба сервери NestJS мераванд — CORS лозим намешавад.
   async rewrites() {
     return [{ source: "/api/:path*", destination: `${API_URL}/api/:path*` }];

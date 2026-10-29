@@ -14,6 +14,7 @@ import { useCart, type CartStore } from "@/lib/cart";
 import { confetti } from "@/lib/fx";
 import { tr } from "@/lib/i18n";
 import { storeTheme } from "@/lib/store-theme";
+import { storePath } from "@/lib/store-url";
 import { BusinessIcon, ProductIcon } from "@/components/glyph";
 
 /** Саҳифаи 2: сабад — аз чанд мағоза ва чанд маҳсулот; ҳар мағоза фармоиши алоҳида */
@@ -84,7 +85,7 @@ function StoreCart({ store }: { store: CartStore }) {
   return (
     <section data-reveal className="overflow-hidden border border-line bg-surface shadow-card" style={{ borderRadius: th.radius }}>
       <div className="flex items-center justify-between px-5 py-4 text-white" style={{ background: th.hero }}>
-        <Link href={`/shop/store?id=${store.storeId}`} className="font-bold hover:underline">
+        <Link href={storePath({ id: store.storeId, name: store.storeName })} className="font-bold hover:underline">
           <span className="inline-flex items-center gap-2"><BusinessIcon type={store.type} className="size-5" /> {store.storeName}</span>
         </Link>
         <span className="text-sm text-white/80">{tr("{0} маҳсулот", store.lines.length)}</span>

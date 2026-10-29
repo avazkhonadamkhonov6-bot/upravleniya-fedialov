@@ -8,6 +8,7 @@ import { ErrorBox, Input, cn } from "@/components/ui";
 import { useAuth } from "@/lib/auth";
 import { tr } from "@/lib/i18n";
 import { storeTheme } from "@/lib/store-theme";
+import { storePath } from "@/lib/store-url";
 import { useApi } from "@/lib/use-api";
 import { BusinessIcon, ProductIcon } from "@/components/glyph";
 
@@ -92,7 +93,7 @@ function StoreCard({ store }: { store: StoreSummary }) {
   const th = storeTheme(store.type);
   return (
     <Link
-      href={`/shop/store?id=${store.id}`}
+      href={storePath(store)}
       data-reveal
       data-tilt="10"
       className="group block overflow-hidden border border-line bg-surface shadow-card hover:shadow-2xl"

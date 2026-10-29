@@ -20,7 +20,8 @@ const TABS = [
 ] as const;
 
 function active(pathname: string, href: string) {
-  return href === "/shop" ? pathname === "/shop" || pathname.startsWith("/shop/store") : pathname.startsWith(href);
+  // /shop/12-nom — саҳифаи мағоза ҳам ба «Мағозаҳо» тааллуқ дорад
+  return href === "/shop" ? pathname === "/shop" || /^\/shop\/\d/.test(pathname) : pathname.startsWith(href);
 }
 
 /** Қолаби бозори онлайн: дар компютер — менюи боло, дар телефон ва планшет — менюи поён */

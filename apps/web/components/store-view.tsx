@@ -3,34 +3,22 @@
 import { BUSINESS_TYPE_LABELS, isFractionalUnit, type StoreDetail } from "@filialhub/shared";
 import { ArrowLeft, MapPin, Minus, Phone, Plus, ShoppingCart } from "lucide-react";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
-import { Suspense, useState, ViewTransition } from "react";
-import { ErrorBox, money, cn } from "@/components/ui";
+import { useState, ViewTransition } from "react";
+import { money, cn } from "@/components/ui";
 import { useCart } from "@/lib/cart";
 import { flyToCart } from "@/lib/fx";
 import { tr } from "@/lib/i18n";
 import { storeTheme } from "@/lib/store-theme";
-import { useApi } from "@/lib/use-api";
 import { BusinessIcon, ProductIcon } from "@/components/glyph";
 
-export default function StorePage() {
-  return (
-    <Suspense fallback={<div className="h-64 skeleton rounded-3xl" />}>
-      <Store />
-    </Suspense>
-  );
-}
-
-/** Мағоза: ҳар навъ услуби худро дорад (рангҳо, кунҷҳо, ҳарфҳо, ороиш) */
-function Store() {
-  const id = Number(useSearchParams().get("id"));
-  const { data: store, error } = useApi<StoreDetail>(id ? `/shop/stores/${id}` : null);
+/**
+ * Мағоза: ҳар навъ услуби худро дорад (рангҳо, кунҷҳо, ҳарфҳо, ороиш).
+ * Маълумот аз сервер меояд (app/shop/[store]/page.tsx) — ном, меню ва нарх дар HTML барои Google.
+ */
+export function StoreView({ store }: { store: StoreDetail }) {
   const cart = useCart();
   const [category, setCategory] = useState("");
   const [picked, setPicked] = useState<number>();
-
-  if (error) return <ErrorBox message={error} />;
-  if (!store) return <div className="h-64 skeleton rounded-3xl" />;
 
   const th = storeTheme(store.type);
   const categories = [...new Set(store.catalog.map((p) => p.category))];
