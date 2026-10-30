@@ -21,7 +21,7 @@ const TABS = [
 
 function active(pathname: string, href: string) {
   // /shop/12-nom — саҳифаи мағоза ҳам ба «Мағозаҳо» тааллуқ дорад
-  return href === "/shop" ? pathname === "/shop" || /^\/shop\/\d/.test(pathname) : pathname.startsWith(href);
+  return href === "/shop" ? pathname === "/shop" || /^(\/ru)?\/shop\/\d/.test(pathname) : pathname.startsWith(href);
 }
 
 /** Қолаби бозори онлайн: дар компютер — менюи боло, дар телефон ва планшет — менюи поён */
