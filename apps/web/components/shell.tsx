@@ -36,6 +36,7 @@ import {
   UserRound,
   Users,
   UtensilsCrossed,
+  NotebookPen,
   Wallet,
   X,
 } from "lucide-react";
@@ -96,6 +97,7 @@ const NAV: { title: string; items: NavItem[] }[] = [
       { href: "/pos", label: "Фурӯши нав", short: "Фурӯш", icon: ShoppingBag, feature: "pos", primary: true },
       { href: "/online", label: "Фармоишҳои онлайн", short: "Онлайн", icon: Globe, feature: "online" },
       { href: "/sales", label: "Таърихи фурӯш", short: "Таърих", icon: BarChart3, feature: "sales" },
+      { href: "/debts", label: "Дафтари қарз", short: "Қарз", icon: NotebookPen, feature: "debts" },
       { href: "/products", label: "Меню ва нархҳо", short: "Меню", icon: UtensilsCrossed, feature: "products" },
     ],
   },

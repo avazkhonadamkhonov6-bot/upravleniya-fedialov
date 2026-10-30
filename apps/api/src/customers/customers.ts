@@ -80,6 +80,7 @@ export function toCustomer(c: Customer & { branch?: Pick<Branch, 'name'> | null 
     lastVisitAt: c.lastVisitAt?.toISOString() ?? null,
     note: c.note,
     segment: segmentOf(c),
+    debt: Number(c.debt),
     createdAt: c.createdAt.toISOString(),
   };
 }

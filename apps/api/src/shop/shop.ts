@@ -21,7 +21,7 @@ import { ArrayMinSize, IsIn, IsInt, IsNumber, IsOptional, IsString, Max, MaxLeng
 import {
   BUSINESS_TYPES,
   ONLINE_NEXT,
-  PAYMENTS,
+  ONLINE_PAYMENTS,
   ONLINE_STATUS_LABELS,
   ONLINE_STATUSES,
   type BusinessType,
@@ -71,7 +71,7 @@ export class PlaceOrderDto {
   note?: string;
 
   /** Нақд ё корт — пул ҳангоми гирифтани мол дода мешавад */
-  @IsIn(PAYMENTS, { message: 'Тарзи пардохтро интихоб кунед' })
+  @IsIn(ONLINE_PAYMENTS, { message: 'Тарзи пардохтро интихоб кунед' })
   payment: Payment;
 
   @ValidateNested({ each: true })

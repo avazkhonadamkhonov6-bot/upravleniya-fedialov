@@ -1,7 +1,7 @@
 "use client";
 
 import { isFractionalUnit, PAYMENT_LABELS, POINTS_RATE, type Branch, type Customer, type Order, type Payment, type Product } from "@filialhub/shared";
-import { Banknote, CheckCircle2, CreditCard, Gift, Minus, Plus, Printer, Search, ShoppingCart, Trash2, UserPlus, X } from "lucide-react";
+import { Banknote, CheckCircle2, CreditCard, Gift, Minus, NotebookPen, Plus, Printer, Search, ShoppingCart, Trash2, UserPlus, X } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 import { Suspense, useMemo, useRef, useState } from "react";
 import { CustomerForm, prettyPhone, SegmentBadge } from "@/components/crm";
@@ -111,6 +111,7 @@ function Pos() {
       setCart({});
       setCustomer(null);
       setUsePoints(false);
+      if (payment === "DEBT") setPayment("CASH");
       toast.success(tr("Фармоиш #{0} сабт шуд", order.id), order.customerName ? tr("{0}: +{1} балл", order.customerName, order.pointsEarned) : money(order.total));
     } catch (e) {
       setError((e as Error).message);
@@ -306,8 +307,8 @@ function Pos() {
                   <span className="text-xs text-warn/80">{tr("аз")}{" "}{customer.points}</span>
                 </label>
               )}
-              <div className="mt-4 grid grid-cols-2 gap-2">
-                {(["CASH", "CARD"] as Payment[]).map((p) => (
+              <div className="mt-4 grid grid-cols-3 gap-2">
+                {(["CASH", "CARD", "DEBT"] as Payment[]).map((p) => (
                   <button
                     key={p}
                     onClick={() => setPayment(p)}
@@ -316,7 +317,7 @@ function Pos() {
                       payment === p ? "border-brand bg-brand-soft text-brand" : "border-line text-ink-2",
                     )}
                   >
-                    {p === "CASH" ? <Banknote className="size-4" /> : <CreditCard className="size-4" />} {tr(PAYMENT_LABELS[p])}
+                    {p === "CASH" ? <Banknote className="size-4" /> : p === "CARD" ? <CreditCard className="size-4" /> : <NotebookPen className="size-4" />} {tr(PAYMENT_LABELS[p])}
                   </button>
                 ))}
               </div>
@@ -339,10 +340,17 @@ function Pos() {
                 </div>
                 {customer && <div className="text-right text-xs font-semibold text-good">+{willEarn} {tr("балл ба")}{" "}{customer.fullName.split(" ")[0]}</div>}
               </div>
+              {payment === "DEBT" && (
+                <div className={cn("mt-3 rounded-xl px-3 py-2 text-xs font-semibold", customer ? "bg-warn-soft text-warn" : "bg-brand-soft text-brand")}>
+                  {customer
+                    ? tr("Ба қарзи {0} илова мешавад: {1} → {2}. Мизоҷ дар WhatsApp паём мегирад.", customer.fullName.split(" ")[0], money(customer.debt), money(customer.debt + total))
+                    : tr("Барои фурӯш ба қарз мизоҷро аз рӯи рақам ёбед ё сабт кунед.")}
+                </div>
+              )}
               <div className="mt-3">
                 <ErrorBox message={error} />
               </div>
-              <Button className="mt-3 h-12 w-full text-base" loading={busy} onClick={submit}>
+              <Button className="mt-3 h-12 w-full text-base" loading={busy} onClick={submit} disabled={payment === "DEBT" && !customer}>
                 {tr("Сабт кардан")}
               </Button>
             </>
@@ -403,6 +411,7 @@ function CustomerPicker({ customer, initialPhone, onChange }: { customer: Custom
           </div>
           <div className="text-xs text-muted tabular">
             {prettyPhone(customer.phone)} · <Glyph e="🎁" className="inline size-3.5 -mt-0.5" /> {customer.points} {tr("балл")}
+            {customer.debt > 0 && <span className="font-semibold text-brand"> · {tr("қарз")} {money(customer.debt)}</span>}
           </div>
         </div>
         <button onClick={() => onChange(null)} className="grid size-8 cursor-pointer place-items-center rounded-lg text-muted hover:bg-surface hover:text-ink" aria-label={tr("Бекор кардан")}>

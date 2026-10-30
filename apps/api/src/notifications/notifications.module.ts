@@ -18,6 +18,6 @@ import { WhatsAppService } from './whatsapp.service';
   imports: [StatsModule],
   controllers: [IntegrationsController, WhatsAppWebhookController, TelegramWebhookController, ChannelsController, BusinessWhatsAppController],
   providers: [TelegramService, WhatsAppService, NotificationsService, ReportService, BotService, TelegramBotService, ChatService],
-  exports: [NotificationsService, ChatService, TelegramService],
+  exports: [NotificationsService, ChatService, TelegramService, WhatsAppService],
 })
 export class NotificationsModule {}

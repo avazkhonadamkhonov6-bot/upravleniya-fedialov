@@ -145,8 +145,11 @@ export interface AdminOverview {
   clients: number;
 }
 
-export const PAYMENTS = ['CASH', 'CARD'] as const;
+/** Тарзҳои пардохт дар POS; DEBT — ба қарз (ба дафтари қарзи мизоҷ) */
+export const PAYMENTS = ['CASH', 'CARD', 'DEBT'] as const;
 export type Payment = (typeof PAYMENTS)[number];
+/** Мизоҷи онлайн ба қарз харида наметавонад */
+export const ONLINE_PAYMENTS = ['CASH', 'CARD'] as const;
 
 export const ROLE_LABELS: Record<Role, string> = {
   CHEF: 'Шеф',
@@ -203,6 +206,8 @@ export const FEATURES = [
   'profile',
   /** Фармоишҳои онлайни мизоҷон */
   'online',
+  /** Дафтари қарз: кӣ чанд қарздор аст, пардохт ва ёдрас */
+  'debts',
   /** Панели супер-админ: тасдиқи бизнесҳо, ҳамаи филиалҳо ва кормандон */
   'admin',
 ] as const;
@@ -214,12 +219,12 @@ export type Feature = (typeof FEATURES)[number];
  * ошпаз ва фаррош — танҳо профил (бо маош ва рӯзи гирифтани он).
  */
 export const STAFF_FEATURES: Record<Position, readonly Feature[]> = {
-  CASHIER: ['pos', 'sales', 'online', 'profile', 'calls'],
+  CASHIER: ['pos', 'sales', 'online', 'debts', 'profile', 'calls'],
   WAITER: ['products', 'profile', 'calls'],
   COOK: ['profile', 'calls'],
   CLEANER: ['profile', 'calls'],
   // Мағоза: фурӯшанда мол мефурӯшад ва рӯйхати молро мебинад; анбордор — рӯйхати мол
-  SELLER: ['pos', 'sales', 'online', 'products', 'profile', 'calls'],
+  SELLER: ['pos', 'sales', 'online', 'debts', 'products', 'profile', 'calls'],
   STOREKEEPER: ['products', 'profile', 'calls'],
 };
 
@@ -260,6 +265,7 @@ export function featureOfPath(pathname: string): Feature | null {
     audit: 'audit',
     profile: 'profile',
     online: 'online',
+    debts: 'debts',
     admin: 'admin',
   };
   return map[seg] ?? null;
@@ -279,6 +285,7 @@ export function nextPayDate(payDay: number, from: Date = new Date()): Date {
 export const PAYMENT_LABELS: Record<Payment, string> = {
   CASH: 'Нақд',
   CARD: 'Корт',
+  DEBT: 'Қарз',
 };
 
 export const CURRENCY = 'сомонӣ';
@@ -562,7 +569,28 @@ export interface Customer {
   lastVisitAt: string | null;
   note: string;
   segment: Segment;
+  /** Қарзи ҳозира (0 — қарз нест) */
+  debt: number;
   createdAt: string;
+}
+
+/** Як сатр дар дафтари қарз: мусбат — ба қарз гирифт, манфӣ — пардохт кард */
+export interface DebtEntry {
+  id: number;
+  amount: number;
+  payment: Payment | null;
+  note: string;
+  orderId: number | null;
+  userName: string | null;
+  createdAt: string;
+}
+
+export interface DebtSummary {
+  /** Ҷамъи қарзи ҳамаи мизоҷон */
+  total: number;
+  debtors: number;
+  /** WhatsApp-и бизнес пайваст аст — ёдрасҳо ба мизоҷ мераванд */
+  whatsapp: boolean;
 }
 
 export interface CustomerStats {

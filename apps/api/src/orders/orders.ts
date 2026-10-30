@@ -20,6 +20,7 @@ import { localDateTime, XLSX_TYPE, xlsx } from '../common/xlsx';
 import { Prisma } from '../generated/prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { StockService } from '../products/stock';
+import { DebtsModule, DebtsService } from '../debts/debts';
 
 class OrderItemDto {
   @Type(() => Number) @IsInt()
@@ -106,6 +107,7 @@ export class OrdersService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly stock: StockService,
+    private readonly debts: DebtsService,
   ) {}
 
   async list(
@@ -182,6 +184,7 @@ export class OrdersService {
     } else if (dto.usePoints) {
       throw new BadRequestException('Барои истифодаи бонус мизоҷро интихоб кунед');
     }
+    if (dto.payment === 'DEBT' && !dto.customerId) throw new BadRequestException('Барои фурӯш ба қарз мизоҷро интихоб кунед');
     const total = Math.round((subtotal - pointsUsed) * 100) / 100;
     const pointsEarned = dto.customerId ? Math.floor(total * POINTS_RATE) : 0;
 
@@ -213,10 +216,17 @@ export class OrdersService {
           },
         });
       }
+      if (dto.payment === 'DEBT' && dto.customerId) {
+        await this.debts.addFromSale(tx, { organizationId: user.organizationId, customerId: dto.customerId, orderId: created.id, amount: total, userId: user.id });
+      }
       low = await this.stock.take(tx, lines);
       return created;
     });
     if (low.length) void this.stock.warn(branchId, low);
+    if (dto.payment === 'DEBT' && dto.customerId) {
+      const c = await this.prisma.customer.findUniqueOrThrow({ where: { id: dto.customerId }, select: { fullName: true, phone: true, debt: true } });
+      void this.debts.sendNewDebt(user.organizationId, { fullName: c.fullName, phone: c.phone, debt: Number(c.debt) }, total);
+    }
     return forViewer(user, toOrder(order));
   }
 }
@@ -266,6 +276,7 @@ export class OrdersController {
 }
 
 @Module({
+  imports: [DebtsModule],
   controllers: [OrdersController],
   providers: [OrdersService],
 })
