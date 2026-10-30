@@ -32,18 +32,26 @@ export async function api<T>(path: string, init: RequestInit & { json?: unknown 
   const { json, headers, ...rest } = init;
   const token = getToken();
   let res: Response;
-  try {
-    res = await fetch(`/api${path}`, {
-      ...rest,
-      headers: {
-        ...(json !== undefined ? { "Content-Type": "application/json" } : {}),
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        ...headers,
-      },
-      body: json !== undefined ? JSON.stringify(json) : rest.body,
-    });
-  } catch {
-    throw new ApiError(tr("Сервер дастрас нест. Санҷед, ки API кор мекунад."), 0);
+  for (let attempt = 0; ; attempt++) {
+    try {
+      res = await fetch(`/api${path}`, {
+        ...rest,
+        headers: {
+          ...(json !== undefined ? { "Content-Type": "application/json" } : {}),
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          ...headers,
+        },
+        body: json !== undefined ? JSON.stringify(json) : rest.body,
+      });
+    } catch {
+      throw new ApiError(tr("Сервер дастрас нест. Санҷед, ки API кор мекунад."), 0);
+    }
+    // 429 бе JSON — аз прокси-и Render/Cloudflare, на аз API-и мо (он JSON бо матн медиҳад):
+    // маҳдудияти кӯтоҳмуддат аст, пас аз таваққуф то 3 маротиба такрор мекунем
+    const edge429 = res.status === 429 && !res.headers.get("content-type")?.includes("application/json");
+    if (!edge429 || attempt >= 3) break;
+    const wait = Math.min(Number(res.headers.get("retry-after")) || attempt + 1, 5);
+    await new Promise((r) => setTimeout(r, wait * 1000));
   }
 
   if (res.status === 401 && token) {
@@ -53,7 +61,7 @@ export async function api<T>(path: string, init: RequestInit & { json?: unknown 
     if (typeof window !== "undefined" && !location.pathname.startsWith("/login")) location.href = "/login";
   }
   if (!res.ok) {
-    let message = tr("Хатогӣ ({0})", res.status);
+    let message = res.status === 429 ? tr("Дархостҳо аз ҳад зиёданд. Каме истед ва аз нав кӯшиш кунед.") : tr("Хатогӣ ({0})", res.status);
     try {
       const body = await res.json();
       message = Array.isArray(body.message) ? body.message.map((m: string) => tr(m)).join(", ") : body.message ? tr(body.message) : message;
