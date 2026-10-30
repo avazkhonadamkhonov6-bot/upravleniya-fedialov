@@ -1,14 +1,14 @@
 "use client";
 
-import { isFractionalUnit, PAYMENT_LABELS, POINTS_RATE, type Branch, type Customer, type Order, type Payment, type Product } from "@filialhub/shared";
-import { Banknote, CheckCircle2, CreditCard, Gift, Minus, NotebookPen, Plus, Printer, Search, ShoppingCart, Trash2, UserPlus, X } from "lucide-react";
+import { isFractionalUnit, PAYMENT_LABELS, POINTS_RATE, type Branch, type Customer, type Order, type Payment, type Product, type PromoCheck } from "@filialhub/shared";
+import { Banknote, CheckCircle2, CreditCard, Gift, Minus, NotebookPen, Plus, Printer, Search, ShoppingCart, TicketPercent, Trash2, UserPlus, X } from "lucide-react";
 import { useSearchParams } from "next/navigation";
-import { Suspense, useMemo, useRef, useState } from "react";
+import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { CustomerForm, prettyPhone, SegmentBadge } from "@/components/crm";
 import { useToast } from "@/components/toast";
 import { Avatar, Button, Card, Empty, ErrorBox, Input, Modal, money, PageHeader, Select, Skeleton, WhatsAppIcon, cn } from "@/components/ui";
 import { printReceipt, whatsappReceiptUrl } from "@/lib/receipt";
-import { api } from "@/lib/api";
+import { api, qs } from "@/lib/api";
 import { useAuth, useBusiness } from "@/lib/auth";
 import { useApi } from "@/lib/use-api";
 import { tr } from "@/lib/i18n";
@@ -40,6 +40,8 @@ function Pos() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState<Order | null>(null);
+  // Коди тахфиф: тахфифро сервер ҳисоб мекунад; ҳангоми ивази сабад аз нав месанҷем
+  const [promo, setPromo] = useState<PromoCheck | null>(null);
   // Рақами мизоҷ барои фиристодани чек ба WhatsApp (пас аз фурӯш мизоҷ аз форма тоза мешавад)
   const [donePhone, setDonePhone] = useState<string | null>(null);
   const shopName = user?.organization?.name ?? "FilialHub";
@@ -70,8 +72,9 @@ function Pos() {
     .map(([id, qty]) => ({ product: active.find((p) => p.id === Number(id))!, qty }))
     .filter((l) => l.product && l.qty > 0);
   const subtotal = lines.reduce((s, l) => s + l.product.price * l.qty, 0);
-  const discount = customer && usePoints ? Math.min(customer.points, Math.floor(subtotal)) : 0;
-  const total = subtotal - discount;
+  const promoOff = promo ? Math.min(promo.discount, subtotal) : 0;
+  const discount = customer && usePoints ? Math.min(customer.points, Math.floor(subtotal - promoOff)) : 0;
+  const total = subtotal - promoOff - discount;
   const willEarn = customer ? Math.floor(total * POINTS_RATE) : 0;
   // Шумораи сатрҳо (1,5 кг — як мол)
   const count = lines.reduce((s, l) => s + (isFractionalUnit(l.product.unit) ? 1 : l.qty), 0);
@@ -104,6 +107,7 @@ function Pos() {
           items: lines.map((l) => ({ productId: l.product.id, qty: l.qty })),
           customerId: customer?.id,
           usePoints: discount || undefined,
+          promoCode: promo?.code,
         },
       });
       setDone(order);
@@ -111,6 +115,7 @@ function Pos() {
       setCart({});
       setCustomer(null);
       setUsePoints(false);
+      setPromo(null);
       if (payment === "DEBT") setPayment("CASH");
       toast.success(tr("Фармоиш #{0} сабт шуд", order.id), order.customerName ? tr("{0}: +{1} балл", order.customerName, order.pointsEarned) : money(order.total));
     } catch (e) {
@@ -298,11 +303,12 @@ function Pos() {
                   setUsePoints(false);
                 }}
               />
+              <PromoInput subtotal={subtotal} promo={promo} onChange={setPromo} />
               {customer && customer.points > 0 && (
                 <label className="mt-2 flex cursor-pointer items-center gap-3 rounded-xl border border-warn/30 bg-warn-soft p-3 text-sm">
                   <input type="checkbox" checked={usePoints} onChange={(e) => setUsePoints(e.target.checked)} className="size-4 accent-[var(--warn)]" />
                   <span className="flex-1 font-semibold text-warn">
-                    {tr("Пардохт бо бонус: −")}{Math.min(customer.points, Math.floor(subtotal))} {tr("сомонӣ")}
+                    {tr("Пардохт бо бонус: −")}{Math.min(customer.points, Math.floor(subtotal - promoOff))} {tr("сомонӣ")}
                   </span>
                   <span className="text-xs text-warn/80">{tr("аз")}{" "}{customer.points}</span>
                 </label>
@@ -322,17 +328,25 @@ function Pos() {
                 ))}
               </div>
               <div className="mt-4 space-y-1 border-t border-dashed border-line pt-4 text-sm">
+                {(discount > 0 || promoOff > 0) && (
+                  <div className="flex justify-between text-muted">
+                    <span>{tr("Маблағ")}</span>
+                    <span className="tabular">{money(subtotal)}</span>
+                  </div>
+                )}
+                {promoOff > 0 && (
+                  <div className="flex justify-between font-semibold text-good">
+                    <span className="flex items-center gap-1">
+                      <TicketPercent className="size-4" /> {promo?.code} {promo?.label}
+                    </span>
+                    <span className="tabular">−{money(promoOff)}</span>
+                  </div>
+                )}
                 {discount > 0 && (
-                  <>
-                    <div className="flex justify-between text-muted">
-                      <span>{tr("Маблағ")}</span>
-                      <span className="tabular">{money(subtotal)}</span>
-                    </div>
-                    <div className="flex justify-between font-semibold text-warn">
-                      <span className="flex items-center gap-1"><Iconized text={tr("🎁 Бонус")} /></span>
-                      <span className="tabular">−{money(discount)}</span>
-                    </div>
-                  </>
+                  <div className="flex justify-between font-semibold text-warn">
+                    <span className="flex items-center gap-1"><Iconized text={tr("🎁 Бонус")} /></span>
+                    <span className="tabular">−{money(discount)}</span>
+                  </div>
                 )}
                 <div className="flex items-end justify-between">
                   <span className="text-muted">{tr("Ҳамагӣ")}</span>
@@ -374,6 +388,86 @@ function Pos() {
         </div>
       )}
     </>
+  );
+}
+
+/** Коди тахфиф дар касса: санҷиш дар сервер; агар маблағи сабад иваз шавад — аз нав */
+function PromoInput({ subtotal, promo, onChange }: { subtotal: number; promo: PromoCheck | null; onChange: (p: PromoCheck | null) => void }) {
+  const [code, setCode] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function check(c: string) {
+    setBusy(true);
+    setError(null);
+    try {
+      onChange(await api<PromoCheck>(`/promos/check${qs({ code: c, total: subtotal })}`));
+    } catch (e) {
+      onChange(null);
+      setError((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  // Маблағ иваз шуд — тахфифи фоизӣ ва ҳадди ақал аз нав ҳисоб мешаванд
+  const applied = promo?.code;
+  useEffect(() => {
+    if (!applied) return;
+    let alive = true;
+    api<PromoCheck>(`/promos/check${qs({ code: applied, total: subtotal })}`)
+      .then((p) => alive && onChange(p))
+      .catch((e: Error) => {
+        if (!alive) return;
+        onChange(null);
+        setError(e.message);
+      });
+    return () => {
+      alive = false;
+    };
+  }, [subtotal, applied, onChange]);
+
+  if (promo) {
+    return (
+      <div className="mt-2 flex items-center gap-2 rounded-xl border border-good/30 bg-good-soft px-3 py-2 text-sm font-semibold text-good">
+        <TicketPercent className="size-4" />
+        <span className="flex-1">
+          {promo.code} · {promo.label}
+        </span>
+        <button onClick={() => onChange(null)} className="grid size-7 cursor-pointer place-items-center rounded-lg hover:bg-surface" aria-label={tr("Бекор кардан")}>
+          <X className="size-4" />
+        </button>
+      </div>
+    );
+  }
+  return (
+    <form
+      onSubmit={(e) => {
+        e.preventDefault();
+        if (code.trim()) void check(code.trim());
+      }}
+      className="mt-2"
+    >
+      <div className="flex gap-2">
+        <div className="relative flex-1">
+          <TicketPercent className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted" />
+          <Input
+            value={code}
+            onChange={(e) => {
+              setCode(e.target.value.toUpperCase());
+              setError(null);
+            }}
+            placeholder={tr("Коди тахфиф")}
+            className="h-10 pl-9 font-mono uppercase"
+            autoComplete="off"
+          />
+        </div>
+        <Button type="submit" variant="outline" size="sm" className="h-10" loading={busy} disabled={!code.trim()}>
+          {tr("Санҷидан")}
+        </Button>
+      </div>
+      {error && <div className="mt-1 text-xs font-medium text-brand">{error}</div>}
+    </form>
   );
 }
 

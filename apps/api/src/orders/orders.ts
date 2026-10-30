@@ -12,7 +12,7 @@ import {
 } from '@nestjs/common';
 import type { Response } from 'express';
 import { Type } from 'class-transformer';
-import { ArrayMinSize, IsIn, IsInt, IsNumber, IsOptional, Max, Min, ValidateNested } from 'class-validator';
+import { ArrayMinSize, IsIn, IsInt, IsNumber, IsOptional, IsString, Max, MaxLength, Min, ValidateNested } from 'class-validator';
 import { canSell, PAYMENT_LABELS, PAYMENTS, POINTS_RATE, type Order, type Paginated, type Payment } from '@filialhub/shared';
 import { AuthUser, CurrentUser, Feature } from '../auth/decorators';
 import { branchWhere, scopeBranch } from '../common/access';
@@ -21,6 +21,7 @@ import { Prisma } from '../generated/prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { StockService } from '../products/stock';
 import { DebtsModule, DebtsService } from '../debts/debts';
+import { PromosModule, PromosService } from '../promos/promos';
 
 class OrderItemDto {
   @Type(() => Number) @IsInt()
@@ -48,6 +49,10 @@ export class CreateOrderDto {
 
   @IsOptional() @Type(() => Number) @IsInt() @Min(0)
   usePoints?: number;
+
+  /** Коди тахфиф (аксия) */
+  @IsOptional() @IsString() @MaxLength(20)
+  promoCode?: string;
 }
 
 const include = {
@@ -77,6 +82,7 @@ function toOrder(o: OrderRow): Order {
     discount: Number(o.discount),
     pointsEarned: o.pointsEarned,
     pointsUsed: o.pointsUsed,
+    promoCode: o.promoCode,
     items: o.items.map((i) => ({
       productId: i.productId,
       name: i.product.name,
@@ -108,6 +114,7 @@ export class OrdersService {
     private readonly prisma: PrismaService,
     private readonly stock: StockService,
     private readonly debts: DebtsService,
+    private readonly promos: PromosService,
   ) {}
 
   async list(
@@ -175,21 +182,26 @@ export class OrdersService {
     const subtotal = lines.reduce((s, l) => s + Number(l.unitPrice) * l.qty, 0);
     const totalCost = lines.reduce((s, l) => s + Number(l.unitCost) * l.qty, 0);
 
+    // Аввал коди тахфиф (санҷиш; истифода дар транзаксия шуморида мешавад), баъд бонус аз маблағи боқимонда
+    const promo = dto.promoCode?.trim() ? await this.promos.check(user.organizationId, dto.promoCode, subtotal, 'pos') : null;
+    const afterPromo = subtotal - (promo?.discount ?? 0);
+
     // Бонус: баллҳо ҳамчун тахфиф (1 балл = 1 сомонӣ), аз маблағи пардохтшуда 5% бармегардад.
     let pointsUsed = 0;
     if (dto.customerId) {
       const customer = await this.prisma.customer.findUnique({ where: { id: dto.customerId } });
       if (!customer || customer.organizationId !== user.organizationId) throw new BadRequestException('Мизоҷ ёфт нашуд');
-      pointsUsed = Math.min(dto.usePoints ?? 0, customer.points, Math.floor(subtotal));
+      pointsUsed = Math.min(dto.usePoints ?? 0, customer.points, Math.floor(afterPromo));
     } else if (dto.usePoints) {
       throw new BadRequestException('Барои истифодаи бонус мизоҷро интихоб кунед');
     }
     if (dto.payment === 'DEBT' && !dto.customerId) throw new BadRequestException('Барои фурӯш ба қарз мизоҷро интихоб кунед');
-    const total = Math.round((subtotal - pointsUsed) * 100) / 100;
+    const total = Math.round((afterPromo - pointsUsed) * 100) / 100;
     const pointsEarned = dto.customerId ? Math.floor(total * POINTS_RATE) : 0;
 
     let low: Awaited<ReturnType<StockService['take']>> = [];
     const order = await this.prisma.$transaction(async (tx) => {
+      if (promo) await this.promos.redeem(tx, user.organizationId, promo.code, subtotal, 'pos');
       const created = await tx.order.create({
         data: {
           branchId,
@@ -197,7 +209,8 @@ export class OrdersService {
           payment: dto.payment,
           total,
           totalCost,
-          discount: pointsUsed,
+          discount: Math.round((pointsUsed + (promo?.discount ?? 0)) * 100) / 100,
+          promoCode: promo?.code ?? null,
           customerId: dto.customerId ?? null,
           pointsUsed,
           pointsEarned,
@@ -276,7 +289,7 @@ export class OrdersController {
 }
 
 @Module({
-  imports: [DebtsModule],
+  imports: [DebtsModule, PromosModule],
   controllers: [OrdersController],
   providers: [OrdersService],
 })

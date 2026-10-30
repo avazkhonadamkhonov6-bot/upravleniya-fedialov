@@ -37,6 +37,7 @@ import {
   Users,
   UtensilsCrossed,
   NotebookPen,
+  TicketPercent,
   Wallet,
   X,
 } from "lucide-react";
@@ -86,6 +87,7 @@ const NAV: { title: string; items: NavItem[] }[] = [
     title: "CRM",
     items: [
       { href: "/customers", label: "Мизоҷон ва бонус", short: "Мизоҷон", icon: HeartHandshake, feature: "customers", primary: true },
+      { href: "/promos", label: "Аксияҳо", short: "Аксия", icon: TicketPercent, feature: "customers" },
       { href: "/tasks", label: "Вазифаҳо", short: "Вазифа", icon: ClipboardList, feature: "tasks", primary: true },
       { href: "/schedule", label: "Ҷадвал ва давомот", short: "Ҷадвал", icon: CalendarClock, feature: "schedule" },
       { href: "/messages", label: "Паёмҳо", short: "Паём", icon: MessagesSquare, feature: "messages" },

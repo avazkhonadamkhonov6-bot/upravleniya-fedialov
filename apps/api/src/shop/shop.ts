@@ -42,6 +42,7 @@ import { Prisma } from '../generated/prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { StockService } from '../products/stock';
 import { EventsService } from '../core/events';
+import { PromosModule, PromosService } from '../promos/promos';
 
 // ---------- DTO ----------
 
@@ -69,6 +70,10 @@ export class PlaceOrderDto {
 
   @IsOptional() @IsString() @MaxLength(300)
   note?: string;
+
+  /** Коди тахфиф (аксия) */
+  @IsOptional() @IsString() @MaxLength(20)
+  promoCode?: string;
 
   /** Нақд ё корт — пул ҳангоми гирифтани мол дода мешавад */
   @IsIn(ONLINE_PAYMENTS, { message: 'Тарзи пардохтро интихоб кунед' })
@@ -149,6 +154,8 @@ function toOnline(o: OrderRow): OnlineOrder {
     note: o.note,
     total: Number(o.total),
     items: o.items.map((i) => ({ productId: i.productId, name: i.name, emoji: i.emoji, unit: i.unit, qty: Number(i.qty), unitPrice: Number(i.unitPrice) })),
+    discount: Number(o.discount),
+    promoCode: o.promoCode,
     table: o.table,
     review: o.review,
     createdAt: o.createdAt.toISOString(),
@@ -166,6 +173,7 @@ export class ShopService {
     private readonly audit: AuditService,
     private readonly stock: StockService,
     private readonly events: EventsService,
+    private readonly promos: PromosService,
   ) {}
 
   /** Вақти охирин фармоишҳои миз барои ҳар филиал (ҳимоя аз спам) */
@@ -286,21 +294,27 @@ export class ShopService {
   }
 
   async placeOrder(client: AuthClient, dto: PlaceOrderDto) {
-    const { store, branch, items, total } = await this.prepare(dto);
-    const order = await this.prisma.onlineOrder.create({
-      data: {
-        clientId: client.id,
-        organizationId: store.id,
-        branchId: branch.id,
-        address: dto.address.trim(),
-        phone: dto.phone.trim(),
-        note: dto.note?.trim() ?? '',
-        payment: dto.payment,
-        total,
-        items: { create: items },
-      },
-      include: orderInclude,
+    const { store, branch, items, total: subtotal } = await this.prepare(dto);
+    const order = await this.prisma.$transaction(async (tx) => {
+      const promo = dto.promoCode?.trim() ? await this.promos.redeem(tx, store.id, dto.promoCode, subtotal, 'online') : null;
+      return tx.onlineOrder.create({
+        data: {
+          clientId: client.id,
+          organizationId: store.id,
+          branchId: branch.id,
+          address: dto.address.trim(),
+          phone: dto.phone.trim(),
+          note: dto.note?.trim() ?? '',
+          payment: dto.payment,
+          total: r2(subtotal - (promo?.discount ?? 0)),
+          discount: promo?.discount ?? 0,
+          promoCode: promo?.code ?? null,
+          items: { create: items },
+        },
+        include: orderInclude,
+      });
     });
+    const total = Number(order.total);
     void this.alerts.notifyBranch(
       branch.id,
       { icon: '🛍️', title: `Фармоиши онлайн #${order.id}`, body: `${client.fullName} · ${total} сомонӣ · ${dto.payment === 'CARD' ? 'корт' : 'нақд'}`, link: '/online' },
@@ -463,7 +477,10 @@ export class ShopService {
 /** Бозор: рӯйхати мағозаҳо ҷамъиятӣ аст; фармоиш — танҳо барои мизоҷи воридшуда */
 @Controller('shop')
 export class ShopController {
-  constructor(private readonly shop: ShopService) {}
+  constructor(
+    private readonly shop: ShopService,
+    private readonly promos: PromosService,
+  ) {}
 
   @Public()
   @Get('stores')
@@ -493,6 +510,13 @@ export class ShopController {
   @Get('orders')
   orders(@CurrentClient() client: AuthClient) {
     return this.shop.clientOrders(client);
+  }
+
+  /** Санҷиши коди тахфиф дар сабад (бе истифода) */
+  @Public()
+  @Get('stores/:id/promo')
+  promo(@Param('id', ParseIntPipe) id: number, @Query('code') code = '', @Query('total') total = '0') {
+    return this.promos.check(id, code, Number(total) || 0, 'online');
   }
 
   @Public()
@@ -555,6 +579,7 @@ export class OnlineOrdersController {
 }
 
 @Module({
+  imports: [PromosModule],
   controllers: [ShopController, OnlineOrdersController],
   providers: [ShopService],
 })

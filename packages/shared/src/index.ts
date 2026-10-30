@@ -266,6 +266,7 @@ export function featureOfPath(pathname: string): Feature | null {
     profile: 'profile',
     online: 'online',
     debts: 'debts',
+    promos: 'customers',
     admin: 'admin',
   };
   return map[seg] ?? null;
@@ -419,6 +420,8 @@ export interface Order {
   discount: number;
   pointsEarned: number;
   pointsUsed: number;
+  /** Коди тахфиф, агар истифода шуда бошад */
+  promoCode: string | null;
   items: OrderItem[];
 }
 
@@ -584,6 +587,34 @@ export interface DebtEntry {
   userName: string | null;
   createdAt: string;
 }
+
+/** Коди тахфиф / аксия */
+export interface PromoCode {
+  id: number;
+  code: string;
+  percent: number | null;
+  amount: number | null;
+  minTotal: number;
+  /** 1 = душанбе … 7 = якшанбе; холӣ — ҳар рӯз */
+  weekdays: number[];
+  startsAt: string | null;
+  endsAt: string | null;
+  maxUses: number | null;
+  uses: number;
+  pos: boolean;
+  online: boolean;
+  isActive: boolean;
+}
+
+/** Натиҷаи санҷиши код барои сабад */
+export interface PromoCheck {
+  code: string;
+  discount: number;
+  /** «−10%» ё «−20 сомонӣ» */
+  label: string;
+}
+
+export const WEEKDAY_SHORT = ['Дш', 'Сш', 'Чш', 'Пш', 'Ҷм', 'Шб', 'Яш'] as const;
 
 export interface DebtSummary {
   /** Ҷамъи қарзи ҳамаи мизоҷон */
@@ -980,6 +1011,9 @@ export interface OnlineOrder {
   note: string;
   total: number;
   items: OnlineOrderItem[];
+  /** Тахфиф аз коди промо (аллакай аз total кам шуд) */
+  discount: number;
+  promoCode: string | null;
   /** Рақами миз, агар фармоиш аз QR-и тарабхона бошад */
   table: string | null;
   /** Баҳои мизоҷ (пас аз «Расонида шуд») */

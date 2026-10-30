@@ -77,6 +77,7 @@ model Organization {
   waMediaUrl    String?
   onlineOrders  OnlineOrder[]
   debtEntries   DebtEntry[]
+  promoCodes    PromoCode[]
   reviews       Review[]
   storeViews    StoreView[]
   createdAt     DateTime       @default(now())
@@ -203,6 +204,8 @@ model Order {
   pointsUsed   Int         @default(0)
   items        OrderItem[]
   debtEntry    DebtEntry?
+  /// Коди тахфиф, ки истифода шуд (нусха)
+  promoCode    String?
 
   @@index([branchId, createdAt])
   @@index([createdAt])
@@ -291,6 +294,34 @@ model Customer {
 
   @@unique([organizationId, phone])
   @@index([branchId])
+}
+
+/// Коди тахфиф / аксия: «WELCOME10» ё −20% дар рӯзи ҷумъа
+model PromoCode {
+  id             Int          @id @default(autoincrement())
+  organizationId Int
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  /// Ҳамеша бо ҳарфҳои калон
+  code           String
+  /// Фоиз (1–90) ё маблағи собит — яке аз ду
+  percent        Int?
+  amount         Decimal?     @db.Decimal(12, 2)
+  /// Ҳадди ақали харид
+  minTotal       Decimal      @default(0) @db.Decimal(12, 2)
+  /// Рӯзҳои ҳафта (1 = душанбе … 7 = якшанбе); холӣ — ҳар рӯз
+  weekdays       Int[]
+  startsAt       DateTime?
+  endsAt         DateTime?
+  /// Шумораи ҳадди истифода; null — бемаҳдуд
+  maxUses        Int?
+  uses           Int          @default(0)
+  /// Дар куҷо: POS, бозори онлайн ё ҳарду
+  pos            Boolean      @default(true)
+  online         Boolean      @default(true)
+  isActive       Boolean      @default(true)
+  createdAt      DateTime     @default(now())
+
+  @@unique([organizationId, code])
 }
 
 /// Дафтари қарз: мусбат — мизоҷ ба қарз гирифт, манфӣ — қарзро пардохт кард
@@ -502,6 +533,9 @@ model OnlineOrder {
   phone          String
   note           String            @default("")
   total          Decimal           @db.Decimal(12, 2)
+  /// Тахфиф аз коди промо (аллакай аз total кам карда шуд)
+  discount       Decimal           @default(0) @db.Decimal(12, 2)
+  promoCode      String?
   /// Фурӯше, ки ҳангоми «Расонида шуд» сохта мешавад (ба омор медарояд)
   saleOrderId    Int?
   createdAt      DateTime          @default(now())

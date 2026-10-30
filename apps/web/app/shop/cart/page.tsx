@@ -1,14 +1,14 @@
 "use client";
 
-import { isFractionalUnit, type OnlineOrder, type Payment } from "@filialhub/shared";
-import { Banknote, CreditCard, HandCoins, Minus, Plus, ShoppingCart, Trash2 } from "lucide-react";
+import { isFractionalUnit, type OnlineOrder, type Payment, type PromoCheck } from "@filialhub/shared";
+import { Banknote, CreditCard, HandCoins, Minus, Plus, ShoppingCart, TicketPercent, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { NeedClient } from "@/components/shop-shell";
 import { useToast } from "@/components/toast";
 import { Button, ErrorBox, Field, Input, money } from "@/components/ui";
-import { api } from "@/lib/api";
+import { api, qs } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { useCart, type CartStore } from "@/lib/cart";
 import { confetti } from "@/lib/fx";
@@ -60,7 +60,39 @@ function StoreCart({ store }: { store: CartStore }) {
   const [payment, setPayment] = useState<Payment>("CASH");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const total = store.lines.reduce((s, l) => s + l.price * l.qty, 0);
+  const subtotal = store.lines.reduce((s, l) => s + l.price * l.qty, 0);
+  const [code, setCode] = useState("");
+  const [promo, setPromo] = useState<PromoCheck | null>(null);
+  const [promoError, setPromoError] = useState<string | null>(null);
+  const off = promo ? Math.min(promo.discount, subtotal) : 0;
+  const total = subtotal - off;
+
+  async function applyPromo(c: string) {
+    setPromoError(null);
+    try {
+      setPromo(await api<PromoCheck>(`/shop/stores/${store.storeId}/promo${qs({ code: c, total: subtotal })}`));
+    } catch (err) {
+      setPromo(null);
+      setPromoError((err as Error).message);
+    }
+  }
+
+  // Сабад иваз шуд — тахфиф аз нав ҳисоб мешавад
+  const applied = promo?.code;
+  useEffect(() => {
+    if (!applied) return;
+    let alive = true;
+    api<PromoCheck>(`/shop/stores/${store.storeId}/promo${qs({ code: applied, total: subtotal })}`)
+      .then((p) => alive && setPromo(p))
+      .catch((err: Error) => {
+        if (!alive) return;
+        setPromo(null);
+        setPromoError(err.message);
+      });
+    return () => {
+      alive = false;
+    };
+  }, [applied, subtotal, store.storeId]);
 
   async function order(e: React.FormEvent) {
     e.preventDefault();
@@ -70,7 +102,7 @@ function StoreCart({ store }: { store: CartStore }) {
     try {
       const o = await api<OnlineOrder>("/shop/orders", {
         method: "POST",
-        json: { storeId: store.storeId, branchId: store.branchId, address, phone, note, payment, items: store.lines.map((l) => ({ productId: l.productId, qty: l.qty })) },
+        json: { storeId: store.storeId, branchId: store.branchId, address, phone, note, payment, promoCode: promo?.code, items: store.lines.map((l) => ({ productId: l.productId, qty: l.qty })) },
       });
       confetti(btn ? btn.left + btn.width / 2 : undefined, btn ? btn.top : undefined, 120);
       cart.clearStore(store.storeId);
@@ -177,6 +209,43 @@ function StoreCart({ store }: { store: CartStore }) {
               <p className="mt-2 flex items-center gap-1.5 text-xs text-muted">
                 <HandCoins className="size-4 shrink-0" /> {tr("Пардохт пас аз гирифтани мол — ба курйер ё дар мағоза.")}
               </p>
+            </div>
+            <div>
+              {promo ? (
+                <div className="flex items-center gap-2 border px-3 py-2 text-sm font-semibold" style={{ borderRadius: `calc(${th.radius} * 0.6)`, borderColor: th.accent, color: th.accent, background: th.soft }}>
+                  <TicketPercent className="size-4" />
+                  <span className="flex-1">
+                    {promo.code} · {promo.label} = −{money(off)}
+                  </span>
+                  <button type="button" onClick={() => setPromo(null)} className="cursor-pointer text-xs underline">
+                    {tr("Бекор кардан")}
+                  </button>
+                </div>
+              ) : (
+                <div className="flex gap-2">
+                  <Input
+                    value={code}
+                    onChange={(e) => {
+                      setCode(e.target.value.toUpperCase());
+                      setPromoError(null);
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        if (code.trim()) void applyPromo(code.trim());
+                      }
+                    }}
+                    placeholder={tr("Коди тахфиф")}
+                    className="font-mono uppercase"
+                    autoComplete="off"
+                    aria-label={tr("Коди тахфиф")}
+                  />
+                  <Button type="button" variant="outline" onClick={() => code.trim() && void applyPromo(code.trim())} disabled={!code.trim()}>
+                    {tr("Санҷидан")}
+                  </Button>
+                </div>
+              )}
+              {promoError && <div className="mt-1 text-xs font-medium text-brand">{promoError}</div>}
             </div>
             <ErrorBox message={error} />
             <Button type="submit" loading={busy} className="w-full" style={{ background: th.accent, color: th.onAccent }}>
