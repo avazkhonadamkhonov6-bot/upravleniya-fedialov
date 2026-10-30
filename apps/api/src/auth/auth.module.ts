@@ -7,7 +7,7 @@ import { AuthService } from './auth.service';
 @Module({
   imports: [
     JwtModule.register({
-      secret: process.env.JWT_SECRET ?? 'filialhub-dev-secret',
+      secret: process.env.JWT_SECRET || 'filialhub-dev-secret',
       signOptions: { expiresIn: '12h' },
     }),
   ],

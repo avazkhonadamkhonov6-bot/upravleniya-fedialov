@@ -6,7 +6,7 @@ import { createHmac, timingSafeEqual } from 'node:crypto';
  * Telegram танҳо [A-Za-z0-9_-] то 64 аломатро иҷозат медиҳад.
  */
 const sign = (userId: number) =>
-  createHmac('sha256', process.env.JWT_SECRET ?? 'filialhub-dev-secret').update(`tg-link:${userId}`).digest('base64url').slice(0, 24);
+  createHmac('sha256', process.env.JWT_SECRET || 'filialhub-dev-secret').update(`tg-link:${userId}`).digest('base64url').slice(0, 24);
 
 export function telegramLinkCode(userId: number): string {
   return `u${userId}_${sign(userId)}`;
