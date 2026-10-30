@@ -4,6 +4,7 @@ import type { Client, OnlineOrder } from "@filialhub/shared";
 import { LogOut } from "lucide-react";
 import { useState } from "react";
 import { NeedClient } from "@/components/shop-shell";
+import { TelegramBotCard } from "@/components/telegram-bot-card";
 import { useToast } from "@/components/toast";
 import { Avatar, Button, Card, CardTitle, ErrorBox, Field, Input, money } from "@/components/ui";
 import { api } from "@/lib/api";
@@ -77,6 +78,7 @@ function Profile() {
             <LogOut className="size-4" /> {tr("Баромад")}
           </Button>
         </Card>
+        <TelegramBotCard text={tr("Ҳолати фармоишҳоро дар Telegram гиред: ботро кушоед ва рақами худро фиристед.")} />
       </div>
       <Card>
         <CardTitle>{tr("Маълумоти ман")}</CardTitle>

@@ -258,8 +258,8 @@ export class OrdersService {
     });
     if (low.length) void this.stock.warn(branchId, low);
     if (dto.payment === 'DEBT' && dto.customerId) {
-      const c = await this.prisma.customer.findUniqueOrThrow({ where: { id: dto.customerId }, select: { fullName: true, phone: true, debt: true } });
-      void this.debts.sendNewDebt(user.organizationId, { fullName: c.fullName, phone: c.phone, debt: Number(c.debt) }, total);
+      const c = await this.prisma.customer.findUniqueOrThrow({ where: { id: dto.customerId }, select: { fullName: true, phone: true, telegramChatId: true, debt: true } });
+      void this.debts.sendNewDebt(user.organizationId, { fullName: c.fullName, phone: c.phone, telegramChatId: c.telegramChatId, debt: Number(c.debt) }, total);
     }
     return forViewer(user, toOrder(order));
   }

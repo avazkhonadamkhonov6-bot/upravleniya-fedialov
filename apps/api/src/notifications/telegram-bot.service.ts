@@ -3,6 +3,7 @@ import { MEDIA_MAX_BYTES } from '@filialhub/shared';
 import { PrismaService } from '../prisma/prisma.service';
 import { BOT_HELP, BotService } from './bot.service';
 import { ChatService } from './chat.service';
+import { CUSTOMER_KEYBOARD, CustomerBotService } from './customer-bot.service';
 import { escape } from './notifications.service';
 import { verifyTelegramLinkCode } from './telegram-link';
 import { TelegramService, TgMessage } from './telegram.service';
@@ -15,6 +16,7 @@ export class TelegramBotService implements OnModuleInit {
     private readonly prisma: PrismaService,
     private readonly bot: BotService,
     private readonly chat: ChatService,
+    private readonly customers: CustomerBotService,
   ) {}
 
   onModuleInit() {
@@ -34,9 +36,10 @@ export class TelegramBotService implements OnModuleInit {
       if (linkedId) return this.linkUser(chatId, linkedId);
       const known = await this.prisma.user.findUnique({ where: { telegramChatId: chatId } });
       if (known?.isActive) return this.telegram.send(chatId, `👋 ${escape(known.fullName)}, ҳисоби шумо аллакай пайваст аст.\n\n${BOT_HELP}`);
+      if (await this.customers.isLinked(chatId)) return this.telegram.send(chatId, '👋 Хуш омадед! Тугмаҳои поёнро истифода баред.', CUSTOMER_KEYBOARD);
       return this.telegram.send(
         chatId,
-        '👋 Салом! Ин боти <b>FilialHub</b> аст.\nБарои пайваст кардани ҳисоб тугмаи поёнро пахш кунед ва рақами телефонатонро фиристед.',
+        '👋 Салом! Ин боти <b>FilialHub</b> аст.\nТугмаи поёнро пахш кунед ва рақами телефонатонро фиристед — кормандон ҳисобро пайваст мекунанд, мизоҷон қарз ва фармоишҳои худро мебинанд.',
         {
           reply_markup: {
             keyboard: [[{ text: '📱 Фиристодани рақам', request_contact: true }]],
@@ -49,6 +52,11 @@ export class TelegramBotService implements OnModuleInit {
 
     const user = await this.prisma.user.findUnique({ where: { telegramChatId: chatId }, include: { branch: true } });
     if (!user || !user.isActive) {
+      // Мизоҷ (на корманд): қарз ва фармоишҳо
+      if (await this.customers.isLinked(chatId)) {
+        const reply = await this.customers.command(chatId, text);
+        return this.telegram.send(chatId, reply ?? 'Тугмаҳои поёнро истифода баред: «📒 Қарзи ман» ё «🛍 Фармоишҳои ман».', CUSTOMER_KEYBOARD);
+      }
       return this.telegram.send(chatId, 'Ҳисоби шумо пайваст нест. Аввал /start нависед.');
     }
 
@@ -107,6 +115,11 @@ ${BOT_HELP}`,
     // Ҳам рақами телефон, ҳам рақами WhatsApp-и корманд қабул мешавад.
     const user = await this.chat.findByPhone(contact.phone_number);
     if (!user) {
+      // Шояд мизоҷ бошад: дафтари қарз ё бозори онлайн
+      const name = await this.customers.link(chatId, contact.phone_number);
+      if (name !== null) {
+        return this.telegram.send(chatId, `✅ ${escape(name || 'Мизоҷ')}, пайваст шудед!\nАкнун хабарҳо дар бораи қарз ва фармоишҳо ба ин ҷо меоянд.`, CUSTOMER_KEYBOARD);
+      }
       return this.telegram.send(chatId, '❌ Ин рақам дар системаи FilialHub ёфт нашуд. Ба менеҷер муроҷиат кунед.', {
         reply_markup: { remove_keyboard: true },
       });

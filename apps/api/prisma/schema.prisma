@@ -293,12 +293,15 @@ model Customer {
   debt           Decimal      @default(0) @db.Decimal(12, 2)
   /// Охирин ёдрас дар бораи қарз (WhatsApp)
   debtRemindedAt DateTime?
+  /// Чати Telegram-и мизоҷ (бот: қарз ва ёдрас)
+  telegramChatId String?
   createdAt      DateTime     @default(now())
   orders         Order[]
   debtEntries    DebtEntry[]
 
   @@unique([organizationId, phone])
   @@index([branchId])
+  @@index([telegramChatId])
 }
 
 /// Огоҳӣ ба телефон/компютер (Web Push): як сатр барои ҳар браузери корманд
@@ -532,15 +535,19 @@ model Call {
 
 /// Мизоҷи онлайн — худаш сабти ном мекунад ва аз ҳар мағоза фармоиш медиҳад (ба ширкат вобаста нест)
 model Client {
-  id           Int           @id @default(autoincrement())
-  fullName     String
-  email        String        @unique
-  phone        String
-  address      String        @default("")
-  passwordHash String
-  createdAt    DateTime      @default(now())
-  orders       OnlineOrder[]
-  reviews      Review[]
+  id             Int           @id @default(autoincrement())
+  fullName       String
+  email          String        @unique
+  phone          String
+  address        String        @default("")
+  passwordHash   String
+  /// Чати Telegram (бот: ҳолати фармоишҳо)
+  telegramChatId String?
+  createdAt      DateTime      @default(now())
+  orders         OnlineOrder[]
+  reviews        Review[]
+
+  @@index([telegramChatId])
 }
 
 enum OnlineOrderStatus {

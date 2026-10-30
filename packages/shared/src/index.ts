@@ -624,6 +624,8 @@ export interface DebtSummary {
   debtors: number;
   /** WhatsApp-и бизнес пайваст аст — ёдрасҳо ба мизоҷ мераванд */
   whatsapp: boolean;
+  /** Номи боти Telegram (мизоҷ рақамашро мефиристад ва хабарҳоро дар Telegram мегирад) */
+  telegramBot: string | null;
 }
 
 export interface CustomerStats {

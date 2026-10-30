@@ -4,6 +4,7 @@ import { PAYMENT_LABELS, type Customer, type DebtEntry, type DebtSummary } from 
 import { BellRing, HandCoins, History, Plus, Search } from "lucide-react";
 import { useState } from "react";
 import { prettyPhone } from "@/components/crm";
+import { TelegramBotCard } from "@/components/telegram-bot-card";
 import { useToast } from "@/components/toast";
 import { Avatar, Button, Card, Empty, ErrorBox, Field, formatDate, Input, Modal, money, PageHeader, Segmented, Skeleton, cn } from "@/components/ui";
 import { api, qs } from "@/lib/api";
@@ -62,6 +63,11 @@ export default function DebtsPage() {
         </div>
       </div>
 
+      {summary?.telegramBot && (
+        <div className="mb-4">
+          <TelegramBotCard text={tr("Ба мизоҷ гӯед: ботро кушояд ва рақамашро фиристад — хабарҳо ва ёдрасҳои қарз ройгон дар Telegram меоянд.")} />
+        </div>
+      )}
       <div className="relative mb-4 max-w-md">
         <Search className="pointer-events-none absolute top-1/2 left-4 size-4 -translate-y-1/2 text-muted" />
         <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder={tr("Ном ё рақами телефон")} className="pl-11" aria-label={tr("Ҷустуҷӯ")} />

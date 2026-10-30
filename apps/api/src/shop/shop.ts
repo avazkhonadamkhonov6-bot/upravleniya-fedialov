@@ -43,6 +43,8 @@ import { PrismaService } from '../prisma/prisma.service';
 import { StockService } from '../products/stock';
 import { EventsService } from '../core/events';
 import { PromosModule, PromosService } from '../promos/promos';
+import { NotificationsModule } from '../notifications/notifications.module';
+import { CustomerBotService } from '../notifications/customer-bot.service';
 
 // ---------- DTO ----------
 
@@ -174,6 +176,7 @@ export class ShopService {
     private readonly stock: StockService,
     private readonly events: EventsService,
     private readonly promos: PromosService,
+    private readonly customerBot: CustomerBotService,
   ) {}
 
   /** Вақти охирин фармоишҳои миз барои ҳар филиал (ҳимоя аз спам) */
@@ -467,6 +470,8 @@ export class ShopService {
     });
     if (low.length && o.branchId) void this.stock.warn(o.branchId, low);
     this.events.emitOrg(o.organizationId, 'orders');
+    // Мизоҷ ҳолати навро дар Telegram мебинад (агар ба бот пайваст бошад)
+    void this.customerBot.notifyClient(o.clientId, `🛍 Фармоиш #${id} (${updated.organization.name}): <b>${ONLINE_STATUS_LABELS[status]}</b>`);
     this.audit.log(user, 'UPDATE', 'online-order', id, `Фармоиши онлайн #${id}: ${ONLINE_STATUS_LABELS[o.status]} → ${ONLINE_STATUS_LABELS[status]}`, o.branchId);
     return toOnline(updated);
   }
@@ -480,6 +485,7 @@ export class ShopController {
   constructor(
     private readonly shop: ShopService,
     private readonly promos: PromosService,
+    private readonly customerBot: CustomerBotService,
   ) {}
 
   @Public()
@@ -510,6 +516,13 @@ export class ShopController {
   @Get('orders')
   orders(@CurrentClient() client: AuthClient) {
     return this.shop.clientOrders(client);
+  }
+
+  /** Номи боти Telegram — мизоҷ рақамашро мефиристад ва ҳолати фармоишҳоро мегирад */
+  @Public()
+  @Get('telegram-bot')
+  telegramBot() {
+    return { bot: this.customerBot.botUsername };
   }
 
   /** Санҷиши коди тахфиф дар сабад (бе истифода) */
@@ -579,7 +592,7 @@ export class OnlineOrdersController {
 }
 
 @Module({
-  imports: [PromosModule],
+  imports: [PromosModule, NotificationsModule],
   controllers: [ShopController, OnlineOrdersController],
   providers: [ShopService],
 })

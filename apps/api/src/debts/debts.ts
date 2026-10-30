@@ -10,6 +10,7 @@ import { toCustomer } from '../customers/customers';
 import { Prisma } from '../generated/prisma/client';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { WhatsAppService } from '../notifications/whatsapp.service';
+import { CustomerBotService } from '../notifications/customer-bot.service';
 import { PrismaService } from '../prisma/prisma.service';
 
 type Tx = Prisma.TransactionClient;
@@ -50,6 +51,7 @@ export class DebtsService {
     private readonly prisma: PrismaService,
     private readonly whatsapp: WhatsAppService,
     private readonly audit: AuditService,
+    private readonly customerBot: CustomerBotService,
   ) {}
 
   /** Дар дохили транзаксияи фурӯш (POS): фурӯш ба қарз */
@@ -61,7 +63,7 @@ export class DebtsService {
   async summary(user: AuthUser): Promise<DebtSummary> {
     const agg = await this.prisma.customer.aggregate({ where: { organizationId: user.organizationId, debt: { gt: 0 } }, _sum: { debt: true }, _count: true });
     const whatsapp = !!(await this.whatsapp.greenFor(user.organizationId)) || this.whatsapp.configured;
-    return { total: r2(Number(agg._sum.debt ?? 0)), debtors: agg._count, whatsapp };
+    return { total: r2(Number(agg._sum.debt ?? 0)), debtors: agg._count, whatsapp, telegramBot: this.customerBot.botUsername };
   }
 
   async debtors(user: AuthUser, q: string): Promise<CustomerDto[]> {
@@ -100,7 +102,7 @@ export class DebtsService {
     });
     this.audit.log(user, 'UPDATE', 'customer', customerId, `Пардохти қарз: ${c.fullName} — ${amount} сомонӣ`);
     const left = Number(updated.debt);
-    void this.notify(user.organizationId, c.phone, left > 0
+    void this.notify(user.organizationId, c, left > 0
       ? `Ассалому алейкум, ${c.fullName}!\nПардохти шумо ${formatMoney(amount)} қабул шуд. Ташаккур!\nҚарзи боқимонда: ${formatMoney(left)}.`
       : `Ассалому алейкум, ${c.fullName}!\nПардохти шумо ${formatMoney(amount)} қабул шуд. Қарзи шумо пурра пардохт шуд. Ташаккур! 🙏`);
     return toCustomer(updated);
@@ -115,16 +117,16 @@ export class DebtsService {
       return tx.customer.update({ where: { id: customerId }, data: { debt: { increment: amount } }, include: { branch: { select: { name: true } } } });
     });
     this.audit.log(user, 'UPDATE', 'customer', customerId, `Қарзи нав: ${c.fullName} — ${amount} сомонӣ`);
-    await this.sendNewDebt(user.organizationId, { fullName: c.fullName, phone: c.phone, debt: Number(updated.debt) }, amount);
+    await this.sendNewDebt(user.organizationId, { fullName: c.fullName, phone: c.phone, telegramChatId: c.telegramChatId, debt: Number(updated.debt) }, amount);
     return toCustomer(updated);
   }
 
   /** Паём пас аз фурӯш ба қарз (берун аз транзаксия) */
-  async sendNewDebt(organizationId: number, c: { fullName: string; phone: string; debt: number }, amount: number) {
+  async sendNewDebt(organizationId: number, c: { fullName: string; phone: string; telegramChatId: string | null; debt: number }, amount: number) {
     const org = await this.prisma.organization.findUnique({ where: { id: organizationId }, select: { name: true } });
     return this.notify(
       organizationId,
-      c.phone,
+      c,
       `Ассалому алейкум, ${c.fullName}!\nШумо аз «${org?.name ?? ''}» ба маблағи ${formatMoney(amount)} ба қарз гирифтед.\nҚарзи умумӣ: ${formatMoney(c.debt)}.`,
     );
   }
@@ -158,25 +160,27 @@ export class DebtsService {
     if (due.length) this.logger.log(`Ёдраси қарз: ${sent}/${due.length} фиристода шуд`);
   }
 
-  private async sendReminder(c: { id: number; organizationId: number; fullName: string; phone: string; debt: Prisma.Decimal }) {
+  private async sendReminder(c: { id: number; organizationId: number; fullName: string; phone: string; telegramChatId: string | null; debt: Prisma.Decimal }) {
     const org = await this.prisma.organization.findUnique({ where: { id: c.organizationId }, select: { name: true } });
     const status = await this.notify(
       c.organizationId,
-      c.phone,
+      c,
       `Ассалому алейкум, ${c.fullName}!\nЁдрас аз «${org?.name ?? ''}»: қарзи шумо ${formatMoney(Number(c.debt))} аст.\nЛутфан ҳангоми имкон пардохт кунед. Ташаккур!`,
     );
     await this.prisma.customer.update({ where: { id: c.id }, data: { debtRemindedAt: new Date() } });
     return status;
   }
 
-  private async notify(organizationId: number, phone: string, text: string) {
-    try {
-      const r = await this.whatsapp.send(phone, text, organizationId);
-      return r.status;
-    } catch (e) {
-      this.logger.warn(`WhatsApp → ${phone}: ${(e as Error).message}`);
-      return 'FAILED' as const;
-    }
+  /** WhatsApp-и бизнес ва (агар мизоҷ ба бот пайваст бошад) Telegram — ҳардуи онҳо ройгон */
+  private async notify(organizationId: number, c: { phone: string; telegramChatId: string | null }, text: string) {
+    const [wa, tg] = await Promise.all([
+      this.whatsapp.send(c.phone, text, organizationId).catch((e: Error) => {
+        this.logger.warn(`WhatsApp → ${c.phone}: ${e.message}`);
+        return { status: 'FAILED' as const };
+      }),
+      this.customerBot.notifyCustomer(c, text),
+    ]);
+    return tg && wa.status !== 'SENT' ? ('SENT' as const) : wa.status;
   }
 
   private async customer(user: AuthUser, id: number) {
