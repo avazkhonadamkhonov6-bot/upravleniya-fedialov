@@ -465,9 +465,14 @@ export function ProductForm({ product, onDone }: { product?: Product; onDone: ()
         </label>
         {f.tracked && (
           <div className="grid grid-cols-2 gap-4">
-            <Field label={tr("Ҳоло дар анбор ({0})", f.unit)}>
-              <Input type="number" min={0} step="any" value={f.stock} onChange={set("stock")} />
-            </Field>
+            {/* Миқдори мавҷуда барои ҳар филиал дар «Қабули мол» иваз мешавад; дар ин ҷо — танҳо боқимондаи аввал */}
+            {product?.stock !== null && product ? (
+              <div className="self-end pb-2 text-xs text-muted">{tr("Миқдор барои ҳар филиал — тугмаи 📦 «Қабули мол» дар рӯйхат.")}</div>
+            ) : (
+              <Field label={tr("Ҳоло дар анбор ({0})", f.unit)} hint={tr("Ба филиали аввал")}>
+                <Input type="number" min={0} step="any" value={f.stock} onChange={set("stock")} />
+              </Field>
+            )}
             <Field label={tr("Огоҳӣ, агар кам аз")} hint={tr("Ихтиёрӣ")}>
               <Input type="number" min={0} step="any" value={f.lowStock} onChange={set("lowStock")} />
             </Field>

@@ -111,6 +111,7 @@ model Branch {
   shifts         Shift[]
   expenses       Expense[]
   onlineOrders   OnlineOrder[]
+  stocks         BranchStock[]
 
   @@index([organizationId])
 }
@@ -182,6 +183,7 @@ model Product {
   createdAt      DateTime          @default(now())
   items          OrderItem[]
   onlineItems    OnlineOrderItem[]
+  branchStocks   BranchStock[]
 
   @@index([organizationId])
   @@index([organizationId, barcode])
@@ -293,6 +295,18 @@ model Customer {
   debtEntries    DebtEntry[]
 
   @@unique([organizationId, phone])
+  @@index([branchId])
+}
+
+/// Боқимондаи мол дар анбори ҳар филиал (Product.stock — ҷамъи ҳамаи филиалҳо)
+model BranchStock {
+  productId Int
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  branchId  Int
+  branch    Branch  @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  qty       Decimal @default(0) @db.Decimal(12, 3)
+
+  @@id([productId, branchId])
   @@index([branchId])
 }
 

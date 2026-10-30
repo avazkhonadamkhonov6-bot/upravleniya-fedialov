@@ -232,7 +232,7 @@ export class OrdersService {
       if (dto.payment === 'DEBT' && dto.customerId) {
         await this.debts.addFromSale(tx, { organizationId: user.organizationId, customerId: dto.customerId, orderId: created.id, amount: total, userId: user.id });
       }
-      low = await this.stock.take(tx, lines);
+      low = await this.stock.take(tx, branchId, lines);
       return created;
     });
     if (low.length) void this.stock.warn(branchId, low);

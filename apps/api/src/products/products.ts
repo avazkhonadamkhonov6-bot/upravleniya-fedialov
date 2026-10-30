@@ -20,10 +20,12 @@ import {
 import { Type } from 'class-transformer';
 import type { Request, Response } from 'express';
 import { DEFAULT_PRODUCT_EMOJI, defaultUnit, type BusinessType } from '@filialhub/shared';
-import { IsBoolean, IsNumber, IsOptional, IsString, MaxLength, Min, MinLength } from 'class-validator';
+import { IsBoolean, IsInt, IsNumber, IsOptional, IsString, MaxLength, Min, MinLength } from 'class-validator';
 import { AuthUser, CurrentUser, Feature, Public, Roles } from '../auth/decorators';
 import { toProduct } from '../common/serializers';
 import { AuditService } from '../core/audit.service';
+import { scopeBranch } from '../common/access';
+import { StockService } from './stock';
 import { PrismaService } from '../prisma/prisma.service';
 
 const IMAGE_TYPES = ['image/webp', 'image/jpeg', 'image/png'];
@@ -99,6 +101,10 @@ export class StockDto {
 
   @IsOptional() @Type(() => Number) @IsNumber() @Min(0)
   set?: number;
+
+  /** Филиал (шеф интихоб мекунад; менеҷер ва анбордор — филиали худ) */
+  @IsOptional() @Type(() => Number) @IsInt()
+  branchId?: number;
 }
 
 @Injectable()
@@ -106,12 +112,20 @@ export class ProductsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly audit: AuditService,
+    private readonly stock: StockService,
   ) {}
+
+  /** Филиали аввали фаъол — боқимондаи аввал ба он меравад */
+  private async firstBranch(organizationId: number) {
+    const b = await this.prisma.branch.findFirst({ where: { organizationId }, orderBy: [{ isActive: 'desc' }, { id: 'asc' }], select: { id: true } });
+    return b?.id ?? null;
+  }
 
   async list(user: AuthUser) {
     const products = await this.prisma.product.findMany({
       where: { organizationId: user.organizationId, isActive: user.role === 'CHEF' ? undefined : true },
       orderBy: [{ category: 'asc' }, { name: 'asc' }],
+      include: { branchStocks: true },
     });
     // Кормандон арзиши аслӣ ва фоидаро намебинанд.
     return products.map((p) => toProduct(p, user.role === 'STAFF'));
@@ -119,25 +133,44 @@ export class ProductsService {
 
   async create(user: AuthUser, dto: CreateProductDto) {
     const type = user.businessType as BusinessType;
-    const p = await this.prisma.product.create({
+    const { stock, ...rest } = dto;
+    const created = await this.prisma.product.create({
       data: {
-        ...dto,
+        ...rest,
         organizationId: user.organizationId,
         emoji: dto.emoji || DEFAULT_PRODUCT_EMOJI[type] || '📦',
         unit: dto.unit?.trim() || defaultUnit(type),
         barcode: dto.barcode?.trim() || null,
+        stock: stock === undefined || stock === null ? null : 0,
       },
     });
-    this.audit.log(user, 'CREATE', 'product', p.id, `Маҳсулоти нав: ${p.name} — ${Number(p.price)} сомонӣ`);
+    this.audit.log(user, 'CREATE', 'product', created.id, `Маҳсулоти нав: ${created.name} — ${Number(created.price)} сомонӣ`);
+    // Боқимондаи аввал ба филиали аввал (баъд дар «Қабули мол» байни филиалҳо тақсим мешавад)
+    const branchId = stock ? await this.firstBranch(user.organizationId) : null;
+    const p = branchId ? await this.stock.adjust(created.id, branchId, { set: stock! }) : created;
     return toProduct(p);
   }
 
   async update(user: AuthUser, id: number, dto: UpdateProductDto) {
     const before = await this.ensure(user, id);
-    const p = await this.prisma.product.update({
+    const { stock, ...rest } = dto;
+    // Миқдор дар ин ҷо танҳо ҳисобро фаъол/хомӯш мекунад; миқдорҳо — дар «Қабули мол» барои ҳар филиал
+    let tracking = {};
+    if (stock === null && before.stock !== null) {
+      await this.prisma.branchStock.deleteMany({ where: { productId: id } });
+      tracking = { stock: null };
+    } else if (typeof stock === 'number' && before.stock === null) {
+      tracking = { stock: 0 };
+    }
+    let p = await this.prisma.product.update({
       where: { id },
-      data: { ...dto, ...(dto.barcode !== undefined ? { barcode: dto.barcode.trim() || null } : {}) },
+      data: { ...rest, ...tracking, ...(dto.barcode !== undefined ? { barcode: dto.barcode.trim() || null } : {}) },
+      include: { branchStocks: true },
     });
+    if (typeof stock === 'number' && stock > 0 && before.stock === null) {
+      const branchId = await this.firstBranch(user.organizationId);
+      if (branchId) p = await this.stock.adjust(id, branchId, { set: stock });
+    }
     const changes = [
       dto.price !== undefined && Number(before.price) !== dto.price && `нарх: ${Number(before.price)} → ${dto.price}`,
       dto.cost !== undefined && Number(before.cost) !== dto.cost && `арзиши аслӣ: ${Number(before.cost)} → ${dto.cost}`,
@@ -192,14 +225,12 @@ export class ProductsService {
     if (user.role === 'STAFF' && user.position !== 'STOREKEEPER') throw new ForbiddenException('Танҳо шеф, менеҷер ё анбордор');
     const p = await this.ensure(user, id);
     if (dto.set === undefined && !dto.add) throw new BadRequestException('Миқдорро нависед');
-    const updated = await this.prisma.product.update({
-      where: { id },
-      data: { stock: dto.set !== undefined ? dto.set : { increment: dto.add! } },
-    });
-    // Агар мол аввал ҳисоб намешуд, «increment» дар null кор намекунад — аз 0 сар мекунем
-    const fixed = updated.stock === null && dto.add ? await this.prisma.product.update({ where: { id }, data: { stock: dto.add } }) : updated;
-    const before = p.stock === null ? '—' : Number(p.stock);
-    this.audit.log(user, 'UPDATE', 'product', id, `${p.name}: боқимонда ${before} → ${Number(fixed.stock)} ${p.unit}`);
+    const branchId = scopeBranch(user, dto.branchId) ?? (await this.firstBranch(user.organizationId));
+    if (!branchId) throw new BadRequestException('Филиалро интихоб кунед');
+    const before = await this.prisma.branchStock.findUnique({ where: { productId_branchId: { productId: id, branchId } } });
+    const fixed = await this.stock.adjust(id, branchId, dto.set !== undefined ? { set: dto.set } : { add: dto.add });
+    const now = fixed.branchStocks.find((b) => b.branchId === branchId);
+    this.audit.log(user, 'UPDATE', 'product', id, `${p.name}: анбори филиал ${before ? Number(before.qty) : 0} → ${Number(now?.qty ?? 0)} ${p.unit}`, branchId);
     return toProduct(fixed, user.role === 'STAFF');
   }
 

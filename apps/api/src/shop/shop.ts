@@ -461,7 +461,7 @@ export class ShopService {
           data: { branchId: o.branchId, userId: user.id, total: o.total, totalCost, payment: o.payment, items: { create: lines } },
         });
         saleOrderId = sale.id;
-        low = await this.stock.take(tx, lines.map((l) => ({ productId: l.productId, qty: Number(l.qty) })));
+        low = await this.stock.take(tx, o.branchId, lines.map((l) => ({ productId: l.productId, qty: Number(l.qty) })));
       }
       return tx.onlineOrder.update({ where: { id }, data: { status, saleOrderId }, include: orderInclude });
     });

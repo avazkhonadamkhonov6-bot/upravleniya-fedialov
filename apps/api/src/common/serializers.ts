@@ -1,5 +1,5 @@
 import type { BusinessType, Branch as BranchDto, Client as ClientDto, Organization as OrganizationDto, Product as ProductDto, User as UserDto } from '@filialhub/shared';
-import type { Branch, Client, Organization, Product, User } from '../generated/prisma/client';
+import type { Branch, Client, Organization, Prisma, Product, User } from '../generated/prisma/client';
 
 type UserWithBranch = User & { branch?: Pick<Branch, 'id' | 'name' | 'city'> | null; organization?: Organization | null };
 
@@ -55,7 +55,7 @@ export function toBranch(b: Branch): BranchDto {
   };
 }
 
-export function toProduct(p: Product, hideCost = false): ProductDto {
+export function toProduct(p: Product & { branchStocks?: { branchId: number; qty: Prisma.Decimal }[] }, hideCost = false): ProductDto {
   const price = Number(p.price);
   const cost = hideCost ? 0 : Number(p.cost);
   const profit = hideCost ? 0 : price - cost;
@@ -73,6 +73,7 @@ export function toProduct(p: Product, hideCost = false): ProductDto {
     imageId: p.imageId,
     stock: p.stock === null ? null : Number(p.stock),
     lowStock: p.lowStock === null ? null : Number(p.lowStock),
+    branchStock: p.stock === null ? [] : (p.branchStocks ?? []).map((b) => ({ branchId: b.branchId, qty: Number(b.qty) })),
     isActive: p.isActive,
   };
 }

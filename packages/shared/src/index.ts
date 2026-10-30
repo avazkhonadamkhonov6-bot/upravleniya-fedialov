@@ -390,6 +390,8 @@ export interface Product {
   stock: number | null;
   /** Ҳадди огоҳӣ (кам мондан) */
   lowStock: number | null;
+  /** Боқимонда дар ҳар филиал (stock — ҷамъи онҳо) */
+  branchStock: { branchId: number; qty: number }[];
   isActive: boolean;
 }
 

@@ -9,7 +9,7 @@ import { useAuth, useBusiness } from "@/lib/auth";
 import { useApi } from "@/lib/use-api";
 import { tr } from "@/lib/i18n";
 import { ProductVisual } from "@/components/product-visual";
-import { StockForm } from "@/components/stock-form";
+import { qtyIn, StockForm } from "@/components/stock-form";
 
 export default function ProductsPage() {
   const { user } = useAuth();
@@ -22,7 +22,12 @@ export default function ProductsPage() {
   // Анборро шеф, менеҷер ва анбордор пур мекунанд
   const canStock = user?.role !== "STAFF" || user?.position === "STOREKEEPER";
   const tracksStock = data?.some((p) => p.stock !== null) ?? false;
-  const lowCount = data?.filter((p) => p.isActive && p.stock !== null && p.stock <= (p.lowStock ?? 0)).length ?? 0;
+  // Шеф ҷамъи ҳамаи филиалҳоро мебинад; дигарон — анбори филиали худ
+  const stockOf = (p: Product) => (p.stock === null ? null : isChef ? p.stock : qtyIn(p, user?.branchId));
+  // Ҳадди огоҳӣ барои ҳар филиал аст: шеф — агар дар ягон филиал кам монда бошад
+  const isLow = (p: Product) =>
+    p.stock !== null && (isChef ? p.branchStock.length === 0 || p.branchStock.some((b) => b.qty <= (p.lowStock ?? 0)) : stockOf(p)! <= (p.lowStock ?? 0));
+  const lowCount = data?.filter((p) => p.isActive && isLow(p)).length ?? 0;
   const [category, setCategory] = useState<string>("");
 
   const categories = [...new Set(data?.map((p) => p.category))];
@@ -139,8 +144,8 @@ export default function ProductsPage() {
                           <span className="text-muted">—</span>
                         ) : (
                           <span className="inline-flex items-center gap-2">
-                            <span className={cn("font-bold tabular", p.stock <= 0 ? "text-brand" : p.stock <= (p.lowStock ?? 0) ? "text-warn" : "text-ink")}>
-                              {p.stock} <span className="text-[11px] font-medium text-muted">{tr(p.unit)}</span>
+                            <span className={cn("font-bold tabular", stockOf(p)! <= 0 ? "text-brand" : stockOf(p)! <= (p.lowStock ?? 0) ? "text-warn" : "text-ink")}>
+                              {stockOf(p)} <span className="text-[11px] font-medium text-muted">{tr(p.unit)}</span>
                             </span>
                             {canStock && (
                               <button onClick={() => setReceiving(p)} className="grid size-8 cursor-pointer place-items-center rounded-lg text-muted hover:bg-surface hover:text-ink" aria-label={tr("Қабули мол")}>

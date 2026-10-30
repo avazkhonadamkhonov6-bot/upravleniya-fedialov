@@ -14,6 +14,7 @@ import { useApi } from "@/lib/use-api";
 import { tr } from "@/lib/i18n";
 import { Glyph, Iconized } from "@/components/glyph";
 import { ProductVisual } from "@/components/product-visual";
+import { qtyIn } from "@/components/stock-form";
 
 export default function PosPage() {
   return (
@@ -80,6 +81,7 @@ function Pos() {
   const count = lines.reduce((s, l) => s + (isFractionalUnit(l.product.unit) ? 1 : l.qty), 0);
   const activeBranches = branches?.filter((b) => b.isActive);
   const selectedBranch = isChef ? (branchId ?? activeBranches?.[0]?.id) : undefined;
+  const stockBranch = selectedBranch ?? user?.branchId ?? undefined;
 
   const add = (id: number, d: number) =>
     setCart((c) => {
@@ -205,11 +207,15 @@ function Pos() {
                         {money(p.price)}
                         <span className="text-xs font-medium text-muted"> / {tr(p.unit)}</span>
                       </span>
-                      {p.stock !== null && (
-                        <span className={cn("mt-1 text-[11px] font-semibold tabular", p.stock - qty <= 0 ? "text-brand" : p.stock - qty <= (p.lowStock ?? 0) ? "text-warn" : "text-muted")}>
-                          {p.stock - qty <= 0 ? tr("Дар анбор нест") : tr("Боқимонда: {0}", Math.round((p.stock - qty) * 1000) / 1000)}
-                        </span>
-                      )}
+                      {p.stock !== null && (() => {
+                        // Боқимонда дар филиали ҳамин фурӯш
+                        const left = qtyIn(p, stockBranch) - qty;
+                        return (
+                          <span className={cn("mt-1 text-[11px] font-semibold tabular", left <= 0 ? "text-brand" : left <= (p.lowStock ?? 0) ? "text-warn" : "text-muted")}>
+                            {left <= 0 ? tr("Дар анбор нест") : tr("Боқимонда: {0}", Math.round(left * 1000) / 1000)}
+                          </span>
+                        );
+                      })()}
                     </button>
                   );
               })}
