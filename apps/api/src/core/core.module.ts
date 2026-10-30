@@ -5,11 +5,12 @@ import { AlertsController, AuditController, SearchController } from './core.cont
 import { ClientErrorsController } from './client-errors';
 import { EventsController, EventsService } from './events';
 import { StockService } from '../products/stock';
+import { PushController, PushService } from './push';
 
 @Global()
 @Module({
-  controllers: [AlertsController, AuditController, SearchController, EventsController, ClientErrorsController],
-  providers: [AuditService, AlertsService, EventsService, StockService],
-  exports: [AuditService, AlertsService, EventsService, StockService],
+  controllers: [AlertsController, AuditController, SearchController, EventsController, ClientErrorsController, PushController],
+  providers: [AuditService, AlertsService, EventsService, StockService, PushService],
+  exports: [AuditService, AlertsService, EventsService, StockService, PushService],
 })
 export class CoreModule {}

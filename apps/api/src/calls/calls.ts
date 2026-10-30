@@ -18,6 +18,7 @@ import { AuthUser, CurrentUser, Feature } from '../auth/decorators';
 import type { Call, User } from '../generated/prisma/client';
 import { AlertsService } from '../core/alerts.service';
 import { EventsService } from '../core/events';
+import { PushService } from '../core/push';
 import { PrismaService } from '../prisma/prisma.service';
 
 export class StartCallDto {
@@ -70,6 +71,7 @@ export class CallsService {
     private readonly prisma: PrismaService,
     private readonly alerts: AlertsService,
     private readonly events: EventsService,
+    private readonly push: PushService,
   ) {}
 
   async start(user: AuthUser, dto: StartCallDto): Promise<CallInfo> {
@@ -90,6 +92,8 @@ export class CallsService {
       include: people,
     });
     this.events.emit(callee.id, 'calls');
+    // Телефон занг мезанад, ҳатто агар сайт пӯшида бошад
+    this.push.send(callee.id, { title: `${dto.video ? '🎥' : '📞'} ${user.fullName} занг мезанад`, body: 'Барои ҷавоб пахш кунед', url: '/messages', tag: 'call' });
     return toCall(call, user.id);
   }
 

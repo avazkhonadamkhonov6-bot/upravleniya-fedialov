@@ -117,43 +117,44 @@ model Branch {
 }
 
 model User {
-  id               Int          @id @default(autoincrement())
+  id               Int                @id @default(autoincrement())
   organizationId   Int
-  organization     Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  organization     Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   fullName         String
-  email            String       @unique
+  email            String             @unique
   phone            String
   /// Рақами WhatsApp (агар холӣ бошад — phone истифода мешавад)
-  whatsapp         String       @default("")
+  whatsapp         String             @default("")
   /// Номи корбарии Telegram бе @ (ё рақам)
-  telegram         String       @default("")
+  telegram         String             @default("")
   passwordHash     String
   role             Role
   position         Position?
   branchId         Int?
-  branch           Branch?      @relation(fields: [branchId], references: [id], onDelete: SetNull)
-  salary           Int          @default(0)
+  branch           Branch?            @relation(fields: [branchId], references: [id], onDelete: SetNull)
+  salary           Int                @default(0)
   /// Рӯзи моҳ, ки маош дода мешавад (1–28)
-  payDay           Int          @default(1)
-  hiredAt          DateTime     @default(now())
-  isActive         Boolean      @default(true)
-  telegramChatId   String?      @unique
+  payDay           Int                @default(1)
+  hiredAt          DateTime           @default(now())
+  isActive         Boolean            @default(true)
+  telegramChatId   String?            @unique
   /// Супер-админи платформа: ҳамаи бизнесҳоро мебинад ва бизнесҳои навро тасдиқ мекунад
-  isSuperAdmin     Boolean      @default(false)
-  createdAt        DateTime     @default(now())
+  isSuperAdmin     Boolean            @default(false)
+  createdAt        DateTime           @default(now())
   orders           Order[]
-  assignedTasks    Task[]       @relation("TaskAssignee")
-  createdTasks     Task[]       @relation("TaskCreator")
+  assignedTasks    Task[]             @relation("TaskAssignee")
+  createdTasks     Task[]             @relation("TaskCreator")
   shifts           Shift[]
   expenses         Expense[]
   auditLogs        AuditLog[]
   alerts           Alert[]
   debtEntries      DebtEntry[]
-  sentMessages     Message[]    @relation("MessageSender")
-  receivedMessages Message[]    @relation("MessageRecipient")
+  pushSubs         PushSubscription[]
+  sentMessages     Message[]          @relation("MessageSender")
+  receivedMessages Message[]          @relation("MessageRecipient")
   media            Media[]
-  outgoingCalls    Call[]       @relation("CallCaller")
-  incomingCalls    Call[]       @relation("CallCallee")
+  outgoingCalls    Call[]             @relation("CallCaller")
+  incomingCalls    Call[]             @relation("CallCallee")
 
   @@index([branchId])
   @@index([organizationId])
@@ -296,6 +297,25 @@ model Customer {
 
   @@unique([organizationId, phone])
   @@index([branchId])
+}
+
+/// Огоҳӣ ба телефон/компютер (Web Push): як сатр барои ҳар браузери корманд
+model PushSubscription {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  endpoint  String   @unique
+  p256dh    String
+  auth      String
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+}
+
+/// Танзимоти система (масалан калидҳои VAPID, ки худкор сохта мешаванд)
+model AppSetting {
+  key   String @id
+  value String
 }
 
 /// Боқимондаи мол дар анбори ҳар филиал (Product.stock — ҷамъи ҳамаи филиалҳо)

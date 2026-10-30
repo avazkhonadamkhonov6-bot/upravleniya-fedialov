@@ -6,6 +6,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState } 
 import { api, getToken, setToken } from "./api";
 import { clearApiCache } from "./use-api";
 import { listenForErrors } from "./report-error";
+import { registerSW } from "./push";
 
 export interface RegisterInput {
   businessName: string;
@@ -69,6 +70,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   // AuthProvider дар ҳар саҳифа ҳаст — хатоҳои браузерро аз ҳамин ҷо ба сервер мефиристем
   useEffect(listenForErrors, []);
+  // Service worker: огоҳӣ ба телефон ва насби сайт ҳамчун барнома
+  useEffect(() => {
+    void registerSW();
+  }, []);
 
   useEffect(() => {
     const check = !getToken()

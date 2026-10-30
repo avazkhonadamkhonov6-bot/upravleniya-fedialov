@@ -8,6 +8,7 @@ import { BusinessWhatsAppCard } from "@/components/business-whatsapp";
 import { OrganizationCard } from "@/components/organization-card";
 import { SalaryCard } from "@/components/salary-card";
 import { Avatar, Badge, Button, Card, CardTitle, ErrorBox, Field, Input, PageHeader } from "@/components/ui";
+import { PushToggle } from "@/components/push-toggle";
 import { api } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { tr, locale } from "@/lib/i18n";
@@ -104,6 +105,7 @@ export default function ProfilePage() {
               ))}
             </ul>
           </Card>
+          <PushToggle />
           <OrganizationCard />
           {user.role === "CHEF" && <BusinessWhatsAppCard />}
           {user.role !== "CHEF" && <SalaryCard user={user} />}

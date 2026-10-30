@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { EventsService } from './events';
+import { PushService } from './push';
 
 export interface AlertInput {
   icon?: string;
@@ -17,6 +18,7 @@ export class AlertsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly events: EventsService,
+    private readonly push: PushService,
   ) {}
 
   notify(userIds: number | number[], alert: AlertInput) {
@@ -24,7 +26,11 @@ export class AlertsService {
     if (!ids.length) return;
     this.prisma.alert
       .createMany({ data: ids.map((userId) => ({ userId, ...alert })) })
-      .then(() => this.events.emit(ids, 'alerts'))
+      .then(() => {
+        this.events.emit(ids, 'alerts');
+        // Ба телефон ҳам — агар сайт пӯшида бошад
+        this.push.send(ids, { title: `${alert.icon ?? '🔔'} ${alert.title}`, body: alert.body, url: alert.link });
+      })
       .catch((e) => this.logger.warn(`Сохта нашуд: ${(e as Error).message}`));
   }
 
