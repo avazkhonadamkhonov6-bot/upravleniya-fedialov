@@ -1,7 +1,7 @@
 "use client";
 
-import { isFractionalUnit, PAYMENT_LABELS, POINTS_RATE, type Branch, type Customer, type Order, type Payment, type Product, type PromoCheck } from "@filialhub/shared";
-import { Banknote, CheckCircle2, CloudOff, CreditCard, Gift, Minus, NotebookPen, Plus, Printer, Search, ShoppingCart, TicketPercent, Trash2, UserPlus, X } from "lucide-react";
+import { isFractionalUnit, PAYMENT_LABELS, POINTS_RATE, type Branch, type Customer, type DebtRequest, type Order, type Payment, type Product, type PromoCheck } from "@filialhub/shared";
+import { Banknote, CheckCircle2, CloudOff, Hourglass, CreditCard, Gift, Minus, NotebookPen, Plus, Printer, Search, ShoppingCart, TicketPercent, Trash2, UserPlus, X } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { CustomerForm, prettyPhone, SegmentBadge } from "@/components/crm";
@@ -42,6 +42,9 @@ function Pos() {
   }, [fresh]);
   const queued = useOfflineSales();
   const [offlineDone, setOfflineDone] = useState<number | null>(null);
+  // Кассир: фурӯш ба қарз — дархост ба менеҷер; мол пас аз тасдиқ дода мешавад
+  const [requested, setRequested] = useState<DebtRequest | null>(null);
+  const needsApproval = user?.role === "STAFF";
   const { data: branches } = useApi<Branch[]>(isChef ? "/branches" : null);
   const [branchId, setBranchId] = useState<number | undefined>();
   const [cart, setCart] = useState<Record<number, number>>({});
@@ -119,6 +122,17 @@ function Pos() {
       promoCode: promo?.code,
     };
     try {
+      if (payment === "DEBT" && needsApproval) {
+        setRequested(await api<DebtRequest>("/debt-requests/sale", { method: "POST", json: payload }));
+        setDone(null);
+        setCart({});
+        setCustomer(null);
+        setUsePoints(false);
+        setPromo(null);
+        setPayment("CASH");
+        toast.success(tr("Дархост ба менеҷер фиристода шуд"));
+        return;
+      }
       const order = await api<Order>("/orders", { method: "POST", json: { ...payload, clientRef: ref } });
       setDone(order);
       setDonePhone(customer?.phone ?? null);
@@ -129,7 +143,7 @@ function Pos() {
       if (payment === "DEBT") setPayment("CASH");
       toast.success(tr("Фармоиш #{0} сабт шуд", order.id), order.customerName ? tr("{0}: +{1} балл", order.customerName, order.pointsEarned) : money(order.total));
     } catch (e) {
-      if (await isOffline(e)) {
+      if (payment !== "DEBT" && (await isOffline(e))) {
         // Интернет нест — фурӯш нигоҳ дошта мешавад ва баъд худкор меравад
         queueSale({ ref, payload, total });
         setOfflineDone(total);
@@ -250,7 +264,18 @@ function Pos() {
             <span className="ml-auto text-sm text-muted">{count} {tr("дона")}</span>
           </div>
 
-          {offlineDone !== null ? (
+          {requested ? (
+            <div className="rise py-6 text-center">
+              <Hourglass className="mx-auto size-14 text-warn" />
+              <div className="mt-3 text-lg font-bold text-ink">{tr("Интизори тасдиқи менеҷер")}</div>
+              <div className="mt-1 text-sm text-muted">{tr("Молро танҳо пас аз тасдиқ ба мизоҷ диҳед. Ҷавоб дар 🔔 меояд.")}</div>
+              <div className="mt-2 text-sm text-ink">{requested.customerName}</div>
+              <div className="mt-1 text-2xl font-bold text-ink tabular">{money(requested.amount)}</div>
+              <Button className="mt-5 w-full" onClick={() => setRequested(null)}>
+                {tr("Фармоиши нав")}
+              </Button>
+            </div>
+          ) : offlineDone !== null ? (
             <div className="rise py-6 text-center">
               <CloudOff className="mx-auto size-14 text-warn" />
               <div className="mt-3 text-lg font-bold text-ink">{tr("Фурӯш нигоҳ дошта шуд")}</div>
@@ -391,7 +416,9 @@ function Pos() {
               </div>
               {payment === "DEBT" && (
                 <div className={cn("mt-3 rounded-xl px-3 py-2 text-xs font-semibold", customer ? "bg-warn-soft text-warn" : "bg-brand-soft text-brand")}>
-                  {customer
+                  {customer && needsApproval
+                    ? tr("Қарзро менеҷер тасдиқ мекунад. Пас аз тасдиқ ба қарзи {0} илова мешавад: {1} → {2}.", customer.fullName.split(" ")[0], money(customer.debt), money(customer.debt + total))
+                    : customer
                     ? tr("Ба қарзи {0} илова мешавад: {1} → {2}. Мизоҷ дар WhatsApp паём мегирад.", customer.fullName.split(" ")[0], money(customer.debt), money(customer.debt + total))
                     : tr("Барои фурӯш ба қарз мизоҷро аз рӯи рақам ёбед ё сабт кунед.")}
                 </div>
@@ -400,7 +427,7 @@ function Pos() {
                 <ErrorBox message={error} />
               </div>
               <Button className="mt-3 h-12 w-full text-base" loading={busy} onClick={submit} disabled={payment === "DEBT" && !customer}>
-                {tr("Сабт кардан")}
+                {payment === "DEBT" && needsApproval ? tr("Дархост ба менеҷер") : tr("Сабт кардан")}
               </Button>
             </>
           )}

@@ -1,3 +1,4 @@
+import { SkipThrottle } from '@nestjs/throttler';
 import { Body, Controller, ForbiddenException, Get, Headers, HttpCode, Logger, Param, ParseIntPipe, Post, Query, Req, type RawBodyRequest } from '@nestjs/common';
 import { createHmac, timingSafeEqual } from 'node:crypto';
 import type { Request } from 'express';
@@ -48,6 +49,7 @@ interface WaWebhook {
  * Агар WHATSAPP_APP_SECRET гузошта шавад, имзои X-Hub-Signature-256 санҷида мешавад (дархости бегонаро рад мекунад).
  */
 @Controller('whatsapp/webhook')
+@SkipThrottle()
 @Public()
 export class WhatsAppWebhookController {
   private readonly logger = new Logger('WhatsAppBot');

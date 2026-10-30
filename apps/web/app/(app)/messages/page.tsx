@@ -6,11 +6,14 @@ import {
   POSITION_LABELS,
   ROLE_LABELS,
   type Channel,
+  type ChatActivity,
+  type ChatActivityKind,
   type ChatContact,
   type ChatMessage,
   type ContactInfo,
   type DeliveryStatus,
   type MessageResult,
+  type Presence,
 } from "@filialhub/shared";
 import { ArrowLeft, Briefcase, Building2, CalendarDays, Check, CheckCheck, Mail, Megaphone, Wallet, Phone, PhoneIncoming, PhoneMissed, PhoneOutgoing, Search, Send, Video } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -48,6 +51,56 @@ const CH = {
 
 const roleOf = (c: Pick<ChatContact, "position" | "role">) =>
   c.position ? tr(POSITION_LABELS[c.position]) : tr(ROLE_LABELS[c.role]);
+
+/** Матни ҳолат мисли WhatsApp/Telegram */
+const ACTIVITY_LABEL: Record<Exclude<ChatActivityKind, "stop">, string> = {
+  typing: "менависад",
+  recording: "аудио сабт мекунад",
+  video: "видео сабт мекунад",
+};
+
+/** Агар хабари нав наояд, «менависад» худаш пинҳон мешавад (браузери тарафи дигар ҳар 3 сония такрор мекунад) */
+const ACTIVITY_TTL_MS = 6000;
+
+function lastSeen(iso: string) {
+  const d = new Date(iso);
+  const hm = d.toLocaleTimeString(locale(), { hour: "2-digit", minute: "2-digit" });
+  const days = Math.round((new Date().setHours(0, 0, 0, 0) - new Date(iso).setHours(0, 0, 0, 0)) / 86_400_000);
+  if (days === 0) return tr("охирин бор имрӯз дар {0}", hm);
+  if (days === 1) return tr("охирин бор дирӯз дар {0}", hm);
+  return tr("охирин бор {0}", d.toLocaleDateString(locale(), { day: "numeric", month: "short" }));
+}
+
+/** «менависад» + се нуқтаи ҷунбанда, бо ранги канал */
+function ActivityText({ kind, color }: { kind: Exclude<ChatActivityKind, "stop">; color: string }) {
+  return (
+    <span className="inline-flex items-center gap-1 font-semibold" style={{ color }}>
+      {tr(ACTIVITY_LABEL[kind])}
+      <span className="typing-dots" aria-hidden>
+        <i />
+        <i />
+        <i />
+      </span>
+    </span>
+  );
+}
+
+/**
+ * Ба ҳамсуҳбат хабар медиҳад, ки чӣ кор мекунем (ҳар 3 сония, то бас кунем) ва ҳангоми бас кардан «stop».
+ * Хато муҳим нест — танҳо нишондиҳанда аст.
+ */
+function useActivityPing(to: number, kind: ChatActivityKind | null) {
+  useEffect(() => {
+    if (!kind) return;
+    const ping = (k: ChatActivityKind) => void api("/messages/activity", { method: "POST", json: { to, kind: k } }).catch(() => {});
+    ping(kind);
+    const t = setInterval(() => ping(kind), 3000);
+    return () => {
+      clearInterval(t);
+      ping("stop");
+    };
+  }, [to, kind]);
+}
 
 function timeShort(iso: string) {
   const d = new Date(iso);
@@ -91,9 +144,34 @@ function Chat() {
   useServerEvent("messages", loadContacts);
   useVisibleInterval(loadContacts, 30000);
 
+  // «Дар шабака» ва «менависад…» — фавран аз сервер, бе бор кардани рӯйхат
+  const [presence, setPresence] = useState<Record<number, Presence>>({});
+  const [activity, setActivity] = useState<Record<number, Exclude<ChatActivityKind, "stop">>>({});
+  const activityTimers = useRef(new Map<number, ReturnType<typeof setTimeout>>());
+  useServerEvent<Presence>("presence", (p) => setPresence((s) => ({ ...s, [p.userId]: p })));
+  useServerEvent<ChatActivity>("activity", ({ fromId, kind }) => {
+    clearTimeout(activityTimers.current.get(fromId));
+    const clear = () =>
+      setActivity((s) => {
+        const rest = { ...s };
+        delete rest[fromId];
+        return rest;
+      });
+    if (kind === "stop") return clear();
+    setActivity((s) => ({ ...s, [fromId]: kind }));
+    activityTimers.current.set(fromId, setTimeout(clear, ACTIVITY_TTL_MS));
+  });
+  useEffect(() => {
+    const timers = activityTimers.current;
+    return () => timers.forEach(clearTimeout);
+  }, []);
+
   const go = (id: number, ch: Channel) => router.replace(`/messages?ch=${CH[ch].param}${id ? `&to=${id}` : ""}`, { scroll: false });
   const open = (id: number) => go(id, channel);
-  const contacts = useMemo(() => data?.contacts ?? [], [data]);
+  const contacts = useMemo(
+    () => (data?.contacts ?? []).map((c) => (presence[c.id] ? { ...c, online: presence[c.id].online, lastSeenAt: presence[c.id].lastSeenAt ?? c.lastSeenAt } : c)),
+    [data, presence],
+  );
   const active = contacts.find((c) => c.id === activeId) ?? null;
   const q = query.trim().toLowerCase();
   const shown = q ? contacts.filter((c) => c.fullName.toLowerCase().includes(q) || (c.branchName ?? "").toLowerCase().includes(q)) : contacts;
@@ -151,7 +229,7 @@ function Chat() {
             ) : shown.length === 0 ? (
               <Empty title={tr("Ҳеҷ чиз ёфт нашуд")} />
             ) : (
-              shown.map((c) => <ContactRow key={c.id} c={c} channel={channel} active={c.id === activeId} onClick={() => open(c.id)} />)
+              shown.map((c) => <ContactRow key={c.id} c={c} channel={channel} activity={activity[c.id]} active={c.id === activeId} onClick={() => open(c.id)} />)
             )}
           </div>
         </div>
@@ -159,7 +237,7 @@ function Chat() {
         {/* Суҳбат */}
         <div className={cn("min-h-0", !active && "hidden lg:block")}>
           {active ? (
-            <Thread key={`${active.id}-${channel}`} contact={active} channel={channel} onBack={() => open(0)} onSent={loadContacts} />
+            <Thread key={`${active.id}-${channel}`} contact={active} channel={channel} activity={activity[active.id]} onBack={() => open(0)} onSent={loadContacts} />
           ) : (
             <div className="grid h-full place-items-center p-8 text-center">
               <div>
@@ -187,7 +265,19 @@ function Chat() {
   );
 }
 
-function ContactRow({ c, channel, active, onClick }: { c: ChatContact; channel: Channel; active: boolean; onClick: () => void }) {
+function ContactRow({
+  c,
+  channel,
+  activity,
+  active,
+  onClick,
+}: {
+  c: ChatContact;
+  channel: Channel;
+  activity?: Exclude<ChatActivityKind, "stop">;
+  active: boolean;
+  onClick: () => void;
+}) {
   const ch = CH[channel];
   return (
     <button
@@ -202,6 +292,7 @@ function ContactRow({ c, channel, active, onClick }: { c: ChatContact; channel: 
             <TelegramIcon className="size-2.5" />
           </span>
         )}
+        {c.online && <span className="absolute top-0 right-0 size-3 rounded-full bg-[#25d366] ring-2 ring-surface" title={tr("дар шабака")} />}
       </div>
       <div className="min-w-0 flex-1">
         <div className="flex items-baseline justify-between gap-2">
@@ -210,7 +301,13 @@ function ContactRow({ c, channel, active, onClick }: { c: ChatContact; channel: 
         </div>
         <div className="flex items-center justify-between gap-2">
           <span className={cn("truncate text-xs", c.unread ? "font-semibold text-ink-2" : "text-muted")}>
-            {c.lastMessage ? `${c.lastMessage.mine ? tr("Шумо:") + " " : ""}${c.lastMessage.text}` : `${roleOf(c)}${c.branchName ? " · " + c.branchName : ""}`}
+            {activity ? (
+              <ActivityText kind={activity} color={ch.color} />
+            ) : c.lastMessage ? (
+              `${c.lastMessage.mine ? tr("Шумо:") + " " : ""}${c.lastMessage.text}`
+            ) : (
+              `${roleOf(c)}${c.branchName ? " · " + c.branchName : ""}`
+            )}
           </span>
           {c.unread > 0 && (
             <span className="grid h-5 min-w-5 shrink-0 place-items-center rounded-full px-1.5 text-[11px] font-bold text-white" style={{ background: ch.grad }}>
@@ -223,7 +320,19 @@ function ContactRow({ c, channel, active, onClick }: { c: ChatContact; channel: 
   );
 }
 
-function Thread({ contact, channel, onBack, onSent }: { contact: ChatContact; channel: Channel; onBack: () => void; onSent: () => void }) {
+function Thread({
+  contact,
+  channel,
+  activity,
+  onBack,
+  onSent,
+}: {
+  contact: ChatContact;
+  channel: Channel;
+  activity?: Exclude<ChatActivityKind, "stop">;
+  onBack: () => void;
+  onSent: () => void;
+}) {
   const ch = CH[channel];
   const channels = useMemo<Channel[]>(() => [channel], [channel]);
   const [infoOpen, setInfoOpen] = useState(false);
@@ -237,6 +346,18 @@ function Thread({ contact, channel, onBack, onSent }: { contact: ChatContact; ch
   const [busy, setBusy] = useState(false);
   const bottom = useRef<HTMLDivElement>(null);
   const lastId = useRef(0);
+
+  // «Менависад» — танҳо вақте ки тугма пахш мешавад; 4 сония бе тугма — бас кард (мисли WhatsApp)
+  const [typing, setTyping] = useState(false);
+  const typingTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
+  useEffect(() => () => clearTimeout(typingTimer.current), []);
+  const onType = (value: string) => {
+    setText(value);
+    clearTimeout(typingTimer.current);
+    setTyping(!!value.trim());
+    if (value.trim()) typingTimer.current = setTimeout(() => setTyping(false), 4000);
+  };
+  useActivityPing(contact.id, recording === "voice" ? "recording" : recording === "video" ? "video" : typing ? "typing" : null);
 
   // Аввал ҳамаи суҳбат, баъд ҳар 4 сония танҳо паёмҳои нав.
   useEffect(() => {
@@ -273,6 +394,7 @@ function Thread({ contact, channel, onBack, onSent }: { contact: ChatContact; ch
         json: { userIds: [contact.id], text: body, channels },
       });
       setText("");
+      setTyping(false);
       const m = res.messages[0];
       lastId.current = Math.max(lastId.current, m.id);
       setMessages((list) => [...(list ?? []), m]);
@@ -324,8 +446,17 @@ function Thread({ contact, channel, onBack, onSent }: { contact: ChatContact; ch
         <button onClick={() => setInfoOpen(true)} className="min-w-0 flex-1 cursor-pointer text-left">
           <div className="truncate font-semibold text-ink">{contact.fullName}</div>
           <div className="truncate text-xs text-muted">
-            {roleOf(contact)}
-            {contact.branchName ? ` · ${contact.branchName}` : ""}
+            {activity ? (
+              <ActivityText kind={activity} color={ch.color} />
+            ) : contact.online ? (
+              <span className="font-semibold" style={{ color: ch.color }}>
+                {tr("дар шабака")}
+              </span>
+            ) : contact.lastSeenAt ? (
+              lastSeen(contact.lastSeenAt)
+            ) : (
+              `${roleOf(contact)}${contact.branchName ? ` · ${contact.branchName}` : ""}`
+            )}
           </div>
         </button>
         <div className="flex items-center gap-1">
@@ -376,7 +507,7 @@ function Thread({ contact, channel, onBack, onSent }: { contact: ChatContact; ch
           ) : (
           <textarea
             value={text}
-            onChange={(e) => setText(e.target.value)}
+            onChange={(e) => onType(e.target.value)}
             onKeyDown={(e) => {
               if (e.key === "Enter" && !e.shiftKey) {
                 e.preventDefault();

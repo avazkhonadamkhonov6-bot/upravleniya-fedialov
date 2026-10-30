@@ -1,6 +1,8 @@
 import { Module } from '@nestjs/common';
 import { APP_GUARD } from '@nestjs/core';
 import { ScheduleModule } from '@nestjs/schedule';
+import { ThrottlerModule } from '@nestjs/throttler';
+import { AppThrottlerGuard } from './core/throttle';
 import { AuthModule } from './auth/auth.module';
 import { JwtAuthGuard } from './auth/jwt-auth.guard';
 import { RolesGuard } from './auth/roles.guard';
@@ -22,10 +24,13 @@ import { MessagesModule } from './messages/messages';
 import { CallsModule } from './calls/calls';
 import { ShopModule } from './shop/shop';
 import { AdminModule } from './admin/admin';
+import { DebtRequestsModule } from './debts/debt-requests';
 
 @Module({
   imports: [
     ScheduleModule.forRoot(),
+    // 300 дархост дар як дақиқа барои як корбар/IP — саҳифаҳои оддӣ ба он намерасанд
+    ThrottlerModule.forRoot({ throttlers: [{ ttl: 60_000, limit: 300 }], errorMessage: 'Дархостҳо аз ҳад зиёданд. Каме истед ва аз нав кӯшиш кунед.' }),
     PrismaModule,
     CoreModule,
     AuthModule,
@@ -43,9 +48,11 @@ import { AdminModule } from './admin/admin';
     CallsModule,
     ShopModule,
     AdminModule,
+    DebtRequestsModule,
   ],
   controllers: [HealthController],
   providers: [
+    { provide: APP_GUARD, useClass: AppThrottlerGuard },
     { provide: APP_GUARD, useClass: JwtAuthGuard },
     { provide: APP_GUARD, useClass: RolesGuard },
     { provide: APP_GUARD, useClass: StaffAccessGuard },

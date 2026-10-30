@@ -76,7 +76,8 @@ export default function AuditPage() {
                                 <Badge tone={a.tone}>
                                   <Glyph e={a.emoji} className="size-3.5" /> {tr(a.label)}
                                 </Badge>
-                                <Badge>{tr(AUDIT_ENTITY_LABELS[e.entity]) ?? e.entity}</Badge>
+                                {/* Навъи нав, ки ҳанӯз дар AUDIT_ENTITY_LABELS нест, саҳифаро вайрон намекунад */}
+                                <Badge>{AUDIT_ENTITY_LABELS[e.entity] ? tr(AUDIT_ENTITY_LABELS[e.entity]) : e.entity}</Badge>
                               </div>
                               <p className="mt-1 text-sm text-ink-2">{e.summary}</p>
                             </div>

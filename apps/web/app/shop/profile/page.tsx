@@ -1,6 +1,6 @@
 "use client";
 
-import type { Client, OnlineOrder } from "@filialhub/shared";
+import type { Client, ClientDebts, OnlineOrder } from "@filialhub/shared";
 import { LogOut } from "lucide-react";
 import { useState } from "react";
 import { NeedClient } from "@/components/shop-shell";
@@ -25,6 +25,7 @@ function Profile() {
   const { client, setClient, logout } = useAuth();
   const toast = useToast();
   const { data: orders } = useApi<OnlineOrder[]>("/shop/orders");
+  const { data: debts } = useApi<ClientDebts>("/shop/debts");
   const [f, setF] = useState({ fullName: client?.fullName ?? "", phone: client?.phone ?? "", address: client?.address ?? "" });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -78,6 +79,25 @@ function Profile() {
             <LogOut className="size-4" /> {tr("Баромад")}
           </Button>
         </Card>
+        {debts && (
+          <Card>
+            <CardTitle>{tr("Қарзи ман")}</CardTitle>
+            {!debts.linked ? (
+              <p className="text-sm text-muted">{tr("Барои дидани қарзи худ ботро дар Telegram кушоед ва рақамашро фиристед — ҳамин тавр рақами шумо тасдиқ мешавад.")}</p>
+            ) : debts.items.length === 0 ? (
+              <p className="text-sm font-semibold text-good">{tr("Шумо қарз надоред. Ташаккур!")}</p>
+            ) : (
+              <ul className="divide-y divide-line text-sm">
+                {debts.items.map((d) => (
+                  <li key={d.store} className="flex items-center justify-between gap-3 py-2">
+                    <span className="truncate text-ink">{d.store}</span>
+                    <b className="shrink-0 text-brand tabular">{money(d.debt)}</b>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </Card>
+        )}
         <TelegramBotCard text={tr("Ҳолати фармоишҳоро дар Telegram гиред: ботро кушоед ва рақами худро фиристед.")} />
       </div>
       <Card>

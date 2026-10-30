@@ -4,6 +4,7 @@ import {
   Controller,
   ForbiddenException,
   Get,
+  HttpCode,
   Injectable,
   Module,
   Param,
@@ -17,10 +18,13 @@ import type { Request, Response } from 'express';
 import { ArrayMaxSize, ArrayMinSize, IsArray, IsIn, IsInt, IsString, MaxLength, MinLength } from 'class-validator';
 import {
   CHANNELS,
+  CHAT_ACTIVITIES,
   MEDIA_MAX_BYTES,
   VIDEO_NOTE_MAX_SECONDS,
   VOICE_MAX_SECONDS,
   type Channel,
+  type ChatActivity,
+  type ChatActivityKind,
   type ChatContact,
   type ChatMessage,
   type ContactInfo,
@@ -45,8 +49,21 @@ export class SendMessageDto {
   channels: Channel[];
 }
 
+export class ActivityDto {
+  @IsInt()
+  to: number;
+
+  @IsIn(CHAT_ACTIVITIES)
+  kind: ChatActivityKind;
+}
+
+/** Иҷозати «менависад» ба ҳамсуҳбат — дар хотира, то ҳар 3 сония ба база нарафтем */
+const TALK_CACHE_MS = 60_000;
+
 @Injectable()
 export class MessagesService {
+  private canTalkCache = new Map<string, number>();
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly chat: ChatService,
@@ -116,6 +133,8 @@ export class MessagesService {
         telegramLinked: !!u.telegramChatId,
         lastMessage: m ? { text: m.text, createdAt: m.createdAt.toISOString(), mine: m.senderId === user.id } : null,
         unread: unread.find((x) => x.senderId === u.id)?._count ?? 0,
+        online: this.events.isOnline(u.id),
+        lastSeenAt: u.lastSeenAt?.toISOString() ?? null,
       };
     });
     // Аввал суҳбатҳои охирин, баъд аз рӯи нақш ва ном
@@ -132,6 +151,20 @@ export class MessagesService {
   private async ensureCanTalk(user: AuthUser, otherId: number) {
     const ok = await this.prisma.user.count({ where: { AND: [await this.scope(user), { id: otherId }] } });
     if (!ok) throw new ForbiddenException('Ба ин корбар навиштан мумкин нест');
+  }
+
+  /**
+   * «Менависад…» / «аудио сабт мекунад…» — танҳо ба ҳамсуҳбат, бе база (мисли WhatsApp/Telegram).
+   * Браузер ҳар чанд сония такрор мефиристад; агар бас шавад, тарафи дигар худаш пас аз 6 сония пинҳон мекунад.
+   */
+  async activity(user: AuthUser, dto: ActivityDto) {
+    const key = `${user.id}:${dto.to}`;
+    if ((this.canTalkCache.get(key) ?? 0) < Date.now()) {
+      await this.ensureCanTalk(user, dto.to);
+      if (this.canTalkCache.size > 5000) this.canTalkCache.clear();
+      this.canTalkCache.set(key, Date.now() + TALK_CACHE_MS);
+    }
+    this.events.emit(dto.to, 'activity', { fromId: user.id, kind: dto.kind } satisfies ChatActivity);
   }
 
   /** Суҳбат бо як нафар. after — танҳо паёмҳои нав (барои навсозии худкор). Паёмҳои воридшуда хондашуда мешаванд. */
@@ -256,6 +289,12 @@ export class MessagesController {
   @Get('contacts/:id')
   info(@CurrentUser() user: AuthUser, @Param('id', ParseIntPipe) id: number) {
     return this.messages.info(user, id);
+  }
+
+  @Post('activity')
+  @HttpCode(204)
+  activity(@CurrentUser() user: AuthUser, @Body() dto: ActivityDto) {
+    return this.messages.activity(user, dto);
   }
 
   @Get('unread')

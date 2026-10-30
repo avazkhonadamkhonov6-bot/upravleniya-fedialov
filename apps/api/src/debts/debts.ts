@@ -1,8 +1,8 @@
-import { BadRequestException, Body, Controller, Get, HttpCode, Injectable, Logger, Module, NotFoundException, Param, ParseIntPipe, Post, Query } from '@nestjs/common';
+import { BadRequestException, Body, Controller, ForbiddenException, Get, HttpCode, Injectable, Logger, Module, NotFoundException, Param, ParseIntPipe, Post, Query } from '@nestjs/common';
 import { Cron } from '@nestjs/schedule';
 import { Type } from 'class-transformer';
 import { IsIn, IsNumber, IsOptional, IsString, MaxLength, Min } from 'class-validator';
-import { formatMoney, type Customer as CustomerDto, type DebtEntry as DebtEntryDto, type DebtSummary } from '@filialhub/shared';
+import { canSell, formatMoney, type Customer as CustomerDto, type DebtEntry as DebtEntryDto, type DebtSummary } from '@filialhub/shared';
 import { AuthUser, CurrentUser, Feature } from '../auth/decorators';
 import { TZ } from '../common/time';
 import { AuditService } from '../core/audit.service';
@@ -35,6 +35,23 @@ export class AddDebtDto {
 }
 
 const r2 = (n: number) => Math.round(n * 100) / 100;
+
+/**
+ * Кӣ дафтари қарзро мебинад: шеф — ҳамаи мизоҷони ширкат; менеҷер ва кассир — танҳо мизоҷони филиали худ.
+ * Дигар кормандон (ошпаз, официант…) — ҳеҷ (StaffAccessGuard ҳам онҳоро намегузорад).
+ */
+export function debtScope(user: AuthUser): Prisma.CustomerWhereInput {
+  if (user.role === 'CHEF') return { organizationId: user.organizationId };
+  if (!canSell(user) || !user.branchId) throw new ForbiddenException('Дафтари қарз барои шумо кушода нест');
+  return { organizationId: user.organizationId, branchId: user.branchId };
+}
+
+/** Дархостҳои қарзе, ки корбар мебинад: шеф — ҳама, менеҷер — филиали худ, кассир — дархостҳои худаш */
+export function requestScope(user: AuthUser): Prisma.DebtRequestWhereInput {
+  if (user.role === 'CHEF') return { organizationId: user.organizationId };
+  if (user.role === 'MANAGER') return { organizationId: user.organizationId, branchId: user.branchId ?? -1 };
+  return { organizationId: user.organizationId, requestedById: user.id };
+}
 /** Ёдрас на зудтар аз 6 рӯз (ҳар ҳафта) */
 const REMIND_EVERY_MS = 6 * 86_400_000;
 
@@ -61,16 +78,19 @@ export class DebtsService {
   }
 
   async summary(user: AuthUser): Promise<DebtSummary> {
-    const agg = await this.prisma.customer.aggregate({ where: { organizationId: user.organizationId, debt: { gt: 0 } }, _sum: { debt: true }, _count: true });
+    const [agg, pendingRequests] = await Promise.all([
+      this.prisma.customer.aggregate({ where: { ...debtScope(user), debt: { gt: 0 } }, _sum: { debt: true }, _count: true }),
+      this.prisma.debtRequest.count({ where: { ...requestScope(user), status: 'PENDING' } }),
+    ]);
     const whatsapp = !!(await this.whatsapp.greenFor(user.organizationId)) || this.whatsapp.configured;
-    return { total: r2(Number(agg._sum.debt ?? 0)), debtors: agg._count, whatsapp, telegramBot: this.customerBot.botUsername };
+    return { total: r2(Number(agg._sum.debt ?? 0)), debtors: agg._count, whatsapp, telegramBot: this.customerBot.botUsername, pendingRequests };
   }
 
   async debtors(user: AuthUser, q: string): Promise<CustomerDto[]> {
     const search = q.trim();
     const rows = await this.prisma.customer.findMany({
       where: {
-        organizationId: user.organizationId,
+        ...debtScope(user),
         debt: { gt: 0 },
         ...(search ? { OR: [{ fullName: { contains: search, mode: 'insensitive' } }, { phone: { contains: search.replace(/\D/g, '') || search } }] } : {}),
       },
@@ -110,6 +130,8 @@ export class DebtsService {
 
   /** Қарзи дастӣ (масалан мол бе POS ё қарзи кӯҳна аз дафтари коғазӣ) */
   async add(user: AuthUser, customerId: number, dto: AddDebtDto) {
+    // Кассир қарзи нав намедиҳад — танҳо дархост (/debt-requests), ки менеҷер тасдиқ мекунад
+    if (user.role === 'STAFF') throw new ForbiddenException('Қарзи навро менеҷер тасдиқ мекунад — дархост фиристед');
     const c = await this.customer(user, customerId);
     const amount = r2(dto.amount);
     const updated = await this.prisma.$transaction(async (tx) => {
@@ -183,9 +205,9 @@ export class DebtsService {
     return tg && wa.status !== 'SENT' ? ('SENT' as const) : wa.status;
   }
 
-  private async customer(user: AuthUser, id: number) {
-    const c = await this.prisma.customer.findUnique({ where: { id }, include: { branch: { select: { name: true } } } });
-    if (!c || c.organizationId !== user.organizationId) throw new NotFoundException('Мизоҷ ёфт нашуд');
+  async customer(user: AuthUser, id: number) {
+    const c = await this.prisma.customer.findFirst({ where: { id, ...debtScope(user) }, include: { branch: { select: { name: true } } } });
+    if (!c) throw new NotFoundException('Мизоҷ ёфт нашуд');
     return c;
   }
 }

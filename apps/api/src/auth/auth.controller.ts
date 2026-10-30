@@ -1,3 +1,4 @@
+import { Throttle } from '@nestjs/throttler';
 import { Body, Controller, Get, HttpCode, Param, ParseIntPipe, Patch, Post } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { AllowPending, AuthUser, CurrentUser, Feature, Public, Roles } from './decorators';
@@ -11,18 +12,21 @@ export class AuthController {
   @Public()
   @Post('login')
   @HttpCode(200)
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
   login(@Body() dto: LoginDto) {
     return this.auth.login(dto);
   }
 
   @Public()
   @Post('register')
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
   register(@Body() dto: RegisterDto) {
     return this.auth.register(dto);
   }
 
   @Public()
   @Post('register-client')
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
   registerClient(@Body() dto: RegisterClientDto) {
     return this.auth.registerClient(dto);
   }

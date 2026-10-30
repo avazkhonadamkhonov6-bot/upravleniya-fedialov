@@ -1,3 +1,4 @@
+import { SkipThrottle } from '@nestjs/throttler';
 import { Body, Controller, ForbiddenException, Headers, HttpCode, Post } from '@nestjs/common';
 import { timingSafeEqual } from 'node:crypto';
 import { Public } from '../auth/decorators';
@@ -8,6 +9,7 @@ import { TelegramService, TgMessage } from './telegram.service';
  * Сарлавҳаи X-Telegram-Bot-Api-Secret-Token санҷида мешавад — дархости бегона рад мешавад.
  */
 @Controller('telegram/webhook')
+@SkipThrottle()
 @Public()
 export class TelegramWebhookController {
   constructor(private readonly telegram: TelegramService) {}

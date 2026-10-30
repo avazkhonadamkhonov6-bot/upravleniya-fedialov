@@ -70,7 +70,8 @@ export function AlertsBell({ dark }: { dark?: boolean }) {
         )}
       </button>
       {open && (
-        <div className="rise absolute right-0 z-50 mt-2 w-[min(92vw,380px)] overflow-hidden rounded-3xl border border-line bg-surface shadow-2xl">
+        // Телефон: дар тамоми бари экран (занг дар мобайни сарлавҳа аст — панели ба рост часпида аз чап мебаромад)
+        <div className="rise fixed inset-x-3 top-[4.5rem] z-50 overflow-hidden rounded-3xl border border-line bg-surface shadow-2xl sm:absolute sm:inset-x-auto sm:top-auto sm:right-0 sm:mt-2 sm:w-[380px]">
           <div className="flex items-center justify-between border-b border-line px-4 py-3">
             <div className="font-semibold text-ink">{tr("Огоҳиномаҳо")}</div>
             {unread > 0 && (

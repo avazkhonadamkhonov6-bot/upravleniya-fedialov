@@ -77,6 +77,7 @@ model Organization {
   waMediaUrl    String?
   onlineOrders  OnlineOrder[]
   debtEntries   DebtEntry[]
+  debtRequests  DebtRequest[]
   promoCodes    PromoCode[]
   reviews       Review[]
   storeViews    StoreView[]
@@ -112,49 +113,54 @@ model Branch {
   expenses       Expense[]
   onlineOrders   OnlineOrder[]
   stocks         BranchStock[]
+  debtRequests   DebtRequest[]
 
   @@index([organizationId])
 }
 
 model User {
-  id               Int                @id @default(autoincrement())
-  organizationId   Int
-  organization     Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  fullName         String
-  email            String             @unique
-  phone            String
+  id                  Int                @id @default(autoincrement())
+  organizationId      Int
+  organization        Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  fullName            String
+  email               String             @unique
+  phone               String
   /// Рақами WhatsApp (агар холӣ бошад — phone истифода мешавад)
-  whatsapp         String             @default("")
+  whatsapp            String             @default("")
   /// Номи корбарии Telegram бе @ (ё рақам)
-  telegram         String             @default("")
-  passwordHash     String
-  role             Role
-  position         Position?
-  branchId         Int?
-  branch           Branch?            @relation(fields: [branchId], references: [id], onDelete: SetNull)
-  salary           Int                @default(0)
+  telegram            String             @default("")
+  passwordHash        String
+  role                Role
+  position            Position?
+  branchId            Int?
+  branch              Branch?            @relation(fields: [branchId], references: [id], onDelete: SetNull)
+  salary              Int                @default(0)
   /// Рӯзи моҳ, ки маош дода мешавад (1–28)
-  payDay           Int                @default(1)
-  hiredAt          DateTime           @default(now())
-  isActive         Boolean            @default(true)
-  telegramChatId   String?            @unique
+  payDay              Int                @default(1)
+  hiredAt             DateTime           @default(now())
+  isActive            Boolean            @default(true)
+  telegramChatId      String?            @unique
   /// Супер-админи платформа: ҳамаи бизнесҳоро мебинад ва бизнесҳои навро тасдиқ мекунад
-  isSuperAdmin     Boolean            @default(false)
-  createdAt        DateTime           @default(now())
-  orders           Order[]
-  assignedTasks    Task[]             @relation("TaskAssignee")
-  createdTasks     Task[]             @relation("TaskCreator")
-  shifts           Shift[]
-  expenses         Expense[]
-  auditLogs        AuditLog[]
-  alerts           Alert[]
-  debtEntries      DebtEntry[]
-  pushSubs         PushSubscription[]
-  sentMessages     Message[]          @relation("MessageSender")
-  receivedMessages Message[]          @relation("MessageRecipient")
-  media            Media[]
-  outgoingCalls    Call[]             @relation("CallCaller")
-  incomingCalls    Call[]             @relation("CallCallee")
+  isSuperAdmin        Boolean            @default(false)
+  /// Охирин бор кай сайт кушода буд («дида шуд 14:30» дар чат)
+  lastSeenAt          DateTime?
+  createdAt           DateTime           @default(now())
+  orders              Order[]
+  assignedTasks       Task[]             @relation("TaskAssignee")
+  createdTasks        Task[]             @relation("TaskCreator")
+  shifts              Shift[]
+  expenses            Expense[]
+  auditLogs           AuditLog[]
+  alerts              Alert[]
+  debtEntries         DebtEntry[]
+  debtRequestsMade    DebtRequest[]      @relation("DebtRequester")
+  debtRequestsDecided DebtRequest[]      @relation("DebtDecider")
+  pushSubs            PushSubscription[]
+  sentMessages        Message[]          @relation("MessageSender")
+  receivedMessages    Message[]          @relation("MessageRecipient")
+  media               Media[]
+  outgoingCalls       Call[]             @relation("CallCaller")
+  incomingCalls       Call[]             @relation("CallCallee")
 
   @@index([branchId])
   @@index([organizationId])
@@ -275,29 +281,30 @@ enum ExpenseCategory {
 }
 
 model Customer {
-  id             Int          @id @default(autoincrement())
+  id             Int           @id @default(autoincrement())
   organizationId Int
-  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  organization   Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   fullName       String
   phone          String
   email          String?
   birthday       DateTime?
   branchId       Int?
-  branch         Branch?      @relation(fields: [branchId], references: [id], onDelete: SetNull)
-  points         Int          @default(0)
-  totalSpent     Decimal      @default(0) @db.Decimal(12, 2)
-  visits         Int          @default(0)
+  branch         Branch?       @relation(fields: [branchId], references: [id], onDelete: SetNull)
+  points         Int           @default(0)
+  totalSpent     Decimal       @default(0) @db.Decimal(12, 2)
+  visits         Int           @default(0)
   lastVisitAt    DateTime?
-  note           String       @default("")
+  note           String        @default("")
   /// Қарзи ҳозира (ҷамъи DebtEntry); 0 — қарз нест
-  debt           Decimal      @default(0) @db.Decimal(12, 2)
+  debt           Decimal       @default(0) @db.Decimal(12, 2)
   /// Охирин ёдрас дар бораи қарз (WhatsApp)
   debtRemindedAt DateTime?
   /// Чати Telegram-и мизоҷ (бот: қарз ва ёдрас)
   telegramChatId String?
-  createdAt      DateTime     @default(now())
+  createdAt      DateTime      @default(now())
   orders         Order[]
   debtEntries    DebtEntry[]
+  debtRequests   DebtRequest[]
 
   @@unique([organizationId, phone])
   @@index([branchId])
@@ -631,4 +638,37 @@ model Review {
   createdAt      DateTime     @default(now())
 
   @@index([organizationId, createdAt])
+}
+
+enum DebtRequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+/// Дархости қарз аз кассир: то тасдиқи менеҷер (ё шеф) қарз дода намешавад
+model DebtRequest {
+  id             Int               @id @default(autoincrement())
+  organizationId Int
+  organization   Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  branchId       Int
+  branch         Branch            @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  customerId     Int
+  customer       Customer          @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  amount         Decimal           @db.Decimal(12, 2)
+  note           String            @default("")
+  /// Фурӯш ба қарз аз POS: сабади пурра (CreateOrderDto); пас аз тасдиқ фурӯш сабт мешавад
+  sale           Json?
+  status         DebtRequestStatus @default(PENDING)
+  requestedById  Int?
+  requestedBy    User?             @relation("DebtRequester", fields: [requestedById], references: [id], onDelete: SetNull)
+  decidedById    Int?
+  decidedBy      User?             @relation("DebtDecider", fields: [decidedById], references: [id], onDelete: SetNull)
+  decidedAt      DateTime?
+  /// Фурӯше, ки пас аз тасдиқ сохта шуд
+  orderId        Int?
+  createdAt      DateTime          @default(now())
+
+  @@index([organizationId, status])
+  @@index([branchId, status])
 }

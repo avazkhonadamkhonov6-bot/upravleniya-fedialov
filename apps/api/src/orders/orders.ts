@@ -171,16 +171,8 @@ export class OrdersService {
     return xlsx('Фурӯш', headers, data, [8, 17, 20, 20, 20, 10, 50, 10, 12, 12, 12]);
   }
 
-  async create(user: AuthUser, dto: CreateOrderDto) {
-    assertCanSell(user);
-    // Фурӯши офлайн, ки аллакай расида буд (интернет пас аз сабт канда шуд) — ҳамонро бармегардонем
-    if (dto.clientRef) {
-      const existing = await this.prisma.order.findUnique({ where: { clientRef: dto.clientRef }, include });
-      if (existing) {
-        if (!user.branchIds.includes(existing.branchId)) throw new BadRequestException('Рақами фурӯш такрор аст');
-        return forViewer(user, toOrder(existing));
-      }
-    }
+  /** Нарх, тахфиф ва бонуси фурӯш — аз база, на аз браузер (бе тағйир додани чизе) */
+  async quote(user: AuthUser, dto: CreateOrderDto) {
     const branchId = scopeBranch(user, dto.branchId);
     if (!branchId) throw new BadRequestException('Филиалро интихоб кунед');
     const branch = await this.prisma.branch.findUnique({ where: { id: branchId } });
@@ -217,6 +209,28 @@ export class OrdersService {
     const soldAtRaw = dto.soldAt ? new Date(dto.soldAt) : null;
     const soldAt = soldAtRaw && soldAtRaw.getTime() < Date.now() && Date.now() - soldAtRaw.getTime() < 7 * 86_400_000 ? soldAtRaw : null;
     const pointsEarned = dto.customerId ? Math.floor(total * POINTS_RATE) : 0;
+    return { branchId, lines, subtotal, totalCost, promo, pointsUsed, total, soldAt, pointsEarned };
+  }
+
+  /**
+   * opts.approved — фурӯш ба қарз аз дархости кассир, ки менеҷер тасдиқ кард;
+   * opts.sellerId — кассире, ки дархост фиристод (фурӯш ба номи ӯ сабт мешавад).
+   */
+  async create(user: AuthUser, dto: CreateOrderDto, opts: { sellerId?: number; approved?: boolean } = {}) {
+    assertCanSell(user);
+    // Кассир қарзро худаш дода наметавонад — танҳо дархост ба менеҷер (DebtRequestsService)
+    if (dto.payment === 'DEBT' && user.role === 'STAFF' && !opts.approved) {
+      throw new ForbiddenException('Фурӯш ба қарз бояд аз ҷониби менеҷер тасдиқ шавад');
+    }
+    // Фурӯши офлайн, ки аллакай расида буд (интернет пас аз сабт канда шуд) — ҳамонро бармегардонем
+    if (dto.clientRef) {
+      const existing = await this.prisma.order.findUnique({ where: { clientRef: dto.clientRef }, include });
+      if (existing) {
+        if (!user.branchIds.includes(existing.branchId)) throw new BadRequestException('Рақами фурӯш такрор аст');
+        return forViewer(user, toOrder(existing));
+      }
+    }
+    const { branchId, lines, subtotal, totalCost, promo, pointsUsed, total, soldAt, pointsEarned } = await this.quote(user, dto);
 
     let low: Awaited<ReturnType<StockService['take']>> = [];
     const order = await this.prisma.$transaction(async (tx) => {
@@ -224,7 +238,7 @@ export class OrdersService {
       const created = await tx.order.create({
         data: {
           branchId,
-          userId: user.id,
+          userId: opts.sellerId ?? user.id,
           payment: dto.payment,
           total,
           totalCost,
@@ -251,7 +265,7 @@ export class OrdersService {
         });
       }
       if (dto.payment === 'DEBT' && dto.customerId) {
-        await this.debts.addFromSale(tx, { organizationId: user.organizationId, customerId: dto.customerId, orderId: created.id, amount: total, userId: user.id });
+        await this.debts.addFromSale(tx, { organizationId: user.organizationId, customerId: dto.customerId, orderId: created.id, amount: total, userId: opts.sellerId ?? user.id });
       }
       low = await this.stock.take(tx, branchId, lines);
       return created;
@@ -313,5 +327,6 @@ export class OrdersController {
   imports: [DebtsModule, PromosModule],
   controllers: [OrdersController],
   providers: [OrdersService],
+  exports: [OrdersService],
 })
 export class OrdersModule {}

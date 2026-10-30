@@ -1301,3 +1301,27 @@ td,
 .font-display {
   font-variant-numeric: tabular-nums;
 }
+
+/* «менависад…» — се нуқтаи ҷунбанда, мисли WhatsApp/Telegram; ранг аз матн (currentColor) */
+.typing-dots {
+  display: inline-flex;
+  gap: 2px;
+  align-items: flex-end;
+  height: 0.7em;
+}
+.typing-dots i {
+  width: 3px;
+  height: 3px;
+  border-radius: 9999px;
+  background: currentColor;
+  animation: typing-dot 1.2s infinite ease-in-out;
+}
+.typing-dots i:nth-child(2) { animation-delay: 0.15s; }
+.typing-dots i:nth-child(3) { animation-delay: 0.3s; }
+@keyframes typing-dot {
+  0%, 60%, 100% { transform: translateY(0); opacity: 0.4; }
+  30% { transform: translateY(-3px); opacity: 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .typing-dots i { animation: none; opacity: 0.8; }
+}

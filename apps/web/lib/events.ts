@@ -6,13 +6,15 @@ import { getToken } from "./api";
 
 // Як пайвасти /api/events барои ҳамаи компонентҳо. EventSource сарлавҳаи Authorization
 // намефиристад, бинобар ин fetch-ро бо ReadableStream мехонем.
-const listeners = new Map<ServerEvent, Set<() => void>>();
+// data — танҳо барои «activity» ва «presence»; дигар рӯйдодҳо холӣ ({}) меоянд.
+type Listener = (data: unknown) => void;
+const listeners = new Map<ServerEvent, Set<Listener>>();
 let controller: AbortController | null = null;
 let retryTimer: ReturnType<typeof setTimeout> | undefined;
 let backoff = 2_000;
 
-function dispatch(type: string) {
-  listeners.get(type as ServerEvent)?.forEach((fn) => fn());
+function dispatch(type: string, data: unknown) {
+  listeners.get(type as ServerEvent)?.forEach((fn) => fn(data));
 }
 
 async function connect() {
@@ -32,10 +34,15 @@ async function connect() {
       buf += value;
       let end: number;
       while ((end = buf.indexOf("\n\n")) >= 0) {
-        const block = buf.slice(0, end);
+        const lines = buf.slice(0, end).split("\n");
         buf = buf.slice(end + 2);
-        const ev = block.split("\n").find((l) => l.startsWith("event: "));
-        if (ev) dispatch(ev.slice(7).trim());
+        const ev = lines.find((l) => l.startsWith("event: "));
+        const raw = lines.find((l) => l.startsWith("data: "));
+        let data: unknown = {};
+        try {
+          if (raw) data = JSON.parse(raw.slice(6));
+        } catch {}
+        if (ev) dispatch(ev.slice(7).trim(), data);
       }
     }
   } catch {
@@ -56,7 +63,7 @@ function disconnect() {
 }
 
 /** Обуна ба хабари фаврӣ; функсияи бозгашт обунаро бекор мекунад */
-export function subscribe(type: ServerEvent, fn: () => void) {
+export function subscribe(type: ServerEvent, fn: Listener) {
   let set = listeners.get(type);
   if (!set) listeners.set(type, (set = new Set()));
   set.add(fn);
@@ -68,11 +75,11 @@ export function subscribe(type: ServerEvent, fn: () => void) {
   };
 }
 
-/** Хуки обуна: fn ҳар бор, ки сервер хабари `type` мефиристад */
-export function useServerEvent(type: ServerEvent, fn: () => void) {
+/** Хуки обуна: fn ҳар бор, ки сервер хабари `type` мефиристад (бо data, агар бошад) */
+export function useServerEvent<T = unknown>(type: ServerEvent, fn: (data: T) => void) {
   const saved = useRef(fn);
   useEffect(() => {
     saved.current = fn;
   }, [fn]);
-  useEffect(() => subscribe(type, () => saved.current()), [type]);
+  useEffect(() => subscribe(type, (data) => saved.current(data as T)), [type]);
 }

@@ -1,21 +1,29 @@
 "use client";
 
-import { PAYMENT_LABELS, type Customer, type DebtEntry, type DebtSummary } from "@filialhub/shared";
-import { BellRing, HandCoins, History, Plus, Search } from "lucide-react";
+import { PAYMENT_LABELS, type Customer, type DebtEntry, type DebtRequest, type DebtSummary } from "@filialhub/shared";
+import { BellRing, Check, HandCoins, History, Hourglass, Plus, Search, X } from "lucide-react";
 import { useState } from "react";
 import { prettyPhone } from "@/components/crm";
 import { TelegramBotCard } from "@/components/telegram-bot-card";
 import { useToast } from "@/components/toast";
 import { Avatar, Button, Card, Empty, ErrorBox, Field, formatDate, Input, Modal, money, PageHeader, Segmented, Skeleton, cn } from "@/components/ui";
 import { api, qs } from "@/lib/api";
+import { useAuth } from "@/lib/auth";
+import { useServerEvent } from "@/lib/events";
 import { tr } from "@/lib/i18n";
 import { useApi } from "@/lib/use-api";
 
 type Action = { kind: "pay" | "add" | "history"; customer: Customer };
 
-/** Дафтари қарз: кӣ чанд қарздор аст; пардохт, қарзи нав ва ёдрас ба WhatsApp */
+/**
+ * Дафтари қарз: кӣ чанд қарздор аст; пардохт, қарзи нав ва ёдрас ба WhatsApp.
+ * Шеф ҳамаи филиалҳоро мебинад, менеҷер ва кассир — филиали худро. Кассир қарзи навро танҳо бо дархост медиҳад.
+ */
 export default function DebtsPage() {
   const toast = useToast();
+  const { user } = useAuth();
+  const isStaff = user?.role === "STAFF";
+  const requests = useApi<DebtRequest[]>(user ? `/debt-requests${isStaff ? "" : "?status=PENDING"}` : null);
   const [q, setQ] = useState("");
   const { data: summary, reload: reloadSummary } = useApi<DebtSummary>("/debts/summary");
   const { data, error, reload } = useApi<Customer[]>(`/debts${qs({ q: q.trim() || undefined })}`);
@@ -25,7 +33,9 @@ export default function DebtsPage() {
   const refresh = () => {
     reload();
     reloadSummary();
+    requests.reload();
   };
+  useServerEvent("debts", refresh);
 
   async function remind(c: Customer) {
     setReminding(c.id);
@@ -62,6 +72,8 @@ export default function DebtsPage() {
           {summary && !summary.whatsapp && <div className="text-xs text-muted">{tr("Дар «Профил» WhatsApp-и бизнесро пайваст кунед.")}</div>}
         </div>
       </div>
+
+      <RequestsPanel requests={requests.data} canDecide={!isStaff} onChange={refresh} />
 
       {summary?.telegramBot && (
         <div className="mb-4">
@@ -124,6 +136,7 @@ export default function DebtsPage() {
         {action && action.kind !== "history" && (
           <DebtForm
             action={action}
+            asRequest={isStaff}
             onDone={() => {
               setAction(null);
               refresh();
@@ -135,7 +148,7 @@ export default function DebtsPage() {
   );
 }
 
-function DebtForm({ action, onDone }: { action: Action; onDone: () => void }) {
+function DebtForm({ action, asRequest, onDone }: { action: Action; asRequest: boolean; onDone: () => void }) {
   const toast = useToast();
   const pay = action.kind === "pay";
   const [amount, setAmount] = useState(pay ? String(action.customer.debt) : "");
@@ -151,6 +164,12 @@ function DebtForm({ action, onDone }: { action: Action; onDone: () => void }) {
     setBusy(true);
     setError(null);
     try {
+      if (!pay && asRequest) {
+        await api("/debt-requests", { method: "POST", json: { customerId: action.customer.id, amount: n, note } });
+        toast.success(tr("Дархост ба менеҷер фиристода шуд"), tr("Қарз пас аз тасдиқ илова мешавад."));
+        onDone();
+        return;
+      }
       await api(`/debts/${action.customer.id}/${pay ? "pay" : "add"}`, { method: "POST", json: pay ? { amount: n, payment, note } : { amount: n, note } });
       toast.success(pay ? tr("Пардохт қабул шуд") : tr("Қарз илова шуд"), tr("Қарзи боқимонда: {0}", money(after)));
       onDone();
@@ -190,7 +209,7 @@ function DebtForm({ action, onDone }: { action: Action; onDone: () => void }) {
       <p className="text-xs text-muted">{tr("Мизоҷ дар WhatsApp паём мегирад.")}</p>
       <ErrorBox message={error} />
       <Button type="submit" loading={busy} className="w-full">
-        {pay ? tr("Пардохтро сабт кардан") : tr("Қарзро илова кардан")}
+        {pay ? tr("Пардохтро сабт кардан") : asRequest ? tr("Дархост ба менеҷер") : tr("Қарзро илова кардан")}
       </Button>
     </form>
   );
@@ -222,5 +241,74 @@ function DebtHistory({ customerId }: { customerId: number }) {
         </li>
       ))}
     </ul>
+  );
+}
+
+const STATUS: Record<DebtRequest["status"], { label: string; cls: string }> = {
+  PENDING: { label: "Интизори тасдиқ", cls: "bg-warn-soft text-warn" },
+  APPROVED: { label: "Тасдиқ шуд", cls: "bg-good-soft text-good" },
+  REJECTED: { label: "Рад шуд", cls: "bg-surface-2 text-muted" },
+};
+
+/** Менеҷер/шеф: дархостҳои интизор бо «Тасдиқ»/«Рад». Кассир: дархостҳои худаш ва ҳолати онҳо. */
+function RequestsPanel({ requests, canDecide, onChange }: { requests: DebtRequest[] | undefined; canDecide: boolean; onChange: () => void }) {
+  const toast = useToast();
+  const [busy, setBusy] = useState<string | null>(null);
+  if (!requests?.length) return null;
+
+  async function decide(r: DebtRequest, decision: "APPROVE" | "REJECT") {
+    setBusy(`${r.id}-${decision}`);
+    try {
+      await api(`/debt-requests/${r.id}/decide`, { method: "POST", json: { decision } });
+      if (decision === "APPROVE") toast.success(tr("Қарз тасдиқ шуд"), `${r.customerName} · ${money(r.amount)}`);
+      else toast.success(tr("Дархост рад шуд"), r.customerName);
+      onChange();
+    } catch (e) {
+      toast.error((e as Error).message);
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  return (
+    <Card className="mb-4 p-2">
+      <div className="flex items-center gap-2 px-3 pt-2 pb-1">
+        <Hourglass className="size-4 text-warn" />
+        <h2 className="text-sm font-semibold text-ink">{canDecide ? tr("Дархостҳои қарз — интизори тасдиқ") : tr("Дархостҳои ман")}</h2>
+      </div>
+      <ul className="divide-y divide-line">
+        {requests.map((r) => (
+          <li key={r.id} className="flex flex-wrap items-center gap-3 px-3 py-3">
+            <div className="min-w-0 flex-1">
+              <div className="truncate font-semibold text-ink">{r.customerName}</div>
+              <div className="truncate text-xs text-muted">
+                {r.items ? r.items.map((i) => `${i.name} × ${i.qty}`).join(", ") : r.note || tr("Қарзи нав")}
+              </div>
+              <div className="text-xs text-muted">
+                {formatDate(r.createdAt, true)} · {r.branchName}
+                {r.requestedBy && ` · ${r.requestedBy}`}
+                {canDecide && ` · ${tr("қарзи ҳозира")}: ${money(r.customerDebt)}`}
+              </div>
+            </div>
+            <div className="text-lg font-extrabold text-brand tabular">{money(r.amount)}</div>
+            {canDecide ? (
+              <div className="flex w-full gap-1.5 sm:w-auto">
+                <Button size="sm" onClick={() => decide(r, "APPROVE")} loading={busy === `${r.id}-APPROVE`} disabled={!!busy}>
+                  <Check className="size-4" /> {tr("Тасдиқ")}
+                </Button>
+                <Button size="sm" variant="outline" onClick={() => decide(r, "REJECT")} loading={busy === `${r.id}-REJECT`} disabled={!!busy}>
+                  <X className="size-4" /> {tr("Рад")}
+                </Button>
+              </div>
+            ) : (
+              <span className={cn("rounded-full px-2.5 py-1 text-xs font-semibold", STATUS[r.status].cls)}>
+                {tr(STATUS[r.status].label)}
+                {r.decidedBy && ` · ${r.decidedBy}`}
+              </span>
+            )}
+          </li>
+        ))}
+      </ul>
+    </Card>
   );
 }

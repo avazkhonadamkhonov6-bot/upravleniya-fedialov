@@ -626,6 +626,39 @@ export interface DebtSummary {
   whatsapp: boolean;
   /** Номи боти Telegram (мизоҷ рақамашро мефиристад ва хабарҳоро дар Telegram мегирад) */
   telegramBot: string | null;
+  /** Дархостҳои қарз, ки интизори тасдиқанд (дар доираи дастрасии корбар) */
+  pendingRequests: number;
+}
+
+export type DebtRequestStatus = 'PENDING' | 'APPROVED' | 'REJECTED';
+
+/** Дархости қарз аз кассир — то тасдиқи менеҷер қарз дода намешавад */
+export interface DebtRequest {
+  id: number;
+  customerId: number;
+  customerName: string;
+  customerPhone: string;
+  /** Қарзи ҳозираи мизоҷ (пеш аз ин дархост) */
+  customerDebt: number;
+  branchName: string;
+  amount: number;
+  note: string;
+  /** Фурӯш аз POS (мол пас аз тасдиқ дода мешавад) */
+  items: { name: string; qty: number }[] | null;
+  status: DebtRequestStatus;
+  requestedBy: string | null;
+  decidedBy: string | null;
+  createdAt: string;
+  decidedAt: string | null;
+  /** Фурӯше, ки пас аз тасдиқ сабт шуд */
+  orderId: number | null;
+}
+
+/** Қарзи мизоҷи онлайн дар мағозаҳо (тавассути Telegram-и тасдиқшуда) */
+export interface ClientDebts {
+  /** Telegram пайваст аст — бе он рақами телефон тасдиқ нашудааст ва қарз нишон дода намешавад */
+  linked: boolean;
+  items: { store: string; debt: number }[];
 }
 
 export interface CustomerStats {
@@ -766,6 +799,9 @@ export const AUDIT_ENTITY_LABELS: Record<string, string> = {
   task: 'Вазифа',
   shift: 'Смена',
   expense: 'Хароҷот',
+  promo: 'Аксия',
+  organization: 'Ширкат',
+  debtRequest: 'Дархости қарз',
 };
 
 export interface Alert {
@@ -789,7 +825,24 @@ export interface SearchResult {
 // ---------- Паёмҳо ----------
 
 /** Хабарҳои фаврӣ аз /api/events: браузер дархости мувофиқро фавран такрор мекунад */
-export type ServerEvent = 'messages' | 'calls' | 'alerts' | 'orders';
+export type ServerEvent = 'messages' | 'calls' | 'alerts' | 'orders' | 'debts' | 'activity' | 'presence';
+
+/** Чӣ кор мекунад ҳамсуҳбат (мисли WhatsApp/Telegram): «менависад…», «аудио сабт мекунад…» */
+export const CHAT_ACTIVITIES = ['typing', 'recording', 'video', 'stop'] as const;
+export type ChatActivityKind = (typeof CHAT_ACTIVITIES)[number];
+
+/** Рӯйдоди «activity»: fromId ба шумо чизе менависад/сабт мекунад; «stop» — бас кард */
+export interface ChatActivity {
+  fromId: number;
+  kind: ChatActivityKind;
+}
+
+/** Рӯйдоди «presence»: корбар сайтро кушод ё баст */
+export interface Presence {
+  userId: number;
+  online: boolean;
+  lastSeenAt: string | null;
+}
 
 export const CHANNELS = ['WHATSAPP', 'TELEGRAM'] as const;
 export type Channel = (typeof CHANNELS)[number];
@@ -876,6 +929,10 @@ export interface ContactInfo extends MessageRecipient {
 export interface ChatContact extends MessageRecipient {
   lastMessage: { text: string; createdAt: string; mine: boolean } | null;
   unread: number;
+  /** Ҳоло сайт кушода аст */
+  online: boolean;
+  /** Охирин бор кай дар сайт буд (барои «дида шуд 14:30») */
+  lastSeenAt: string | null;
 }
 
 // ---------- Занг (WebRTC) ----------

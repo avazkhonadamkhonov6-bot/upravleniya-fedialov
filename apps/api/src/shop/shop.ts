@@ -31,6 +31,7 @@ import {
   type StoreDetail,
   type StoreSummary,
   type StoreVisits,
+  type ClientDebts,
 } from '@filialhub/shared';
 import { AuthClient, AuthUser, ClientOnly, CurrentClient, CurrentUser, Feature, Public, Roles } from '../auth/decorators';
 import { localDay } from '../common/time';
@@ -363,6 +364,21 @@ export class ShopService {
     return toOnline(order);
   }
 
+  /**
+   * Қарзи мизоҷ дар мағозаҳо. Танҳо тавассути Telegram-и пайвастшуда: бот рақамро бо контакти худи
+   * соҳиби Telegram тасдиқ мекунад — рақами дар сайт навишташуда тасдиқ нашудааст ва қарзи каси дигарро нишон намедиҳад.
+   */
+  async clientDebts(client: AuthClient): Promise<ClientDebts> {
+    const c = await this.prisma.client.findUnique({ where: { id: client.id }, select: { telegramChatId: true } });
+    if (!c?.telegramChatId) return { linked: false, items: [] };
+    const rows = await this.prisma.customer.findMany({
+      where: { telegramChatId: c.telegramChatId, debt: { gt: 0 } },
+      include: { organization: { select: { name: true } } },
+      orderBy: { debt: 'desc' },
+    });
+    return { linked: true, items: rows.map((r) => ({ store: r.organization.name, debt: Number(r.debt) })) };
+  }
+
   async clientOrders(client: AuthClient) {
     const rows = await this.prisma.onlineOrder.findMany({ where: { clientId: client.id }, include: orderInclude, orderBy: { id: 'desc' }, take: 100 });
     return rows.map(toOnline);
@@ -504,6 +520,12 @@ export class ShopController {
   @Get('me')
   me(@CurrentClient() client: AuthClient) {
     return this.shop.me(client);
+  }
+
+  @ClientOnly()
+  @Get('debts')
+  debts(@CurrentClient() client: AuthClient) {
+    return this.shop.clientDebts(client);
   }
 
   @ClientOnly()
