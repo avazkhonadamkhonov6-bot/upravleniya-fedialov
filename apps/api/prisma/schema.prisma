@@ -209,6 +209,8 @@ model Order {
   debtEntry    DebtEntry?
   /// Коди тахфиф, ки истифода шуд (нусха)
   promoCode    String?
+  /// Рақами ягонаи фурӯш аз браузер (POS-и офлайн): ҳангоми фиристодани такрорӣ дубора сабт намешавад
+  clientRef    String?     @unique
 
   @@index([branchId, createdAt])
   @@index([createdAt])

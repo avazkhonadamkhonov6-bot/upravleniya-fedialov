@@ -12,7 +12,7 @@ import {
 } from '@nestjs/common';
 import type { Response } from 'express';
 import { Type } from 'class-transformer';
-import { ArrayMinSize, IsIn, IsInt, IsNumber, IsOptional, IsString, Max, MaxLength, Min, ValidateNested } from 'class-validator';
+import { ArrayMinSize, IsDateString, IsIn, IsInt, IsNumber, IsOptional, IsString, Max, MaxLength, Min, ValidateNested } from 'class-validator';
 import { canSell, PAYMENT_LABELS, PAYMENTS, POINTS_RATE, type Order, type Paginated, type Payment } from '@filialhub/shared';
 import { AuthUser, CurrentUser, Feature } from '../auth/decorators';
 import { branchWhere, scopeBranch } from '../common/access';
@@ -53,6 +53,14 @@ export class CreateOrderDto {
   /** Коди тахфиф (аксия) */
   @IsOptional() @IsString() @MaxLength(20)
   promoCode?: string;
+
+  /** Рақами ягонаи фурӯш аз браузер — фурӯши офлайн ду бор сабт намешавад */
+  @IsOptional() @IsString() @MaxLength(64)
+  clientRef?: string;
+
+  /** Вақти воқеии фурӯши офлайн (то 7 рӯз пеш) */
+  @IsOptional() @IsDateString()
+  soldAt?: string;
 }
 
 const include = {
@@ -165,6 +173,14 @@ export class OrdersService {
 
   async create(user: AuthUser, dto: CreateOrderDto) {
     assertCanSell(user);
+    // Фурӯши офлайн, ки аллакай расида буд (интернет пас аз сабт канда шуд) — ҳамонро бармегардонем
+    if (dto.clientRef) {
+      const existing = await this.prisma.order.findUnique({ where: { clientRef: dto.clientRef }, include });
+      if (existing) {
+        if (!user.branchIds.includes(existing.branchId)) throw new BadRequestException('Рақами фурӯш такрор аст');
+        return forViewer(user, toOrder(existing));
+      }
+    }
     const branchId = scopeBranch(user, dto.branchId);
     if (!branchId) throw new BadRequestException('Филиалро интихоб кунед');
     const branch = await this.prisma.branch.findUnique({ where: { id: branchId } });
@@ -197,6 +213,9 @@ export class OrdersService {
     }
     if (dto.payment === 'DEBT' && !dto.customerId) throw new BadRequestException('Барои фурӯш ба қарз мизоҷро интихоб кунед');
     const total = Math.round((afterPromo - pointsUsed) * 100) / 100;
+    // Вақти фурӯши офлайн: на дар оянда ва на зиёда аз 7 рӯз пеш
+    const soldAtRaw = dto.soldAt ? new Date(dto.soldAt) : null;
+    const soldAt = soldAtRaw && soldAtRaw.getTime() < Date.now() && Date.now() - soldAtRaw.getTime() < 7 * 86_400_000 ? soldAtRaw : null;
     const pointsEarned = dto.customerId ? Math.floor(total * POINTS_RATE) : 0;
 
     let low: Awaited<ReturnType<StockService['take']>> = [];
@@ -211,6 +230,8 @@ export class OrdersService {
           totalCost,
           discount: Math.round((pointsUsed + (promo?.discount ?? 0)) * 100) / 100,
           promoCode: promo?.code ?? null,
+          clientRef: dto.clientRef ?? null,
+          ...(soldAt ? { createdAt: soldAt } : {}),
           customerId: dto.customerId ?? null,
           pointsUsed,
           pointsEarned,

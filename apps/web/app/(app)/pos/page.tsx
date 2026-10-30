@@ -1,12 +1,13 @@
 "use client";
 
 import { isFractionalUnit, PAYMENT_LABELS, POINTS_RATE, type Branch, type Customer, type Order, type Payment, type Product, type PromoCheck } from "@filialhub/shared";
-import { Banknote, CheckCircle2, CreditCard, Gift, Minus, NotebookPen, Plus, Printer, Search, ShoppingCart, TicketPercent, Trash2, UserPlus, X } from "lucide-react";
+import { Banknote, CheckCircle2, CloudOff, CreditCard, Gift, Minus, NotebookPen, Plus, Printer, Search, ShoppingCart, TicketPercent, Trash2, UserPlus, X } from "lucide-react";
 import { useSearchParams } from "next/navigation";
-import { Suspense, useEffect, useMemo, useRef, useState } from "react";
+import { Suspense, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { CustomerForm, prettyPhone, SegmentBadge } from "@/components/crm";
 import { useToast } from "@/components/toast";
-import { Avatar, Button, Card, Empty, ErrorBox, Input, Modal, money, PageHeader, Select, Skeleton, WhatsAppIcon, cn } from "@/components/ui";
+import { Avatar, Button, Card, Empty, ErrorBox, formatDate, Input, Modal, money, PageHeader, Select, Skeleton, WhatsAppIcon, cn } from "@/components/ui";
+import { dropSale, flushSales, isOffline, newRef, queueSale, savedProducts, saveProducts, useOfflineSales, type QueuedSale } from "@/lib/offline-sales";
 import { printReceipt, whatsappReceiptUrl } from "@/lib/receipt";
 import { api, qs } from "@/lib/api";
 import { useAuth, useBusiness } from "@/lib/auth";
@@ -32,7 +33,15 @@ function Pos() {
   const [customer, setCustomer] = useState<Customer | null>(null);
   const [usePoints, setUsePoints] = useState(false);
   const isChef = user?.role === "CHEF";
-  const { data: products } = useApi<Product[]>("/products");
+  const { data: fresh } = useApi<Product[]>("/products");
+  // Бе интернет — рӯйхати охирини нигоҳдошташуда (POS-и офлайн)
+  const stored = useSyncExternalStore(noSubscribe, storedProducts, noProducts);
+  const products = fresh ?? stored;
+  useEffect(() => {
+    if (fresh) saveProducts(fresh);
+  }, [fresh]);
+  const queued = useOfflineSales();
+  const [offlineDone, setOfflineDone] = useState<number | null>(null);
   const { data: branches } = useApi<Branch[]>(isChef ? "/branches" : null);
   const [branchId, setBranchId] = useState<number | undefined>();
   const [cart, setCart] = useState<Record<number, number>>({});
@@ -100,18 +109,17 @@ function Pos() {
   async function submit() {
     setBusy(true);
     setError(null);
+    const ref = newRef();
+    const payload = {
+      branchId: selectedBranch,
+      payment,
+      items: lines.map((l) => ({ productId: l.product.id, qty: l.qty })),
+      customerId: customer?.id,
+      usePoints: discount || undefined,
+      promoCode: promo?.code,
+    };
     try {
-      const order = await api<Order>("/orders", {
-        method: "POST",
-        json: {
-          branchId: selectedBranch,
-          payment,
-          items: lines.map((l) => ({ productId: l.product.id, qty: l.qty })),
-          customerId: customer?.id,
-          usePoints: discount || undefined,
-          promoCode: promo?.code,
-        },
-      });
+      const order = await api<Order>("/orders", { method: "POST", json: { ...payload, clientRef: ref } });
       setDone(order);
       setDonePhone(customer?.phone ?? null);
       setCart({});
@@ -121,7 +129,17 @@ function Pos() {
       if (payment === "DEBT") setPayment("CASH");
       toast.success(tr("Фармоиш #{0} сабт шуд", order.id), order.customerName ? tr("{0}: +{1} балл", order.customerName, order.pointsEarned) : money(order.total));
     } catch (e) {
-      setError((e as Error).message);
+      if (await isOffline(e)) {
+        // Интернет нест — фурӯш нигоҳ дошта мешавад ва баъд худкор меравад
+        queueSale({ ref, payload, total });
+        setOfflineDone(total);
+        setCart({});
+        setCustomer(null);
+        setUsePoints(false);
+        setPromo(null);
+      } else {
+        setError((e as Error).message);
+      }
     } finally {
       setBusy(false);
     }
@@ -129,6 +147,7 @@ function Pos() {
 
   return (
     <>
+      <OfflineBar queued={queued} />
       <PageHeader
         title={tr("Фурӯши нав")}
         subtitle={isChef ? tr("Филиалро интихоб кунед ва фармоишро сабт кунед") : user?.branch?.name}
@@ -231,7 +250,17 @@ function Pos() {
             <span className="ml-auto text-sm text-muted">{count} {tr("дона")}</span>
           </div>
 
-          {done ? (
+          {offlineDone !== null ? (
+            <div className="rise py-6 text-center">
+              <CloudOff className="mx-auto size-14 text-warn" />
+              <div className="mt-3 text-lg font-bold text-ink">{tr("Фурӯш нигоҳ дошта шуд")}</div>
+              <div className="mt-1 text-sm text-muted">{tr("Интернет нест. Ҳангоми пайдо шудани интернет худкор фиристода мешавад.")}</div>
+              <div className="mt-2 text-2xl font-bold text-ink tabular">{money(offlineDone)}</div>
+              <Button className="mt-5 w-full" onClick={() => setOfflineDone(null)}>
+                {tr("Фармоиши нав")}
+              </Button>
+            </div>
+          ) : done ? (
             <div className="rise py-6 text-center">
               <CheckCircle2 className="mx-auto size-14 text-good" />
               <div className="mt-3 text-lg font-bold text-ink">{tr("Фармоиш #")}{done.id} {tr("сабт шуд!")}</div>
@@ -394,6 +423,66 @@ function Pos() {
         </div>
       )}
     </>
+  );
+}
+
+// Рӯйхати нигоҳдошташуда як бор хонда мешавад (дар сервер — ҳеҷ)
+let storedOnce: Product[] | undefined | null = null;
+const storedProducts = () => (storedOnce === null ? (storedOnce = savedProducts<Product[]>()) : storedOnce);
+const noProducts = () => undefined;
+const noSubscribe = () => () => {};
+
+/** Ҳолати интернет ва фурӯшҳои дар навбат (POS-и офлайн) */
+function OfflineBar({ queued }: { queued: QueuedSale[] }) {
+  const online = useSyncExternalStore(
+    (fn) => {
+      window.addEventListener("online", fn);
+      window.addEventListener("offline", fn);
+      return () => {
+        window.removeEventListener("online", fn);
+        window.removeEventListener("offline", fn);
+      };
+    },
+    () => navigator.onLine,
+    () => true,
+  );
+  const [busy, setBusy] = useState(false);
+  const waiting = queued.filter((s) => !s.error);
+  const failed = queued.filter((s) => s.error);
+  if (online && !queued.length) return null;
+  return (
+    <div className={cn("mb-4 space-y-2 rounded-xl px-4 py-3 text-sm", online ? "bg-warn-soft text-warn" : "bg-brand-soft text-brand")}>
+      <div className="flex flex-wrap items-center gap-2 font-semibold">
+        <CloudOff className="size-4" />
+        <span className="flex-1">
+          {!online && tr("Интернет нест — фурӯш давом медиҳад ва баъд худкор фиристода мешавад.")}
+          {waiting.length > 0 && ` ${tr("Дар навбат: {0} фурӯш ({1})", waiting.length, money(waiting.reduce((s, x) => s + x.total, 0)))}`}
+        </span>
+        {online && waiting.length > 0 && (
+          <Button
+            size="sm"
+            variant="outline"
+            loading={busy}
+            onClick={async () => {
+              setBusy(true);
+              await flushSales().finally(() => setBusy(false));
+            }}
+          >
+            {tr("Ҳозир фиристодан")}
+          </Button>
+        )}
+      </div>
+      {failed.map((s) => (
+        <div key={s.ref} className="flex items-center gap-2 rounded-lg bg-surface px-3 py-2 text-xs text-ink">
+          <span className="flex-1">
+            {tr("Фурӯши {0} ({1}) рад шуд: {2}", formatDate(s.at, true), money(s.total), s.error)}
+          </span>
+          <button onClick={() => dropSale(s.ref)} className="cursor-pointer font-semibold text-brand hover:underline">
+            {tr("Нест кардан")}
+          </button>
+        </div>
+      ))}
+    </div>
   );
 }
 
