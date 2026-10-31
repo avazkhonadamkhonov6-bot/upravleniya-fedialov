@@ -9,6 +9,14 @@
       "url": "http://localhost:4100"
     },
     {
+      "name": "api-built",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["apps/api/dist/main.js"],
+      "env": { "PORT": "4199" },
+      "port": 4199,
+      "url": "http://localhost:4199"
+    },
+    {
       "name": "web",
       "runtimeExecutable": "npm",
       "runtimeArgs": ["run", "dev", "-w", "@filialhub/web"],

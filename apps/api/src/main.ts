@@ -3,6 +3,7 @@ import { ValidationPipe } from '@nestjs/common';
 import compression from 'compression';
 import { raw } from 'express';
 import { NestFactory } from '@nestjs/core';
+import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { AppModule } from './app.module';
 import { PrismaExceptionFilter } from './core/prisma-exception.filter';
 
@@ -21,6 +22,12 @@ async function bootstrap() {
   app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
   app.useGlobalFilters(new PrismaExceptionFilter());
   app.enableShutdownHooks();
+  // Swagger: /api/docs. Дар production танҳо бо SWAGGER=true — рӯйхати ҳамаи роҳҳоро ба ҳама нишон надиҳем.
+  if (process.env.SWAGGER === 'true' || (process.env.NODE_ENV !== 'production' && !process.env.RENDER)) {
+    const config = new DocumentBuilder().setTitle('FilialHub API').setVersion('1.0').addBearerAuth().build();
+    const document = SwaggerModule.createDocument(app, config);
+    SwaggerModule.setup('api/docs', app, document, { swaggerOptions: { persistAuthorization: true } });
+  }
   const port = Number(process.env.PORT ?? 4100);
   await app.listen(port);
   console.log(`🚀 FilialHub API: http://localhost:${port}/api`);
