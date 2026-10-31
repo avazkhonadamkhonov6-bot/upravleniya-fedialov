@@ -46,7 +46,8 @@ function Frame({ children }: { children: React.ReactNode }) {
           <Link href="/shop" className="flex items-center gap-2.5">
             <BrandMark solid className="size-[34px]" />
             <span className="font-display text-base font-bold whitespace-nowrap text-ink sm:text-lg">
-              FilialHub <span className="text-brand">{tr("Бозор")}</span>
+              {/* «Бозор» дар телефони танг пинҳон — вагарна сарлавҳа аз 375px паҳнтар мешавад */}
+              FilialHub <span className="hidden text-brand min-[420px]:inline">{tr("Бозор")}</span>
             </span>
           </Link>
           <nav className="ml-6 hidden h-full items-stretch gap-1 md:flex">
@@ -79,11 +80,13 @@ function Frame({ children }: { children: React.ReactNode }) {
               {theme === "dark" ? <Sun className="size-4" /> : <Moon className="size-4" />}
             </button>
             {!loading && !client && (
+              // Телефон: танҳо иконка — бо матн сарлавҳа аз 375px паҳнтар мешуд (scroll ба тараф)
               <Link
                 href={user ? "/dashboard" : "/login"}
-                className="ml-1 inline-flex h-10 items-center gap-1.5 rounded-[14px] bg-brand px-3.5 text-sm font-bold text-white"
+                aria-label={user ? tr("Панели ман") : tr("Даромадан")}
+                className="ml-1 inline-flex size-10 items-center justify-center gap-1.5 rounded-[14px] bg-brand text-sm font-bold text-white sm:w-auto sm:px-3.5"
               >
-                <LogIn className="size-4" /> {user ? tr("Панели ман") : tr("Даромадан")}
+                <LogIn className="size-4" /> <span className="hidden sm:inline">{user ? tr("Панели ман") : tr("Даромадан")}</span>
               </Link>
             )}
           </div>
