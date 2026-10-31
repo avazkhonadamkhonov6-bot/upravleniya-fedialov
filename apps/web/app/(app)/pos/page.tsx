@@ -600,9 +600,15 @@ function CustomerPicker({ customer, initialPhone, onChange }: { customer: Custom
   const [notFound, setNotFound] = useState(false);
   const [creating, setCreating] = useState(false);
 
+  // Мизоҷ танҳо аз рӯи рақам ёфт мешавад — агар ном навишта бошанд, хомӯш намемонем
+  const [badPhone, setBadPhone] = useState(false);
+
   async function find(e?: React.FormEvent) {
     e?.preventDefault();
-    if (phone.replace(/\D/g, "").length < 9) return;
+    if (phone.replace(/\D/g, "").length < 9) {
+      setBadPhone(true);
+      return;
+    }
     setBusy(true);
     setNotFound(false);
     try {
@@ -647,6 +653,7 @@ function CustomerPicker({ customer, initialPhone, onChange }: { customer: Custom
             onChange={(e) => {
               setPhone(e.target.value);
               setNotFound(false);
+              setBadPhone(false);
             }}
             placeholder={tr("Рақами мизоҷ (бонус)")}
             inputMode="tel"
@@ -657,6 +664,11 @@ function CustomerPicker({ customer, initialPhone, onChange }: { customer: Custom
           <Search className="size-4" />
         </Button>
       </form>
+      {badPhone && (
+        <p className="mt-2 rounded-xl bg-warn-soft px-3 py-2 text-xs font-semibold text-warn">
+          {tr("Рақами телефони мизоҷро нависед (масалан 90 123 45 67), на номро — баъд 🔍-ро пахш кунед.")}
+        </p>
+      )}
       {notFound && (
         <button
           onClick={() => setCreating(true)}
