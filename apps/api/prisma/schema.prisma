@@ -297,6 +297,8 @@ model Customer {
   note           String        @default("")
   /// Қарзи ҳозира (ҷамъи DebtEntry); 0 — қарз нест
   debt           Decimal       @default(0) @db.Decimal(12, 2)
+  /// Мӯҳлати пардохти қарз (наздиктарин); пас аз пардохти пурра — null
+  debtDueAt      DateTime?
   /// Охирин ёдрас дар бораи қарз (WhatsApp)
   debtRemindedAt DateTime?
   /// Чати Telegram-и мизоҷ (бот: қарз ва ёдрас)
@@ -383,6 +385,8 @@ model DebtEntry {
   amount         Decimal      @db.Decimal(12, 2)
   /// Пардохти қарз: CASH ё CARD
   payment        Payment?
+  /// Мӯҳлати пардохти ҳамин қарз (танҳо барои қарзи нав)
+  dueAt          DateTime?
   note           String       @default("")
   userId         Int?
   user           User?        @relation(fields: [userId], references: [id], onDelete: SetNull)
@@ -657,6 +661,8 @@ model DebtRequest {
   customer       Customer          @relation(fields: [customerId], references: [id], onDelete: Cascade)
   amount         Decimal           @db.Decimal(12, 2)
   note           String            @default("")
+  /// Мӯҳлати пардохт, ки кассир пешниҳод кард
+  dueAt          DateTime?
   /// Фурӯш ба қарз аз POS: сабади пурра (CreateOrderDto); пас аз тасдиқ фурӯш сабт мешавад
   sale           Json?
   status         DebtRequestStatus @default(PENDING)

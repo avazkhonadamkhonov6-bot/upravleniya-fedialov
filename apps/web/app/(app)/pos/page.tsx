@@ -5,6 +5,8 @@ import { Banknote, CheckCircle2, CloudOff, Hourglass, CreditCard, Gift, Minus, N
 import { useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { CustomerForm, prettyPhone, SegmentBadge } from "@/components/crm";
+import { DueField } from "@/components/due-field";
+import { dayKey } from "@/lib/due";
 import { useToast } from "@/components/toast";
 import { Avatar, Button, Card, Empty, ErrorBox, formatDate, Input, Modal, money, PageHeader, Select, Skeleton, WhatsAppIcon, cn } from "@/components/ui";
 import { dropSale, flushSales, isOffline, newRef, queueSale, savedProducts, saveProducts, useOfflineSales, type QueuedSale } from "@/lib/offline-sales";
@@ -44,6 +46,8 @@ function Pos() {
   const [offlineDone, setOfflineDone] = useState<number | null>(null);
   // Кассир: фурӯш ба қарз — дархост ба менеҷер; мол пас аз тасдиқ дода мешавад
   const [requested, setRequested] = useState<DebtRequest | null>(null);
+  // Мӯҳлати пардохти фурӯш ба қарз (пешфарз — 2 ҳафта)
+  const [debtDueAt, setDebtDueAt] = useState(() => dayKey(14));
   const needsApproval = user?.role === "STAFF";
   const { data: branches } = useApi<Branch[]>(isChef ? "/branches" : null);
   const [branchId, setBranchId] = useState<number | undefined>();
@@ -120,6 +124,7 @@ function Pos() {
       customerId: customer?.id,
       usePoints: discount || undefined,
       promoCode: promo?.code,
+      debtDueAt: payment === "DEBT" && debtDueAt ? debtDueAt : undefined,
     };
     try {
       if (payment === "DEBT" && needsApproval) {
@@ -130,6 +135,7 @@ function Pos() {
         setUsePoints(false);
         setPromo(null);
         setPayment("CASH");
+        setDebtDueAt(dayKey(14));
         toast.success(tr("Дархост ба менеҷер фиристода шуд"));
         return;
       }
@@ -140,7 +146,10 @@ function Pos() {
       setCustomer(null);
       setUsePoints(false);
       setPromo(null);
-      if (payment === "DEBT") setPayment("CASH");
+      if (payment === "DEBT") {
+        setPayment("CASH");
+        setDebtDueAt(dayKey(14));
+      }
       toast.success(tr("Фармоиш #{0} сабт шуд", order.id), order.customerName ? tr("{0}: +{1} балл", order.customerName, order.pointsEarned) : money(order.total));
     } catch (e) {
       if (payment !== "DEBT" && (await isOffline(e))) {
@@ -421,6 +430,11 @@ function Pos() {
                     : customer
                     ? tr("Ба қарзи {0} илова мешавад: {1} → {2}. Мизоҷ дар WhatsApp паём мегирад.", customer.fullName.split(" ")[0], money(customer.debt), money(customer.debt + total))
                     : tr("Барои фурӯш ба қарз мизоҷро аз рӯи рақам ёбед ё сабт кунед.")}
+                </div>
+              )}
+              {payment === "DEBT" && customer && (
+                <div className="mt-3">
+                  <DueField value={debtDueAt} onChange={setDebtDueAt} />
                 </div>
               )}
               <div className="mt-3">

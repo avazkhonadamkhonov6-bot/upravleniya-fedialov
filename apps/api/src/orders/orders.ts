@@ -20,7 +20,7 @@ import { localDateTime, XLSX_TYPE, xlsx } from '../common/xlsx';
 import { Prisma } from '../generated/prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { StockService } from '../products/stock';
-import { DebtsModule, DebtsService } from '../debts/debts';
+import { DebtsModule, DebtsService, parseDueDate } from '../debts/debts';
 import { PromosModule, PromosService } from '../promos/promos';
 
 class OrderItemDto {
@@ -61,6 +61,10 @@ export class CreateOrderDto {
   /** Вақти воқеии фурӯши офлайн (то 7 рӯз пеш) */
   @IsOptional() @IsDateString()
   soldAt?: string;
+
+  /** Фурӯш ба қарз: мӯҳлати пардохт «YYYY-MM-DD» (ихтиёрӣ) */
+  @IsOptional() @IsString()
+  debtDueAt?: string;
 }
 
 const include = {
@@ -204,12 +208,13 @@ export class OrdersService {
       throw new BadRequestException('Барои истифодаи бонус мизоҷро интихоб кунед');
     }
     if (dto.payment === 'DEBT' && !dto.customerId) throw new BadRequestException('Барои фурӯш ба қарз мизоҷро интихоб кунед');
+    const dueAt = dto.payment === 'DEBT' ? parseDueDate(dto.debtDueAt) : null;
     const total = Math.round((afterPromo - pointsUsed) * 100) / 100;
     // Вақти фурӯши офлайн: на дар оянда ва на зиёда аз 7 рӯз пеш
     const soldAtRaw = dto.soldAt ? new Date(dto.soldAt) : null;
     const soldAt = soldAtRaw && soldAtRaw.getTime() < Date.now() && Date.now() - soldAtRaw.getTime() < 7 * 86_400_000 ? soldAtRaw : null;
     const pointsEarned = dto.customerId ? Math.floor(total * POINTS_RATE) : 0;
-    return { branchId, lines, subtotal, totalCost, promo, pointsUsed, total, soldAt, pointsEarned };
+    return { branchId, lines, subtotal, totalCost, promo, pointsUsed, total, soldAt, pointsEarned, dueAt };
   }
 
   /**
@@ -230,7 +235,7 @@ export class OrdersService {
         return forViewer(user, toOrder(existing));
       }
     }
-    const { branchId, lines, subtotal, totalCost, promo, pointsUsed, total, soldAt, pointsEarned } = await this.quote(user, dto);
+    const { branchId, lines, subtotal, totalCost, promo, pointsUsed, total, soldAt, pointsEarned, dueAt } = await this.quote(user, dto);
 
     let low: Awaited<ReturnType<StockService['take']>> = [];
     const order = await this.prisma.$transaction(async (tx) => {
@@ -265,7 +270,7 @@ export class OrdersService {
         });
       }
       if (dto.payment === 'DEBT' && dto.customerId) {
-        await this.debts.addFromSale(tx, { organizationId: user.organizationId, customerId: dto.customerId, orderId: created.id, amount: total, userId: opts.sellerId ?? user.id });
+        await this.debts.addFromSale(tx, { organizationId: user.organizationId, customerId: dto.customerId, orderId: created.id, amount: total, userId: opts.sellerId ?? user.id, dueAt });
       }
       low = await this.stock.take(tx, branchId, lines);
       return created;
@@ -273,7 +278,7 @@ export class OrdersService {
     if (low.length) void this.stock.warn(branchId, low);
     if (dto.payment === 'DEBT' && dto.customerId) {
       const c = await this.prisma.customer.findUniqueOrThrow({ where: { id: dto.customerId }, select: { fullName: true, phone: true, telegramChatId: true, debt: true } });
-      void this.debts.sendNewDebt(user.organizationId, { fullName: c.fullName, phone: c.phone, telegramChatId: c.telegramChatId, debt: Number(c.debt) }, total);
+      void this.debts.sendNewDebt(user.organizationId, { fullName: c.fullName, phone: c.phone, telegramChatId: c.telegramChatId, debt: Number(c.debt) }, total, dueAt);
     }
     return forViewer(user, toOrder(order));
   }

@@ -10,13 +10,14 @@ import {
   type User,
 } from "@filialhub/shared";
 import { ChevronLeft, ChevronRight, Copy, Plus, Trash2 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { ShiftButton, timeOf } from "@/components/shift-button";
 import { useToast } from "@/components/toast";
 import { Avatar, Badge, Button, Card, CardTitle, Empty, ErrorBox, Field, Input, Modal, PageHeader, Select, Skeleton, cn } from "@/components/ui";
 import { api, qs } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { useApi } from "@/lib/use-api";
+import { useServerEvent } from "@/lib/events";
 import { tr, locale } from "@/lib/i18n";
 import { Glyph, Iconized, PositionIcon, stripEmoji } from "@/components/glyph";
 
@@ -30,6 +31,9 @@ const STATE_STYLE: Record<ShiftState, string> = {
   LATE: "bg-warn-soft text-warn ring-warn/25",
   ABSENT: "bg-brand-soft text-brand ring-brand/25",
 };
+
+/** Тартиб дар «Давомоти имрӯз»: аввал мушкилот */
+const ATTEND_ORDER: Record<ShiftState, number> = { ABSENT: 0, LATE: 1, ON_SHIFT: 2, PLANNED: 3, DONE: 4 };
 
 const TEMPLATES = [
   { label: "☀️ Субҳ", start: "09:00", end: "17:00" },
@@ -89,6 +93,11 @@ function TeamSchedule() {
   const { data: shifts, error, reload } = useApi<Shift[]>(ready ? `/shifts${qs({ branchId, from, to })}` : null);
   const { data: people } = useApi<User[]>(ready ? `/users${qs({ branchId: isChef ? branchId : undefined })}` : null);
   const { data: today, reload: reloadToday } = useApi<{ summary: AttendanceSummary; shifts: Shift[] }>(ready ? `/shifts/today${qs({ branchId })}` : null);
+  // «Омадам / Рафтам»-и корманд ба менеҷер 🔔 мефиристад — ҳамон лаҳза давомот ва ҷадвал нав мешаванд
+  useServerEvent("alerts", () => {
+    reloadToday();
+    reload();
+  });
 
   const team = useMemo(
     () => (people ?? []).filter((p) => p.role !== "CHEF").sort((a, b) => (a.role === b.role ? (a.position ?? "").localeCompare(b.position ?? "") : a.role === "MANAGER" ? -1 : 1)),
@@ -213,8 +222,14 @@ function TeamSchedule() {
                                   <div className="text-xs font-bold tabular">
                                     {timeOf(s.startsAt)}–{timeOf(s.endsAt)}
                                   </div>
-                                  <div className="text-[11px] font-medium opacity-80">
-                                    {s.lateMinutes ? <Iconized text={tr("⏰ +{0} дақ", s.lateMinutes)} /> : tr(SHIFT_STATE_LABELS[s.state])}
+                                  <div className="text-[11px] font-medium opacity-80 tabular">
+                                    {s.checkInAt ? (
+                                      `${timeOf(s.checkInAt)}${s.checkOutAt ? `–${timeOf(s.checkOutAt)}` : ""}${s.lateMinutes ? ` ⏰+${s.lateMinutes}` : ""}`
+                                    ) : s.lateMinutes ? (
+                                      <Iconized text={tr("⏰ +{0} дақ", s.lateMinutes)} />
+                                    ) : (
+                                      tr(SHIFT_STATE_LABELS[s.state])
+                                    )}
                                   </div>
                                 </button>
                               ))
@@ -247,22 +262,34 @@ function TeamSchedule() {
         </div>
       </Card>
 
-      {today && today.shifts.some((s) => s.lateMinutes > 0 || s.state === "ABSENT" || s.state === "LATE") && (
+      {today && today.shifts.length > 0 && (
         <Card className="mt-6">
-          <CardTitle>{tr("⏰ Имрӯз дер омаданд ё наомаданд")}</CardTitle>
+          <CardTitle>{tr("Давомоти имрӯз: кӣ кай омад ва кай рафт")}</CardTitle>
           <ul className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-            {today.shifts
-              .filter((s) => s.lateMinutes > 0 || s.state === "ABSENT" || s.state === "LATE")
+            {/* Аввал дер/наомада, баъд дар кор, баъд тамомкарда */}
+            {[...today.shifts]
+              .sort((a, b) => ATTEND_ORDER[a.state] - ATTEND_ORDER[b.state] || a.startsAt.localeCompare(b.startsAt))
               .map((s) => (
                 <li key={s.id} className="flex items-center gap-3 rounded-2xl bg-surface-2 p-3">
                   <Avatar name={s.userName} size={34} />
                   <div className="min-w-0 flex-1">
                     <div className="truncate text-sm font-semibold text-ink">{s.userName}</div>
-                    <div className="text-xs text-muted">
-                      {tr("смена")}{" "}{timeOf(s.startsAt)} · {s.checkInAt ? tr("омад {0}", timeOf(s.checkInAt)) : tr("ҳоло наомадааст")}
+                    <div className="text-xs text-muted tabular">
+                      {tr("смена")} {timeOf(s.startsAt)}–{timeOf(s.endsAt)}
+                    </div>
+                    <div className="text-xs font-semibold text-ink-2 tabular">
+                      {s.checkInAt ? tr("омад {0}", timeOf(s.checkInAt)) : tr("ҳоло наомадааст")}
+                      {s.checkOutAt && ` · ${tr("рафт {0}", timeOf(s.checkOutAt))}`}
+                      {s.hoursWorked > 0 && ` · ${tr("{0} соат", s.hoursWorked)}`}
                     </div>
                   </div>
-                  <Badge tone={s.state === "ABSENT" ? "brand" : "warn"}>{s.lateMinutes ? tr("+{0} дақ", s.lateMinutes) : tr(SHIFT_STATE_LABELS[s.state])}</Badge>
+                  <Badge tone={s.state === "ABSENT" ? "brand" : s.lateMinutes ? "warn" : s.earlyMinutes ? "good" : s.state === "ON_SHIFT" ? "good" : "blue"}>
+                    {s.lateMinutes
+                      ? tr("+{0} дақ дер", s.lateMinutes)
+                      : s.earlyMinutes
+                        ? tr("{0} дақ барвақт", s.earlyMinutes)
+                        : tr(SHIFT_STATE_LABELS[s.state])}
+                  </Badge>
                 </li>
               ))}
           </ul>
@@ -402,7 +429,12 @@ function ShiftForm({ shift, userId, day, people, onDone }: { shift?: Shift; user
 
 function MySchedule() {
   const [week, setWeek] = useState(() => mondayOf(new Date()));
-  const { data: shifts, error } = useApi<Shift[]>(`/shifts${qs({ from: week.toISOString(), to: addDays(week, 7).toISOString() })}`);
+  const { data: shifts, error, reload } = useApi<Shift[]>(`/shifts${qs({ from: week.toISOString(), to: addDays(week, 7).toISOString() })}`);
+  // Пас аз «Омадам / Рафтам» вақтҳо фавран дар ҷадвал пайдо шаванд
+  useEffect(() => {
+    window.addEventListener("fh-shift-change", reload);
+    return () => window.removeEventListener("fh-shift-change", reload);
+  }, [reload]);
   const days = Array.from({ length: 7 }, (_, i) => addDays(week, i));
   const hours = (shifts ?? []).reduce((s, x) => s + x.hoursWorked, 0);
   const late = (shifts ?? []).filter((s) => s.lateMinutes > 0).length;
@@ -416,7 +448,7 @@ function MySchedule() {
           <div>
             <div className="text-sm text-white/60">{tr("Давомот")}</div>
             <div className="text-2xl font-bold">{tr("Омадан ва рафтанро қайд кунед")}</div>
-            <div className="mt-1 text-sm text-white/60">{tr("Агар зиёда аз 10 дақиқа дер оед, менеҷер огоҳ мешавад.")}</div>
+            <div className="mt-1 text-sm text-white/60">{tr("Ҳар омадан ва рафтан бо вақт ба менеҷер хабар дода мешавад. Метавонед паём ҳам нависед.")}</div>
           </div>
           <div className="rounded-2xl bg-white p-1.5">
             <ShiftButton />
@@ -444,6 +476,12 @@ function MySchedule() {
                         {timeOf(s.startsAt)}–{timeOf(s.endsAt)}
                       </div>
                       <div className="text-[11px] font-medium">{s.lateMinutes ? <Iconized text={tr("⏰ +{0} дақ", s.lateMinutes)} /> : tr(SHIFT_STATE_LABELS[s.state])}</div>
+                      {s.checkInAt && (
+                        <div className="mt-1 text-[11px] font-semibold tabular">
+                          {tr("омад {0}", timeOf(s.checkInAt))}
+                          {s.checkOutAt && ` · ${tr("рафт {0}", timeOf(s.checkOutAt))}`}
+                        </div>
+                      )}
                     </div>
                   ))
                 )}

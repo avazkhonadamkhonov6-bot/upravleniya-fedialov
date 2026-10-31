@@ -376,7 +376,7 @@ export class ShopService {
       include: { organization: { select: { name: true } } },
       orderBy: { debt: 'desc' },
     });
-    return { linked: true, items: rows.map((r) => ({ store: r.organization.name, debt: Number(r.debt) })) };
+    return { linked: true, items: rows.map((r) => ({ store: r.organization.name, debt: Number(r.debt), dueAt: r.debtDueAt ? localDay(r.debtDueAt) : null })) };
   }
 
   async clientOrders(client: AuthClient) {

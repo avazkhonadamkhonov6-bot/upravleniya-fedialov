@@ -8,7 +8,7 @@ import type { EventsService } from '../core/events';
 import type { OrdersService } from '../orders/orders';
 import type { PrismaService } from '../prisma/prisma.service';
 import { DebtRequestsService } from './debt-requests';
-import { debtScope, DebtsService, requestScope } from './debts';
+import { debtScope, DebtsService, nextDueAt, parseDueDate, requestScope } from './debts';
 
 const chef = { id: 1, organizationId: 100, branchIds: [1, 2], role: 'CHEF', branchId: null, position: null, fullName: 'Шеф' } as unknown as AuthUser;
 const manager = { ...chef, id: 2, role: 'MANAGER', branchId: 1, fullName: 'Менеҷер' } as AuthUser;
@@ -48,7 +48,7 @@ describe('requestScope — дархостҳо', () => {
 
 describe('DebtsService.add — қарзи нав', () => {
   it('кассир қарзро бевосита илова карда наметавонад', async () => {
-    const s = new DebtsService({} as PrismaService, {} as never, {} as never, {} as never);
+    const s = new DebtsService({} as PrismaService, {} as never, {} as never, {} as never, {} as never);
     await assert.rejects(s.add(cashier, 7, { amount: 50 }), ForbiddenException);
   });
 });
@@ -104,7 +104,7 @@ describe('DebtRequestsService.decide — тасдиқи менеҷер', () => {
     const { s, calls, req } = setup(manual());
     await s.decide(manager, 1, 'APPROVE');
     assert.equal(req.status, 'APPROVED');
-    assert.deepEqual(calls.debtAdd, [[manager, 7, { amount: 50, note: 'нон' }]]);
+    assert.deepEqual(calls.debtAdd, [[manager, 7, { amount: 50, note: 'нон', dueAt: undefined }]]);
     assert.equal(calls.notified.length, 1);
   });
 
@@ -138,5 +138,30 @@ describe('DebtRequestsService.decide — тасдиқи менеҷер', () => {
     const { s, req } = setup(sale(), { failCreate: true });
     await assert.rejects(s.decide(manager, 2, 'APPROVE'), BadRequestException);
     assert.equal(req.status, 'PENDING');
+  });
+});
+
+describe('мӯҳлати қарз', () => {
+  const now = new Date('2026-10-31T08:00:00Z'); // 13:00 дар Душанбе
+  it('санаи дуруст → оғози ҳамон рӯз бо вақти Душанбе', () => {
+    assert.equal(parseDueDate('2026-11-15', now)?.toISOString(), '2026-11-14T19:00:00.000Z');
+    assert.ok(parseDueDate('2026-10-31', now)); // имрӯз мумкин
+    assert.equal(parseDueDate(undefined, now), null);
+    assert.equal(parseDueDate('', now), null);
+  });
+  it('гузашта, зиёда аз як сол ва санаи нодуруст — 400', () => {
+    assert.throws(() => parseDueDate('2026-10-30', now), BadRequestException);
+    assert.throws(() => parseDueDate('2027-12-01', now), BadRequestException);
+    assert.throws(() => parseDueDate('2026-02-30', now), BadRequestException);
+    assert.throws(() => parseDueDate('15.11.2026', now), BadRequestException);
+  });
+  it('мӯҳлати мизоҷ: қарзи аввал — мӯҳлати нав; баъд — наздиктарин; пас аз пардохт — аз нав', () => {
+    const a = new Date('2026-11-10'), b = new Date('2026-11-20');
+    assert.equal(nextDueAt(0, a, b), b); // қарз набуд — мӯҳлати кӯҳна аҳамият надорад
+    assert.equal(nextDueAt(50, b, a), a); // наздиктарин
+    assert.equal(nextDueAt(50, a, b), a);
+    assert.equal(nextDueAt(50, null, b), b);
+    assert.equal(nextDueAt(50, a, null), a); // қарзи нав бе мӯҳлат — мӯҳлати кӯҳна мемонад
+    assert.equal(nextDueAt(0, null, null), null);
   });
 });

@@ -25,7 +25,7 @@ import {
   type Task as TaskDto,
   type TaskStatus,
 } from '@filialhub/shared';
-import { AuthUser, CurrentUser, Roles } from '../auth/decorators';
+import { AuthUser, CurrentUser, Feature, Roles } from '../auth/decorators';
 import { branchWhere, scopeBranch } from '../common/access';
 import { AlertsService } from '../core/alerts.service';
 import { AuditService } from '../core/audit.service';
@@ -244,6 +244,7 @@ export class TasksService {
 }
 
 @Controller('tasks')
+@Feature('tasks')
 export class TasksController {
   constructor(private readonly tasks: TasksService) {}
 

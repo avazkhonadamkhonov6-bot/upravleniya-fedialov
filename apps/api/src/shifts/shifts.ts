@@ -16,19 +16,31 @@ import {
   Query,
 } from '@nestjs/common';
 import { Type } from 'class-transformer';
-import { IsDateString, IsInt, IsOptional } from 'class-validator';
+import { IsDateString, IsInt, IsOptional, IsString, MaxLength } from 'class-validator';
 import { LATE_MINUTES, type AttendanceSummary, type Shift as ShiftDto, type ShiftState } from '@filialhub/shared';
-import { AuthUser, CurrentUser, Roles } from '../auth/decorators';
+import { AuthUser, CurrentUser, Feature, Roles } from '../auth/decorators';
 import { branchWhere, scopeBranch } from '../common/access';
 import { localDateKey, startOfLocalDay, startOfLocalWeek } from '../common/time';
-import { AlertsService } from '../core/alerts.service';
+import { AlertInput, AlertsService } from '../core/alerts.service';
 import { AuditService } from '../core/audit.service';
 import { Prisma } from '../generated/prisma/client';
+import { ChatService } from '../notifications/chat.service';
+import { NotificationsModule } from '../notifications/notifications.module';
 import { PrismaService } from '../prisma/prisma.service';
 
 const DAY = 86400000;
-/** Омадан то 2 соат пеш аз оғози смена қабул мешавад. */
-const EARLY_CHECKIN_MS = 2 * 3600000;
+/** Ба сменае, ки то 8 соат баъд сар мешавад, «Омадам» қабул мешавад — корманд метавонад барвақт ояд. */
+const EARLY_CHECKIN_MS = 8 * 3600000;
+/** Ҷадвал нест — «Омадам» сменаи 8-соатаро худаш мекушояд (вақти омад ҳамеша сабт мешавад) */
+const AD_HOC_MS = 8 * 3600000;
+/** Барвақт рафтан аз ин зиёд — дар хабар гуфта мешавад */
+const EARLY_LEAVE_MINUTES = 10;
+
+/** Паёми ихтиёрӣ ҳангоми «Омадам / Рафтам» (масалан «барвақт омадам») — ба менеҷер ё шеф */
+export class CheckDto {
+  @IsOptional() @IsString() @MaxLength(300)
+  note?: string;
+}
 
 export class CreateShiftDto {
   @Type(() => Number) @IsInt()
@@ -94,6 +106,7 @@ function toShift(s: ShiftRow): ShiftDto {
     checkInAt: s.checkInAt?.toISOString() ?? null,
     checkOutAt: s.checkOutAt?.toISOString() ?? null,
     lateMinutes,
+    earlyMinutes: s.checkInAt && s.checkInAt < s.startsAt ? Math.round((s.startsAt.getTime() - s.checkInAt.getTime()) / 60000) : 0,
     hoursWorked: s.checkInAt && end ? Math.max(0, Math.round(((end.getTime() - s.checkInAt.getTime()) / 3600000) * 10) / 10) : 0,
     state,
   };
@@ -105,6 +118,7 @@ export class ShiftsService {
     private readonly prisma: PrismaService,
     private readonly audit: AuditService,
     private readonly alerts: AlertsService,
+    private readonly chat: ChatService,
   ) {}
 
   async list(user: AuthUser, q: { branchId?: number; from?: string; to?: string }) {
@@ -191,38 +205,82 @@ export class ShiftsService {
     return { created: data.length };
   }
 
-  async checkIn(user: AuthUser) {
+  /**
+   * «Омадам»: вақти омад сабт мешавад. Агар ҷадвал набошад — сменаи 8-соата худкор кушода мешавад.
+   * Хабар бо вақт ва «барвақт / дер» ба менеҷери филиал меравад (аз менеҷер — ба шеф); паёми ихтиёрӣ ба чат.
+   */
+  async checkIn(user: AuthUser, dto: CheckDto = {}) {
     const now = new Date();
-    const s = await this.prisma.shift.findFirst({
-      where: {
-        userId: user.id,
-        checkInAt: null,
-        startsAt: { lte: new Date(now.getTime() + EARLY_CHECKIN_MS) },
-        endsAt: { gt: now },
-      },
+    const open = await this.prisma.shift.findFirst({ where: { userId: user.id, checkInAt: { not: null }, checkOutAt: null } });
+    if (open) throw new BadRequestException('Шумо аллакай дар кор ҳастед — аввал «Рафтам»-ро пахш кунед');
+    let s = await this.prisma.shift.findFirst({
+      where: { userId: user.id, checkInAt: null, startsAt: { lte: new Date(now.getTime() + EARLY_CHECKIN_MS) }, endsAt: { gt: now } },
       include,
       orderBy: { startsAt: 'asc' },
     });
-    if (!s) throw new BadRequestException('Ҳоло барои шумо смена нест');
-    const updated = await this.prisma.shift.update({ where: { id: s.id }, data: { checkInAt: now }, include });
-    const dto = toShift(updated);
-    if (dto.lateMinutes > 0) {
-      void this.alerts.notifyBranch(
-        s.branchId,
-        { icon: '⏰', title: `${s.user.fullName} дер омад`, body: `${dto.lateMinutes} дақиқа дер`, link: '/schedule' },
-        { exceptUserId: user.id },
-      );
+    let updated: ShiftRow;
+    // Барвақт «Рафтам» пахш карда буд ва баргашт — ҳамон смена боз мешавад (вақти омади аввал мемонад)
+    const back = s ? null : await this.prisma.shift.findFirst({ where: { userId: user.id, checkOutAt: { not: null }, startsAt: { lte: now }, endsAt: { gt: now } } });
+    if (s) {
+      updated = await this.prisma.shift.update({ where: { id: s.id }, data: { checkInAt: now }, include });
+    } else if (back) {
+      updated = await this.prisma.shift.update({ where: { id: back.id }, data: { checkOutAt: null }, include });
+    } else {
+      if (!user.branchId) throw new BadRequestException('Шумо ба ягон филиал вобаста нестед');
+      const next = await this.prisma.shift.findFirst({ where: { userId: user.id, startsAt: { gt: now } }, orderBy: { startsAt: 'asc' } });
+      const endsAt = new Date(Math.min(now.getTime() + AD_HOC_MS, next ? next.startsAt.getTime() : Infinity));
+      await this.ensureNoOverlap(user.id, now, endsAt);
+      updated = await this.prisma.shift.create({ data: { userId: user.id, branchId: user.branchId, startsAt: now, endsAt, checkInAt: now }, include });
     }
-    return dto;
+    const dto2 = toShift(updated);
+    const scheduled = !!s;
+    const when = dto2.lateMinutes > 0 ? `${dto2.lateMinutes} дақ дер` : dto2.earlyMinutes > 0 ? `${dto2.earlyMinutes} дақ барвақт` : scheduled ? 'сари вақт' : 'бе ҷадвал';
+    const shiftText = scheduled ? `смена ${fmtTime(updated.startsAt)}–${fmtTime(updated.endsAt)}` : '';
+    await this.tellBoss(user, dto.note, {
+      icon: dto2.lateMinutes > 0 ? '⏰' : '✅',
+      title: `${user.fullName} омад — ${fmtTime(now)}`,
+      body: [shiftText, when].filter(Boolean).join(' · '),
+      link: '/schedule',
+    });
+    return dto2;
   }
 
-  async checkOut(user: AuthUser) {
+  /** «Рафтам»: вақти рафтан ва соатҳои кор; хабар ба менеҷер (ё шеф) */
+  async checkOut(user: AuthUser, dto: CheckDto = {}) {
     const s = await this.prisma.shift.findFirst({
       where: { userId: user.id, checkInAt: { not: null }, checkOutAt: null },
       orderBy: { startsAt: 'desc' },
     });
     if (!s) throw new BadRequestException('Шумо ҳоло дар смена нестед');
-    return toShift(await this.prisma.shift.update({ where: { id: s.id }, data: { checkOutAt: new Date() }, include }));
+    const now = new Date();
+    const updated = toShift(await this.prisma.shift.update({ where: { id: s.id }, data: { checkOutAt: now }, include }));
+    const earlyLeave = Math.round((s.endsAt.getTime() - now.getTime()) / 60000);
+    await this.tellBoss(user, dto.note, {
+      icon: '👋',
+      title: `${user.fullName} рафт — ${fmtTime(now)}`,
+      body: [`${updated.hoursWorked} соат кор кард`, earlyLeave > EARLY_LEAVE_MINUTES ? `${earlyLeave} дақ барвақт рафт` : ''].filter(Boolean).join(' · '),
+      link: '/schedule',
+    });
+    return updated;
+  }
+
+  /**
+   * Ба кӣ хабар меравад: корманд → менеҷерони филиал (агар набошанд — шеф); менеҷер → шеф.
+   * Бо паём — паёми чат (ҷавоб додан мумкин; 🔔 худаш меояд), бе паём — танҳо 🔔.
+   */
+  private async tellBoss(user: AuthUser, note: string | undefined, alert: AlertInput) {
+    const base = { organizationId: user.organizationId, isActive: true, id: { not: user.id } };
+    let bosses = user.role === 'STAFF' && user.branchId ? await this.prisma.user.findMany({ where: { ...base, role: 'MANAGER', branchId: user.branchId } }) : [];
+    if (!bosses.length) bosses = await this.prisma.user.findMany({ where: { ...base, role: 'CHEF' } });
+    const text = note?.trim();
+    if (!text) {
+      this.alerts.notify(bosses.map((b) => b.id), alert);
+      return bosses.length;
+    }
+    const sender = await this.prisma.user.findUniqueOrThrow({ where: { id: user.id } });
+    for (const b of bosses) await this.chat.deliver(sender, b, `${alert.icon} ${alert.title}${alert.body ? ` (${alert.body})` : ''}
+${text}`, []);
+    return bosses.length;
   }
 
   /** Сменаи ҷорӣ ё навбатии худи корбар (барои тугмаи «Омадам»). */
@@ -269,6 +327,7 @@ function fmt(d: Date) {
 }
 
 @Controller('shifts')
+@Feature('schedule')
 export class ShiftsController {
   constructor(private readonly shifts: ShiftsService) {}
 
@@ -303,15 +362,15 @@ export class ShiftsController {
 
   @Post('check-in')
   @HttpCode(200)
-  checkIn(@CurrentUser() user: AuthUser) {
+  checkIn(@CurrentUser() user: AuthUser, @Body() dto: CheckDto) {
     if (user.role === 'CHEF') throw new ForbiddenException('Шеф смена надорад');
-    return this.shifts.checkIn(user);
+    return this.shifts.checkIn(user, dto);
   }
 
   @Post('check-out')
   @HttpCode(200)
-  checkOut(@CurrentUser() user: AuthUser) {
-    return this.shifts.checkOut(user);
+  checkOut(@CurrentUser() user: AuthUser, @Body() dto: CheckDto) {
+    return this.shifts.checkOut(user, dto);
   }
 
   @Patch(':id')
@@ -328,6 +387,7 @@ export class ShiftsController {
 }
 
 @Module({
+  imports: [NotificationsModule],
   controllers: [ShiftsController],
   providers: [ShiftsService],
 })

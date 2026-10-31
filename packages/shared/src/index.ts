@@ -216,16 +216,17 @@ export type Feature = (typeof FEATURES)[number];
 /**
  * Корманд танҳо ин саҳифаҳоро мебинад:
  * кассир — фурӯш (POS + сабад), таърихи фурӯш, профил; официант — меню, профил;
- * ошпаз ва фаррош — танҳо профил (бо маош ва рӯзи гирифтани он).
+ * ошпаз ва фаррош — профил (бо маош ва рӯзи гирифтани он).
+ * Ҳама: «Ҷадвали ман» (Омадам / Рафтам), вазифаҳои худ ва чат бо менеҷер ва шеф — API онҳоро ба худи корманд маҳдуд мекунад.
  */
 export const STAFF_FEATURES: Record<Position, readonly Feature[]> = {
-  CASHIER: ['pos', 'sales', 'online', 'debts', 'profile', 'calls'],
-  WAITER: ['products', 'profile', 'calls'],
-  COOK: ['profile', 'calls'],
-  CLEANER: ['profile', 'calls'],
+  CASHIER: ['pos', 'sales', 'online', 'debts', 'profile', 'calls', 'schedule', 'tasks', 'messages', 'alerts'],
+  WAITER: ['products', 'profile', 'calls', 'schedule', 'tasks', 'messages', 'alerts'],
+  COOK: ['profile', 'calls', 'schedule', 'tasks', 'messages', 'alerts'],
+  CLEANER: ['profile', 'calls', 'schedule', 'tasks', 'messages', 'alerts'],
   // Мағоза: фурӯшанда мол мефурӯшад ва рӯйхати молро мебинад; анбордор — рӯйхати мол
-  SELLER: ['pos', 'sales', 'online', 'debts', 'products', 'profile', 'calls'],
-  STOREKEEPER: ['products', 'profile', 'calls'],
+  SELLER: ['pos', 'sales', 'online', 'debts', 'products', 'profile', 'calls', 'schedule', 'tasks', 'messages', 'alerts'],
+  STOREKEEPER: ['products', 'profile', 'calls', 'schedule', 'tasks', 'messages', 'alerts'],
 };
 
 type Who = { role: Role; position: Position | null; isSuperAdmin?: boolean };
@@ -576,6 +577,8 @@ export interface Customer {
   segment: Segment;
   /** Қарзи ҳозира (0 — қарз нест) */
   debt: number;
+  /** Мӯҳлати пардохти қарз (YYYY-MM-DD) ё null */
+  debtDueAt: string | null;
   createdAt: string;
 }
 
@@ -587,6 +590,8 @@ export interface DebtEntry {
   note: string;
   orderId: number | null;
   userName: string | null;
+  /** Мӯҳлати пардохт (YYYY-MM-DD) — барои қарзи нав */
+  dueAt: string | null;
   createdAt: string;
 }
 
@@ -628,6 +633,9 @@ export interface DebtSummary {
   telegramBot: string | null;
   /** Дархостҳои қарз, ки интизори тасдиқанд (дар доираи дастрасии корбар) */
   pendingRequests: number;
+  /** Қарзҳое, ки мӯҳлаташон гузаштааст: шумора ва ҷамъ */
+  overdue: number;
+  overdueTotal: number;
 }
 
 export type DebtRequestStatus = 'PENDING' | 'APPROVED' | 'REJECTED';
@@ -652,13 +660,15 @@ export interface DebtRequest {
   decidedAt: string | null;
   /** Фурӯше, ки пас аз тасдиқ сабт шуд */
   orderId: number | null;
+  /** Мӯҳлати пардохт (YYYY-MM-DD) */
+  dueAt: string | null;
 }
 
 /** Қарзи мизоҷи онлайн дар мағозаҳо (тавассути Telegram-и тасдиқшуда) */
 export interface ClientDebts {
   /** Telegram пайваст аст — бе он рақами телефон тасдиқ нашудааст ва қарз нишон дода намешавад */
   linked: boolean;
-  items: { store: string; debt: number }[];
+  items: { store: string; debt: number; dueAt: string | null }[];
 }
 
 export interface CustomerStats {
@@ -726,6 +736,8 @@ export interface Shift {
   checkInAt: string | null;
   checkOutAt: string | null;
   lateMinutes: number;
+  /** Чанд дақиқа пеш аз оғози смена омад (0 — на барвақт) */
+  earlyMinutes: number;
   hoursWorked: number;
   state: ShiftState;
 }

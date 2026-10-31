@@ -1,11 +1,13 @@
 import { Controller, Get, HttpCode, Param, ParseIntPipe, Post, Query } from '@nestjs/common';
 import type { Alert, AuditEntry, SearchResult } from '@filialhub/shared';
 import { canSell, POSITION_LABELS, ROLE_LABELS } from '@filialhub/shared';
-import { AuthUser, CurrentUser, Roles } from '../auth/decorators';
+import { AuthUser, CurrentUser, Feature, Roles } from '../auth/decorators';
 import { Prisma } from '../generated/prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 
+/** 🔔 — ҳар корбар танҳо огоҳиномаҳои худро мебинад */
 @Controller('alerts')
+@Feature('alerts')
 export class AlertsController {
   constructor(private readonly prisma: PrismaService) {}
 

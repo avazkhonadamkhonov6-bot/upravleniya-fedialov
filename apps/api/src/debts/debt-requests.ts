@@ -9,7 +9,8 @@ import { EventsService } from '../core/events';
 import { Prisma } from '../generated/prisma/client';
 import { CreateOrderDto, OrdersModule, OrdersService } from '../orders/orders';
 import { PrismaService } from '../prisma/prisma.service';
-import { DebtsModule, DebtsService, requestScope } from './debts';
+import { localDay, startOfLocalDay } from '../common/time';
+import { DebtsModule, DebtsService, dueKey, parseDueDate, requestScope } from './debts';
 
 export class CreateDebtRequestDto {
   @Type(() => Number) @IsInt()
@@ -20,6 +21,10 @@ export class CreateDebtRequestDto {
 
   @IsOptional() @IsString() @MaxLength(200)
   note?: string;
+
+  /** Мӯҳлати пардохт «YYYY-MM-DD» (ихтиёрӣ) */
+  @IsOptional() @IsString()
+  dueAt?: string;
 }
 
 export class DecideDebtRequestDto {
@@ -54,6 +59,7 @@ function toRequest(r: Row): DebtRequestDto {
     createdAt: r.createdAt.toISOString(),
     decidedAt: r.decidedAt?.toISOString() ?? null,
     orderId: r.orderId,
+    dueAt: dueKey(r.dueAt),
   };
 }
 
@@ -87,7 +93,8 @@ export class DebtRequestsService {
     const c = await this.debts.customer(user, dto.customerId);
     const branchId = user.branchId ?? c.branchId;
     if (!branchId) throw new BadRequestException('Филиали мизоҷ маълум нест');
-    return this.save(user, { branchId, customerId: c.id, amount: Math.round(dto.amount * 100) / 100, note: dto.note?.trim() ?? '', sale: null });
+    const dueAt = parseDueDate(dto.dueAt);
+    return this.save(user, { branchId, customerId: c.id, amount: Math.round(dto.amount * 100) / 100, note: dto.note?.trim() ?? '', sale: null, dueAt });
   }
 
   /** Фурӯш ба қарз аз POS: сабад нигоҳ дошта мешавад, мол пас аз тасдиқ дода мешавад */
@@ -99,7 +106,7 @@ export class DebtRequestsService {
     const products = await this.prisma.product.findMany({ where: { id: { in: q.lines.map((l) => l.productId) } }, select: { id: true, name: true } });
     const lines = q.lines.map((l) => ({ name: products.find((p) => p.id === l.productId)?.name ?? '?', qty: l.qty }));
     const sale = { ...dto, branchId: q.branchId, clientRef: undefined, soldAt: undefined, lines };
-    return this.save(user, { branchId: q.branchId, customerId: dto.customerId, amount: q.total, note: '', sale });
+    return this.save(user, { branchId: q.branchId, customerId: dto.customerId, amount: q.total, note: '', sale, dueAt: q.dueAt });
   }
 
   async decide(user: AuthUser, id: number, decision: 'APPROVE' | 'REJECT'): Promise<DebtRequestDto> {
@@ -116,14 +123,16 @@ export class DebtRequestsService {
     if (!claimed.count) throw new BadRequestException('Ин дархост аллакай баррасӣ шудааст');
 
     let orderId: number | null = null;
+    // Агар менеҷер пас аз мӯҳлат тасдиқ кунад — мӯҳлат имрӯз мешавад (дар гузашта гузоштан мумкин нест)
+    const due = r.dueAt ? localDay(r.dueAt < startOfLocalDay() ? new Date() : r.dueAt) : undefined;
     if (decision === 'APPROVE') {
       try {
         if (r.sale) {
           const { lines: _lines, ...sale } = r.sale as unknown as CreateOrderDto & { lines: unknown };
-          const order = await this.orders.create(user, { ...sale, clientRef: `debt-request-${r.id}` }, { sellerId: r.requestedById ?? undefined, approved: true });
+          const order = await this.orders.create(user, { ...sale, debtDueAt: due, clientRef: `debt-request-${r.id}` }, { sellerId: r.requestedById ?? undefined, approved: true });
           orderId = order.id;
         } else {
-          await this.debts.add(user, r.customerId, { amount: Number(r.amount), note: r.note });
+          await this.debts.add(user, r.customerId, { amount: Number(r.amount), note: r.note, dueAt: due });
         }
       } catch (e) {
         // Сабт нашуд (масалан мол аз фурӯш баромад) — дархост боз интизор мемонад
@@ -147,7 +156,7 @@ export class DebtRequestsService {
     return toRequest(updated);
   }
 
-  private async save(user: AuthUser, d: { branchId: number; customerId: number; amount: number; note: string; sale: object | null }) {
+  private async save(user: AuthUser, d: { branchId: number; customerId: number; amount: number; note: string; sale: object | null; dueAt: Date | null }) {
     // Як дархости кушода барои мизоҷ кифоя — такрори тасодуфӣ (ду бор пахш кардан) нашавад
     const open = await this.prisma.debtRequest.findFirst({ where: { customerId: d.customerId, requestedById: user.id, status: 'PENDING', amount: d.amount } });
     if (open) throw new BadRequestException('Ин дархост аллакай фиристода шудааст — интизори тасдиқи менеҷер бошед');
@@ -159,6 +168,7 @@ export class DebtRequestsService {
         amount: d.amount,
         note: d.note,
         sale: d.sale ?? Prisma.DbNull,
+        dueAt: d.dueAt,
         requestedById: user.id,
       },
       include,

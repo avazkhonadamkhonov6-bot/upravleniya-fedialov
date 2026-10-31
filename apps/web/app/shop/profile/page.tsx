@@ -3,6 +3,7 @@
 import type { Client, ClientDebts, OnlineOrder } from "@filialhub/shared";
 import { LogOut } from "lucide-react";
 import { useState } from "react";
+import { DueBadge } from "@/components/due-field";
 import { NeedClient } from "@/components/shop-shell";
 import { TelegramBotCard } from "@/components/telegram-bot-card";
 import { useToast } from "@/components/toast";
@@ -91,7 +92,10 @@ function Profile() {
                 {debts.items.map((d) => (
                   <li key={d.store} className="flex items-center justify-between gap-3 py-2">
                     <span className="truncate text-ink">{d.store}</span>
-                    <b className="shrink-0 text-brand tabular">{money(d.debt)}</b>
+                    <span className="flex shrink-0 flex-col items-end gap-0.5">
+                      <b className="text-brand tabular">{money(d.debt)}</b>
+                      <DueBadge due={d.dueAt} />
+                    </span>
                   </li>
                 ))}
               </ul>

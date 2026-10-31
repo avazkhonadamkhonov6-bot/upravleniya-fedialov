@@ -4,7 +4,8 @@ import { Type } from 'class-transformer';
 import { IsIn, IsNumber, IsOptional, IsString, MaxLength, Min } from 'class-validator';
 import { canSell, formatMoney, type Customer as CustomerDto, type DebtEntry as DebtEntryDto, type DebtSummary } from '@filialhub/shared';
 import { AuthUser, CurrentUser, Feature } from '../auth/decorators';
-import { TZ } from '../common/time';
+import { localDay, startOfLocalDay, TZ } from '../common/time';
+import { AlertsService } from '../core/alerts.service';
 import { AuditService } from '../core/audit.service';
 import { toCustomer } from '../customers/customers';
 import { Prisma } from '../generated/prisma/client';
@@ -32,9 +33,39 @@ export class AddDebtDto {
 
   @IsOptional() @IsString() @MaxLength(200)
   note?: string;
+
+  /** Мӯҳлати пардохт «YYYY-MM-DD» (ихтиёрӣ) */
+  @IsOptional() @IsString()
+  dueAt?: string;
 }
 
 const r2 = (n: number) => Math.round(n * 100) / 100;
+
+/**
+ * «2026-11-15» → оғози ҳамон рӯз бо вақти Душанбе. Мӯҳлат аз имрӯз то як сол; холӣ — бе мӯҳлат.
+ */
+export function parseDueDate(s: string | null | undefined, now = new Date()): Date | null {
+  if (!s) return null;
+  const bad = new BadRequestException('Мӯҳлати пардохт нодуруст аст');
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(s)) throw bad;
+  const d = new Date(`${s}T00:00:00+05:00`);
+  if (Number.isNaN(d.getTime()) || localDay(d) !== s) throw bad;
+  if (d < startOfLocalDay(now)) throw new BadRequestException('Мӯҳлати пардохт дар гузашта буда наметавонад');
+  if (d > startOfLocalDay(now, 366)) throw new BadRequestException('Мӯҳлати пардохт на зиёда аз як сол');
+  return d;
+}
+
+/** Мӯҳлати мизоҷ пас аз қарзи нав: агар қарз набуд — мӯҳлати нав; вагарна наздиктарини ду мӯҳлат */
+export function nextDueAt(currentDebt: number, currentDue: Date | null, newDue: Date | null): Date | null {
+  if (currentDebt <= 0) return newDue;
+  if (!newDue || !currentDue) return newDue ?? currentDue;
+  return newDue < currentDue ? newDue : currentDue;
+}
+
+/** Date → «2026-11-15» (вақти Душанбе) */
+export const dueKey = (d: Date | null | undefined) => (d ? localDay(d) : null);
+/** «15.11.2026» барои паём ба мизоҷ */
+const dueText = (d: Date) => localDay(d).split('-').reverse().join('.');
 
 /**
  * Кӣ дафтари қарзро мебинад: шеф — ҳамаи мизоҷони ширкат; менеҷер ва кассир — танҳо мизоҷони филиали худ.
@@ -69,21 +100,43 @@ export class DebtsService {
     private readonly whatsapp: WhatsAppService,
     private readonly audit: AuditService,
     private readonly customerBot: CustomerBotService,
+    private readonly alerts: AlertsService,
   ) {}
 
+  /** Қарзи нав дар транзаксия: сабт + ҷамъи қарз + мӯҳлати наздиктарин */
+  private async credit(tx: Tx, p: { organizationId: number; customerId: number; amount: number; userId: number; orderId?: number; note?: string; dueAt: Date | null }) {
+    const cur = await tx.customer.findUniqueOrThrow({ where: { id: p.customerId }, select: { debt: true, debtDueAt: true } });
+    await tx.debtEntry.create({
+      data: { organizationId: p.organizationId, customerId: p.customerId, orderId: p.orderId ?? null, amount: p.amount, note: p.note ?? '', userId: p.userId, dueAt: p.dueAt },
+    });
+    return tx.customer.update({
+      where: { id: p.customerId },
+      data: { debt: { increment: p.amount }, debtDueAt: nextDueAt(Number(cur.debt), cur.debtDueAt, p.dueAt) },
+      include: { branch: { select: { name: true } } },
+    });
+  }
+
   /** Дар дохили транзаксияи фурӯш (POS): фурӯш ба қарз */
-  async addFromSale(tx: Tx, p: { organizationId: number; customerId: number; orderId: number; amount: number; userId: number }) {
-    await tx.debtEntry.create({ data: { organizationId: p.organizationId, customerId: p.customerId, orderId: p.orderId, amount: p.amount, userId: p.userId } });
-    await tx.customer.update({ where: { id: p.customerId }, data: { debt: { increment: p.amount } } });
+  async addFromSale(tx: Tx, p: { organizationId: number; customerId: number; orderId: number; amount: number; userId: number; dueAt?: Date | null }) {
+    await this.credit(tx, { ...p, dueAt: p.dueAt ?? null });
   }
 
   async summary(user: AuthUser): Promise<DebtSummary> {
-    const [agg, pendingRequests] = await Promise.all([
+    const [agg, overdue, pendingRequests] = await Promise.all([
       this.prisma.customer.aggregate({ where: { ...debtScope(user), debt: { gt: 0 } }, _sum: { debt: true }, _count: true }),
+      this.prisma.customer.aggregate({ where: { ...debtScope(user), debt: { gt: 0 }, debtDueAt: { lt: startOfLocalDay() } }, _sum: { debt: true }, _count: true }),
       this.prisma.debtRequest.count({ where: { ...requestScope(user), status: 'PENDING' } }),
     ]);
     const whatsapp = !!(await this.whatsapp.greenFor(user.organizationId)) || this.whatsapp.configured;
-    return { total: r2(Number(agg._sum.debt ?? 0)), debtors: agg._count, whatsapp, telegramBot: this.customerBot.botUsername, pendingRequests };
+    return {
+      total: r2(Number(agg._sum.debt ?? 0)),
+      debtors: agg._count,
+      whatsapp,
+      telegramBot: this.customerBot.botUsername,
+      pendingRequests,
+      overdue: overdue._count,
+      overdueTotal: r2(Number(overdue._sum.debt ?? 0)),
+    };
   }
 
   async debtors(user: AuthUser, q: string): Promise<CustomerDto[]> {
@@ -106,7 +159,16 @@ export class DebtsService {
     const rows = await this.prisma.debtEntry.findMany({ where: { customerId }, include: { user: { select: { fullName: true } } }, orderBy: { id: 'desc' }, take: 200 });
     return {
       customer: toCustomer(c),
-      entries: rows.map((e) => ({ id: e.id, amount: Number(e.amount), payment: e.payment, note: e.note, orderId: e.orderId, userName: e.user?.fullName ?? null, createdAt: e.createdAt.toISOString() })),
+      entries: rows.map((e) => ({
+        id: e.id,
+        amount: Number(e.amount),
+        payment: e.payment,
+        note: e.note,
+        orderId: e.orderId,
+        userName: e.user?.fullName ?? null,
+        dueAt: dueKey(e.dueAt),
+        createdAt: e.createdAt.toISOString(),
+      })),
     };
   }
 
@@ -118,7 +180,12 @@ export class DebtsService {
     const amount = r2(Math.min(dto.amount, debt));
     const updated = await this.prisma.$transaction(async (tx) => {
       await tx.debtEntry.create({ data: { organizationId: user.organizationId, customerId, amount: -amount, payment: dto.payment, note: dto.note?.trim() ?? '', userId: user.id } });
-      return tx.customer.update({ where: { id: customerId }, data: { debt: { decrement: amount } }, include: { branch: { select: { name: true } } } });
+      // Пурра пардохт шуд — мӯҳлат дигар нест
+      return tx.customer.update({
+        where: { id: customerId },
+        data: { debt: { decrement: amount }, ...(amount >= debt ? { debtDueAt: null } : {}) },
+        include: { branch: { select: { name: true } } },
+      });
     });
     this.audit.log(user, 'UPDATE', 'customer', customerId, `Пардохти қарз: ${c.fullName} — ${amount} сомонӣ`);
     const left = Number(updated.debt);
@@ -134,22 +201,23 @@ export class DebtsService {
     if (user.role === 'STAFF') throw new ForbiddenException('Қарзи навро менеҷер тасдиқ мекунад — дархост фиристед');
     const c = await this.customer(user, customerId);
     const amount = r2(dto.amount);
-    const updated = await this.prisma.$transaction(async (tx) => {
-      await tx.debtEntry.create({ data: { organizationId: user.organizationId, customerId, amount, note: dto.note?.trim() ?? '', userId: user.id } });
-      return tx.customer.update({ where: { id: customerId }, data: { debt: { increment: amount } }, include: { branch: { select: { name: true } } } });
-    });
-    this.audit.log(user, 'UPDATE', 'customer', customerId, `Қарзи нав: ${c.fullName} — ${amount} сомонӣ`);
-    await this.sendNewDebt(user.organizationId, { fullName: c.fullName, phone: c.phone, telegramChatId: c.telegramChatId, debt: Number(updated.debt) }, amount);
+    const dueAt = parseDueDate(dto.dueAt);
+    const updated = await this.prisma.$transaction((tx) =>
+      this.credit(tx, { organizationId: user.organizationId, customerId, amount, userId: user.id, note: dto.note?.trim(), dueAt }),
+    );
+    this.audit.log(user, 'UPDATE', 'customer', customerId, `Қарзи нав: ${c.fullName} — ${amount} сомонӣ${dueAt ? `, мӯҳлат ${dueText(dueAt)}` : ''}`);
+    await this.sendNewDebt(user.organizationId, { fullName: c.fullName, phone: c.phone, telegramChatId: c.telegramChatId, debt: Number(updated.debt) }, amount, dueAt);
     return toCustomer(updated);
   }
 
   /** Паём пас аз фурӯш ба қарз (берун аз транзаксия) */
-  async sendNewDebt(organizationId: number, c: { fullName: string; phone: string; telegramChatId: string | null; debt: number }, amount: number) {
+  async sendNewDebt(organizationId: number, c: { fullName: string; phone: string; telegramChatId: string | null; debt: number }, amount: number, dueAt?: Date | null) {
     const org = await this.prisma.organization.findUnique({ where: { id: organizationId }, select: { name: true } });
     return this.notify(
       organizationId,
       c,
-      `Ассалому алейкум, ${c.fullName}!\nШумо аз «${org?.name ?? ''}» ба маблағи ${formatMoney(amount)} ба қарз гирифтед.\nҚарзи умумӣ: ${formatMoney(c.debt)}.`,
+      `Ассалому алейкум, ${c.fullName}!\nШумо аз «${org?.name ?? ''}» ба маблағи ${formatMoney(amount)} ба қарз гирифтед.\nҚарзи умумӣ: ${formatMoney(c.debt)}.` +
+        (dueAt ? `\nМӯҳлати пардохт: ${dueText(dueAt)}.` : ''),
     );
   }
 
@@ -161,33 +229,83 @@ export class DebtsService {
     return { status };
   }
 
-  /** Ҳар рӯз соати 10:00: ба қарздороне, ки 6+ рӯз ёдрас нагирифтаанд — ҳамин тавр ҳар мизоҷ ҳафтае як бор */
+  /**
+   * Ҳар рӯз соати 10:00:
+   * 1) мизоҷоне, ки мӯҳлаташон имрӯз аст — ёдрас (агар имрӯз ёдрас нагирифта бошанд);
+   * 2) қарзҳое, ки дирӯз мӯҳлаташон гузашт — 🔔 ба менеҷери филиал ва шеф;
+   * 3) ҳамаи қарздорон, ки 6+ рӯз ёдрас нагирифтаанд — ҳамин тавр ҳар мизоҷ ҳафтае як бор.
+   */
   @Cron('0 0 10 * * *', { name: 'debt-reminders', timeZone: TZ })
   async weekly() {
-    const due = await this.prisma.customer.findMany({
+    const today = startOfLocalDay();
+    const tomorrow = startOfLocalDay(new Date(), 1);
+    const dueToday = await this.prisma.customer.findMany({
+      where: { debt: { gt: 0 }, debtDueAt: { gte: today, lt: tomorrow }, OR: [{ debtRemindedAt: null }, { debtRemindedAt: { lt: today } }] },
+      take: 300,
+    });
+    await this.alertOverdue(startOfLocalDay(new Date(), -1), today);
+    const weekly = await this.prisma.customer.findMany({
       where: {
         debt: { gt: 0 },
+        id: { notIn: dueToday.map((c) => c.id) },
         OR: [{ debtRemindedAt: null }, { debtRemindedAt: { lt: new Date(Date.now() - REMIND_EVERY_MS) } }],
         // Ёдраси аввал на зудтар аз як ҳафта пас аз қарз
         debtEntries: { some: { amount: { gt: 0 }, createdAt: { lt: new Date(Date.now() - REMIND_EVERY_MS) } } },
       },
       take: 300,
     });
+    const due = [...dueToday, ...weekly];
     let sent = 0;
     for (const c of due) {
       if ((await this.sendReminder(c)) === 'SENT') sent++;
       // Green-API паёмҳои зуд-зудро маҳдуд мекунад
       await new Promise((r) => setTimeout(r, 1500));
     }
-    if (due.length) this.logger.log(`Ёдраси қарз: ${sent}/${due.length} фиристода шуд`);
+    if (due.length) this.logger.log(`Ёдраси қарз: ${sent}/${due.length} фиристода шуд (мӯҳлати имрӯз: ${dueToday.length})`);
   }
 
-  private async sendReminder(c: { id: number; organizationId: number; fullName: string; phone: string; telegramChatId: string | null; debt: Prisma.Decimal }) {
+  /** Қарзҳое, ки мӯҳлаташон дар [from, to) буд ва ҳанӯз пардохт нашудаанд → 🔔 ба менеҷерони филиал ва шефҳо */
+  async alertOverdue(from: Date, to: Date) {
+    const rows = await this.prisma.customer.findMany({
+      where: { debt: { gt: 0 }, debtDueAt: { gte: from, lt: to } },
+      select: { organizationId: true, branchId: true, fullName: true, debt: true },
+    });
+    const groups = new Map<string, typeof rows>();
+    for (const r of rows) {
+      const key = `${r.organizationId}:${r.branchId ?? ''}`;
+      groups.set(key, [...(groups.get(key) ?? []), r]);
+    }
+    for (const list of groups.values()) {
+      const total = list.reduce((s, r) => s + Number(r.debt), 0);
+      const alert = {
+        icon: '⏰',
+        title: `Мӯҳлати қарз гузашт: ${list.length} мизоҷ`,
+        body: `${list.slice(0, 3).map((r) => r.fullName).join(', ')}${list.length > 3 ? '…' : ''} · ${formatMoney(total)}`,
+        link: '/debts',
+      };
+      if (list[0].branchId) await this.alerts.notifyBranch(list[0].branchId, alert, { includeChefs: true });
+      else {
+        const chefs = await this.prisma.user.findMany({ where: { organizationId: list[0].organizationId, role: 'CHEF', isActive: true }, select: { id: true } });
+        this.alerts.notify(chefs.map((c) => c.id), alert);
+      }
+    }
+    return rows.length;
+  }
+
+  private async sendReminder(c: { id: number; organizationId: number; fullName: string; phone: string; telegramChatId: string | null; debt: Prisma.Decimal; debtDueAt: Date | null }) {
     const org = await this.prisma.organization.findUnique({ where: { id: c.organizationId }, select: { name: true } });
+    const today = startOfLocalDay();
+    const due = !c.debtDueAt
+      ? 'Лутфан ҳангоми имкон пардохт кунед.'
+      : c.debtDueAt < today
+        ? `Мӯҳлати пардохт (${dueText(c.debtDueAt)}) гузашт — лутфан ҳарчи зудтар пардохт кунед.`
+        : c.debtDueAt < startOfLocalDay(new Date(), 1)
+          ? 'Имрӯз мӯҳлати пардохт аст.'
+          : `Мӯҳлати пардохт: ${dueText(c.debtDueAt)}.`;
     const status = await this.notify(
       c.organizationId,
       c,
-      `Ассалому алейкум, ${c.fullName}!\nЁдрас аз «${org?.name ?? ''}»: қарзи шумо ${formatMoney(Number(c.debt))} аст.\nЛутфан ҳангоми имкон пардохт кунед. Ташаккур!`,
+      `Ассалому алейкум, ${c.fullName}!\nЁдрас аз «${org?.name ?? ''}»: қарзи шумо ${formatMoney(Number(c.debt))} аст.\n${due} Ташаккур!`,
     );
     await this.prisma.customer.update({ where: { id: c.id }, data: { debtRemindedAt: new Date() } });
     return status;

@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { formatMoney, ONLINE_STATUS_LABELS, phoneDigits } from '@filialhub/shared';
+import { localDay, startOfLocalDay } from '../common/time';
 import { PrismaService } from '../prisma/prisma.service';
 import { escape } from './notifications.service';
 import { TelegramService } from './telegram.service';
@@ -66,7 +67,10 @@ export class CustomerBotService {
     });
     if (!rows.length) return '✅ Шумо қарз надоред. Ташаккур!';
     const total = rows.reduce((s, r) => s + Number(r.debt), 0);
-    const lines = rows.map((r) => `• <b>${escape(r.organization.name)}</b>: ${formatMoney(Number(r.debt))}`);
+    const today = startOfLocalDay();
+    const due = (d: Date | null) =>
+      !d ? '' : d < today ? ` · ⏰ мӯҳлат гузашт (${localDay(d).split('-').reverse().join('.')})` : ` · мӯҳлат ${localDay(d).split('-').reverse().join('.')}`;
+    const lines = rows.map((r) => `• <b>${escape(r.organization.name)}</b>: ${formatMoney(Number(r.debt))}${due(r.debtDueAt)}`);
     return `📒 <b>Қарзи шумо</b>\n${lines.join('\n')}${rows.length > 1 ? `\n\nҲамагӣ: <b>${formatMoney(total)}</b>` : ''}`;
   }
 

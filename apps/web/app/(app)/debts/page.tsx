@@ -4,6 +4,8 @@ import { PAYMENT_LABELS, type Customer, type DebtEntry, type DebtRequest, type D
 import { BellRing, Check, HandCoins, History, Hourglass, Plus, Search, X } from "lucide-react";
 import { useState } from "react";
 import { prettyPhone } from "@/components/crm";
+import { DueBadge, DueField } from "@/components/due-field";
+import { dayKey } from "@/lib/due";
 import { TelegramBotCard } from "@/components/telegram-bot-card";
 import { useToast } from "@/components/toast";
 import { Avatar, Button, Card, Empty, ErrorBox, Field, formatDate, Input, Modal, money, PageHeader, Segmented, Skeleton, cn } from "@/components/ui";
@@ -28,6 +30,7 @@ export default function DebtsPage() {
   const { data: summary, reload: reloadSummary } = useApi<DebtSummary>("/debts/summary");
   const { data, error, reload } = useApi<Customer[]>(`/debts${qs({ q: q.trim() || undefined })}`);
   const [action, setAction] = useState<Action | null>(null);
+  const [picking, setPicking] = useState(false);
   const [reminding, setReminding] = useState<number | null>(null);
 
   const refresh = () => {
@@ -53,9 +56,27 @@ export default function DebtsPage() {
 
   return (
     <>
-      <PageHeader title={tr("Дафтари қарз")} subtitle={tr("Мизоҷоне, ки ба қарз гирифтанд. Бот ба онҳо дар WhatsApp хабар медиҳад ва ҳар ҳафта то пардохт ёдрас мекунад.")} />
+      <PageHeader
+        title={tr("Дафтари қарз")}
+        subtitle={tr("Мизоҷоне, ки ба қарз гирифтанд. Бот ба онҳо дар WhatsApp хабар медиҳад ва ҳар ҳафта то пардохт ёдрас мекунад.")}
+        actions={
+          <Button onClick={() => setPicking(true)}>
+            <Plus className="size-4" /> {isStaff ? tr("Дархости қарз") : tr("Қарзи нав")}
+          </Button>
+        }
+      />
+      <Modal open={picking} onClose={() => setPicking(false)} title={isStaff ? tr("Дархости қарз") : tr("Қарзи нав")}>
+        {picking && (
+          <PickCustomer
+            onPick={(c) => {
+              setPicking(false);
+              setAction({ kind: "add", customer: c });
+            }}
+          />
+        )}
+      </Modal>
 
-      <div className="mb-5 grid gap-4 sm:grid-cols-3">
+      <div className="mb-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <div className="card p-5">
           <div className="text-sm text-muted">{tr("Ҳамагӣ қарз")}</div>
           <div className="mt-1 text-3xl font-bold text-brand tabular">{summary ? money(summary.total) : "—"}</div>
@@ -63,6 +84,11 @@ export default function DebtsPage() {
         <div className="card p-5">
           <div className="text-sm text-muted">{tr("Қарздорон")}</div>
           <div className="mt-1 text-3xl font-bold text-ink tabular">{summary?.debtors ?? "—"}</div>
+        </div>
+        <div className={cn("card p-5", summary && summary.overdue > 0 && "border-brand/40 bg-brand-soft/40")}>
+          <div className="text-sm text-muted">{tr("Мӯҳлаташ гузашт")}</div>
+          <div className={cn("mt-1 text-3xl font-bold tabular", summary?.overdue ? "text-brand" : "text-good")}>{summary ? summary.overdue : "—"}</div>
+          {summary && summary.overdue > 0 && <div className="text-xs font-semibold text-brand tabular">{money(summary.overdueTotal)}</div>}
         </div>
         <div className="card p-5">
           <div className="text-sm text-muted">{tr("Ёдраси худкор")}</div>
@@ -97,12 +123,18 @@ export default function DebtsPage() {
           <Empty icon="📒" title={q ? tr("Ёфт нашуд") : tr("Қарздор нест")} text={tr("Дар «Фурӯши нав» мизоҷро интихоб кунед ва «Қарз»-ро пахш кунед — фурӯш ба ин дафтар меояд.")} />
         ) : (
           <ul className="divide-y divide-line">
-            {data.map((c) => (
+            {/* Аввал онҳое, ки мӯҳлаташон гузашт ё наздик аст, баъд аз рӯи маблағ */}
+            {[...data]
+              .sort((a, b) => (a.debtDueAt ?? "9999").localeCompare(b.debtDueAt ?? "9999") || b.debt - a.debt)
+              .map((c) => (
               <li key={c.id} className="flex flex-wrap items-center gap-3 px-3 py-3">
                 <Avatar name={c.fullName} size={40} />
                 <div className="min-w-0 flex-1">
                   <div className="truncate font-semibold text-ink">{c.fullName}</div>
-                  <div className="text-xs text-muted tabular">{prettyPhone(c.phone)}</div>
+                  <div className="flex flex-wrap items-center gap-1.5 text-xs text-muted tabular">
+                    {prettyPhone(c.phone)}
+                    <DueBadge due={c.debtDueAt} />
+                  </div>
                 </div>
                 <div className="text-right">
                   <div className="text-lg font-extrabold text-brand tabular">{money(c.debt)}</div>
@@ -154,6 +186,8 @@ function DebtForm({ action, asRequest, onDone }: { action: Action; asRequest: bo
   const [amount, setAmount] = useState(pay ? String(action.customer.debt) : "");
   const [payment, setPayment] = useState<"CASH" | "CARD">("CASH");
   const [note, setNote] = useState("");
+  // Қарзи нав: мӯҳлати пешфарз — 2 ҳафта (ё мӯҳлати ҳозираи мизоҷ, агар наздиктар бошад — сервер наздиктаринро мегузорад)
+  const [dueAt, setDueAt] = useState(() => dayKey(14));
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const n = Number(amount) || 0;
@@ -165,12 +199,12 @@ function DebtForm({ action, asRequest, onDone }: { action: Action; asRequest: bo
     setError(null);
     try {
       if (!pay && asRequest) {
-        await api("/debt-requests", { method: "POST", json: { customerId: action.customer.id, amount: n, note } });
+        await api("/debt-requests", { method: "POST", json: { customerId: action.customer.id, amount: n, note, dueAt: dueAt || undefined } });
         toast.success(tr("Дархост ба менеҷер фиристода шуд"), tr("Қарз пас аз тасдиқ илова мешавад."));
         onDone();
         return;
       }
-      await api(`/debts/${action.customer.id}/${pay ? "pay" : "add"}`, { method: "POST", json: pay ? { amount: n, payment, note } : { amount: n, note } });
+      await api(`/debts/${action.customer.id}/${pay ? "pay" : "add"}`, { method: "POST", json: pay ? { amount: n, payment, note } : { amount: n, note, dueAt: dueAt || undefined } });
       toast.success(pay ? tr("Пардохт қабул шуд") : tr("Қарз илова шуд"), tr("Қарзи боқимонда: {0}", money(after)));
       onDone();
     } catch (err) {
@@ -182,8 +216,9 @@ function DebtForm({ action, asRequest, onDone }: { action: Action; asRequest: bo
 
   return (
     <form onSubmit={save} className="space-y-4">
-      <div className="rounded-2xl bg-surface-2 p-4 text-sm">
+      <div className="flex flex-wrap items-center gap-2 rounded-2xl bg-surface-2 p-4 text-sm">
         {tr("Қарзи ҳозира")}: <b className="text-brand tabular">{money(action.customer.debt)}</b>
+        <DueBadge due={action.customer.debtDueAt} />
       </div>
       <Field label={tr("Маблағ (сомонӣ)")}>
         <Input type="number" min={0.01} step="0.01" required autoFocus value={amount} onChange={(e) => setAmount(e.target.value)} />
@@ -198,6 +233,7 @@ function DebtForm({ action, asRequest, onDone }: { action: Action; asRequest: bo
           ]}
         />
       )}
+      {!pay && <DueField value={dueAt} onChange={setDueAt} />}
       <Field label={tr("Эзоҳ")} hint={tr("Ихтиёрӣ")}>
         <Input value={note} onChange={(e) => setNote(e.target.value)} maxLength={200} />
       </Field>
@@ -210,6 +246,44 @@ function DebtForm({ action, asRequest, onDone }: { action: Action; asRequest: bo
       <ErrorBox message={error} />
       <Button type="submit" loading={busy} className="w-full">
         {pay ? tr("Пардохтро сабт кардан") : asRequest ? tr("Дархост ба менеҷер") : tr("Қарзро илова кардан")}
+      </Button>
+    </form>
+  );
+}
+
+/** Мизоҷ аз рӯи рақам (ҳатто агар ҳоло қарз надошта бошад) — барои қарзи нав */
+function PickCustomer({ onPick }: { onPick: (c: Customer) => void }) {
+  const [phone, setPhone] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function find(e: React.FormEvent) {
+    e.preventDefault();
+    if (phone.replace(/\D/g, "").length < 9) {
+      setError(tr("Рақами телефони мизоҷро нависед (масалан 90 123 45 67), на номро — баъд 🔍-ро пахш кунед."));
+      return;
+    }
+    setBusy(true);
+    setError(null);
+    try {
+      const c = await api<Customer | null>(`/customers/lookup?phone=${encodeURIComponent(phone)}`);
+      if (c) onPick(c);
+      else setError(tr("Мизоҷ бо ин рақам нест. Аввал ӯро дар «Фурӯши нав» сабт кунед."));
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <form onSubmit={find} className="space-y-4">
+      <Field label={tr("Рақами телефони мизоҷ")}>
+        <Input value={phone} onChange={(e) => setPhone(e.target.value)} inputMode="tel" autoFocus placeholder="90 123 45 67" />
+      </Field>
+      <ErrorBox message={error} />
+      <Button type="submit" loading={busy} className="w-full">
+        <Search className="size-4" /> {tr("Ёфтан")}
       </Button>
     </form>
   );
@@ -233,6 +307,7 @@ function DebtHistory({ customerId }: { customerId: number }) {
               {e.userName && ` · ${e.userName}`}
               {e.note && ` · ${e.note}`}
             </div>
+            {e.amount > 0 && e.dueAt && <DueBadge due={e.dueAt} className="mt-1" />}
           </div>
           <span className={cn("shrink-0 font-bold tabular", e.amount > 0 ? "text-brand" : "text-good")}>
             {e.amount > 0 ? "+" : "−"}
@@ -289,6 +364,7 @@ function RequestsPanel({ requests, canDecide, onChange }: { requests: DebtReques
                 {r.requestedBy && ` · ${r.requestedBy}`}
                 {canDecide && ` · ${tr("қарзи ҳозира")}: ${money(r.customerDebt)}`}
               </div>
+              {r.dueAt && r.status === "PENDING" && <DueBadge due={r.dueAt} className="mt-1" />}
             </div>
             <div className="text-lg font-extrabold text-brand tabular">{money(r.amount)}</div>
             {canDecide ? (

@@ -19,7 +19,7 @@ import { IsDateString, IsEmail, IsInt, IsOptional, IsString, MaxLength, MinLengt
 import { canSell, SEGMENTS, type Customer as CustomerDto, type CustomerStats, type Paginated, type Segment } from '@filialhub/shared';
 import { AuthUser, CurrentUser, Feature, Roles } from '../auth/decorators';
 import { branchWhere, scopeBranch } from '../common/access';
-import { startOfLocalDay, startOfLocalMonth } from '../common/time';
+import { localDay, startOfLocalDay, startOfLocalMonth } from '../common/time';
 import { AuditService } from '../core/audit.service';
 import { Prisma, type Branch, type Customer } from '../generated/prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
@@ -81,6 +81,7 @@ export function toCustomer(c: Customer & { branch?: Pick<Branch, 'name'> | null 
     note: c.note,
     segment: segmentOf(c),
     debt: Number(c.debt),
+    debtDueAt: c.debtDueAt ? localDay(c.debtDueAt) : null,
     createdAt: c.createdAt.toISOString(),
   };
 }
