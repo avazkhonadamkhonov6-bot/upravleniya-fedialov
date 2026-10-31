@@ -1,7 +1,7 @@
 "use client";
 
 import { homePath } from "@filialhub/shared";
-import { ArrowRight, Banknote, Brush, Building2, ChefHat, Crown, Loader2, Lock, Mail, Shirt, ShoppingBag, ShoppingCart, Store, UserRound } from "lucide-react";
+import { ArrowLeft, ArrowRight, Banknote, Brush, Building2, ChefHat, Crown, Loader2, Lock, Mail, Shirt, ShoppingBag, ShoppingCart, Store, UserRound } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
@@ -121,6 +121,12 @@ export default function LoginPage() {
         {/* Дар телефон қисми сурх нест — ду доираи хурд дар кунҷ */}
         <div className="pointer-events-none absolute -top-16 -right-16 size-40 rounded-full bg-[#ff7a1a] opacity-90 lg:hidden" aria-hidden />
         <div className="pointer-events-none absolute top-16 right-20 size-10 rounded-full bg-[#ffc531] lg:hidden" aria-hidden />
+        <Link
+          href="/"
+          className="group absolute top-4 left-4 z-10 inline-flex h-10 items-center gap-1.5 rounded-xl px-3 text-sm font-semibold text-muted transition hover:bg-surface-2 hover:text-ink"
+        >
+          <ArrowLeft className="size-4 transition-transform group-hover:-translate-x-1" /> {tr("Ба саҳифаи асосӣ")}
+        </Link>
         <LangSwitcher className="absolute top-4 right-4 z-10" />
         <div className="login-stagger relative w-full max-w-md pt-12 sm:pt-6">
           <div className="mb-10 lg:hidden">
