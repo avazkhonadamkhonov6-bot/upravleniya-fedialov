@@ -13,7 +13,7 @@
 | `MANAGER` | — | Як филиал (`User.branchId`) |
 | `STAFF` | `CASHIER`, `SELLER` | Филиали худ: фурӯш, фармоиши онлайн, қарз |
 | `STAFF` | `WAITER`, `STOREKEEPER` | Рӯйхати мол |
-| `STAFF` | `COOK`, `CLEANER` | Танҳо профил |
+| `STAFF` | `COOK`, `CLEANER` | Профил, ҷадвал ва давомот, вазифаҳо ва чат |
 | — | `isSuperAdmin = true` | Платформа: ҳамаи бизнесҳо |
 
 Вазифаҳое, ки дар интихоб пайдо мешаванд, аз навъи бизнес вобастаанд (`positionsFor(type)` дар shared): масалан, тарабхона ошпаз ва официант дорад, мағоза фурӯшанда ва анбордор.
@@ -22,7 +22,8 @@
 
 | Саҳифа (`Feature`) | Шеф | Менеҷер | Кассир | Фурӯшанда | Официант | Анбордор | Ошпаз/Фаррош |
 |---|:-:|:-:|:-:|:-:|:-:|:-:|:-:|
-| dashboard, branches, staff, customers, tasks, schedule, messages, expenses, alerts, search | ✅ | ✅ | — | — | — | — | — |
+| dashboard, branches, staff, customers, expenses, search | ✅ | ✅ | — | — | — | — | — |
+| schedule (корманд — «Ҷадвали ман», Омадам/Рафтам), tasks (худ), messages (менеҷер ва шеф), alerts | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | pos, sales, online, debts | ✅ | ✅ | ✅ | ✅ | — | — | — |
 | products | ✅ | ✅ | — | ✅ | ✅ | ✅ | — |
 | integrations, audit | ✅ | — | — | — | — | — | — |

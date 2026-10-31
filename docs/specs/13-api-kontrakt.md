@@ -106,9 +106,9 @@
 
 | Метод | Роҳ | Декораторҳо |
 |---|---|---|
-| GET | `/api/alerts` |  |
-| POST | `/api/alerts/read-all` |  |
-| POST | `/api/alerts/:id/read` |  |
+| GET | `/api/alerts` | `@Feature(alerts)` |
+| POST | `/api/alerts/read-all` | `@Feature(alerts)` |
+| POST | `/api/alerts/:id/read` | `@Feature(alerts)` |
 | GET | `/api/audit` | `@Roles(CHEF)` |
 | GET | `/api/search` |  |
 
@@ -191,7 +191,7 @@
 
 ### `messages/messages.ts`
 
-Дастрасӣ: шеф, менеҷер (`messages`)
+Дастрасӣ: ҳама (`messages`); корманд — танҳо бо менеҷер ва шеф
 
 | Метод | Роҳ | Декораторҳо |
 |---|---|---|
@@ -296,19 +296,19 @@
 
 ### `shifts/shifts.ts`
 
-Дастрасӣ: шеф, менеҷер (корманди `STAFF` — 403, ниг. [08](08-jadval-va-vazifaho.md))
+Дастрасӣ: шеф, менеҷер; корманд — сменаҳои худ ва «Омадам / Рафтам» ([08](08-jadval-va-vazifaho.md))
 
 | Метод | Роҳ | Декораторҳо |
 |---|---|---|
-| GET | `/api/shifts` |  |
-| GET | `/api/shifts/today` | `@Roles(CHEF, MANAGER)` |
-| GET | `/api/shifts/mine` |  |
-| POST | `/api/shifts` | `@Roles(CHEF, MANAGER)` |
-| POST | `/api/shifts/copy-week` | `@Roles(CHEF, MANAGER)` |
-| POST | `/api/shifts/check-in` |  |
-| POST | `/api/shifts/check-out` |  |
-| PATCH | `/api/shifts/:id` | `@Roles(CHEF, MANAGER)` |
-| DELETE | `/api/shifts/:id` | `@Roles(CHEF, MANAGER)` |
+| GET | `/api/shifts` | `@Feature(schedule)` |
+| GET | `/api/shifts/today` | `@Feature(schedule)` `@Roles(CHEF, MANAGER)` |
+| GET | `/api/shifts/mine` | `@Feature(schedule)` |
+| POST | `/api/shifts` | `@Feature(schedule)` `@Roles(CHEF, MANAGER)` |
+| POST | `/api/shifts/copy-week` | `@Feature(schedule)` `@Roles(CHEF, MANAGER)` |
+| POST | `/api/shifts/check-in` | `@Feature(schedule)` |
+| POST | `/api/shifts/check-out` | `@Feature(schedule)` |
+| PATCH | `/api/shifts/:id` | `@Feature(schedule)` `@Roles(CHEF, MANAGER)` |
+| DELETE | `/api/shifts/:id` | `@Feature(schedule)` `@Roles(CHEF, MANAGER)` |
 
 ### `shop/shop.ts`
 
@@ -346,14 +346,14 @@
 
 ### `tasks/tasks.ts`
 
-Дастрасӣ: шеф, менеҷер (корманди `STAFF` — 403)
+Дастрасӣ: шеф, менеҷер; корманд — вазифаҳои худ (хондан ва ҳолат)
 
 | Метод | Роҳ | Декораторҳо |
 |---|---|---|
-| GET | `/api/tasks` |  |
-| POST | `/api/tasks` | `@Roles(CHEF, MANAGER)` |
-| PATCH | `/api/tasks/:id` |  |
-| DELETE | `/api/tasks/:id` | `@Roles(CHEF, MANAGER)` |
+| GET | `/api/tasks` | `@Feature(tasks)` |
+| POST | `/api/tasks` | `@Feature(tasks)` `@Roles(CHEF, MANAGER)` |
+| PATCH | `/api/tasks/:id` | `@Feature(tasks)` |
+| DELETE | `/api/tasks/:id` | `@Feature(tasks)` `@Roles(CHEF, MANAGER)` |
 
 ### `users/users.controller.ts`
 
