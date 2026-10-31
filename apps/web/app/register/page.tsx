@@ -33,17 +33,22 @@ const TYPE_DOT: Record<BusinessType, string> = {
  * — Мизоҷ: аз мағозаҳо фармоиш медиҳад.
  */
 export default function RegisterPage() {
+  // Fallback ҳамон форма бо нақши «Шеф» аст — вагарна сервер саҳифаи холӣ медиҳад ва Google матнро намебинад.
   return (
-    <Suspense>
-      <Register />
+    <Suspense fallback={<Register initialRole="chef" />}>
+      <RegisterFromQuery />
     </Suspense>
   );
 }
 
-function Register() {
+function RegisterFromQuery() {
+  return <Register initialRole={useSearchParams().get("as") === "client" ? "client" : "chef"} />;
+}
+
+function Register({ initialRole }: { initialRole: Role }) {
   const { register, registerClient, user, client } = useAuth();
   const router = useRouter();
-  const [role, setRole] = useState<Role>(useSearchParams().get("as") === "client" ? "client" : "chef");
+  const [role, setRole] = useState<Role>(initialRole);
   const [type, setType] = useState<BusinessType | null>(null);
   const [f, setF] = useState({ businessName: "", fullName: "", email: "", phone: "", address: "", password: "" });
   const [busy, setBusy] = useState(false);

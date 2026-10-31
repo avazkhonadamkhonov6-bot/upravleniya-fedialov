@@ -145,16 +145,14 @@ export default function HomePage() {
           <span className="reveal-up inline-flex items-center gap-2 self-start rounded-full bg-[#ffe9dc] px-3.5 py-2 text-sm font-semibold text-[#a82a10]">
             <span className="size-2 rounded-full bg-[#dc3b1c]" /> <T k="Платформа барои бизнесҳои Тоҷикистон" />
           </span>
-          <h1
-            className="reveal-up font-display text-[clamp(34px,8vw,52px)] leading-[1.08] font-extrabold tracking-[-0.03em] lg:text-[clamp(48px,4.6vw,68px)]"
-            style={{ animationDelay: "80ms" }}
-          >
+          {/* Сарлавҳа ва матни аввал бе аниматсия: онҳо LCP-анд — Google вақти пайдо шудани онҳоро чен мекунад */}
+          <h1 className="font-display text-[clamp(34px,8vw,52px)] leading-[1.08] font-extrabold tracking-[-0.03em] lg:text-[clamp(48px,4.6vw,68px)]">
             <T k="Ҳамаи филиалҳо" />{" "}
             <span className="text-[#dc3b1c]">
               <T k="дар як ҷо." />
             </span>
           </h1>
-          <p className="reveal-up max-w-[560px] text-lg leading-relaxed text-[#4a3f35] sm:text-xl" style={{ animationDelay: "160ms" }}>
+          <p className="max-w-[560px] text-lg leading-relaxed text-[#4a3f35] sm:text-xl">
             <T k="Фурӯш, касса, кормандон, хароҷот ва фармоишҳои онлайн — ҳама аз як панел. Мизоҷони шумо бошанд аз мағозаатон онлайн мехаранд." />
           </p>
           <div className="reveal-up flex flex-wrap gap-3" style={{ animationDelay: "240ms" }}>

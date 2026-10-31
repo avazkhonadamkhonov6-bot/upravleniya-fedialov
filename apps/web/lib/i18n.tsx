@@ -1,8 +1,13 @@
 "use client";
 
 import { CURRENCY } from "@filialhub/shared";
-import { createContext, Fragment, useCallback, useContext, useEffect, useMemo, useSyncExternalStore } from "react";
-import { DICT } from "./i18n-dict";
+import { createContext, Fragment, useCallback, useContext, useEffect, useMemo, useState, useSyncExternalStore } from "react";
+
+// Луғати русӣ/англисӣ (~150 КБ) танҳо вақте бор мешавад, ки забони дигар интихоб шавад — меҳмони тоҷикзабон онро намегирад.
+type Dict = Record<string, [ru: string, en: string]>;
+let dict: Dict | null = null;
+let dictLoading: Promise<Dict> | null = null;
+const loadDict = () => (dictLoading ??= import("./i18n-dict").then((m) => (dict = m.DICT)));
 
 export const LANGS = [
   { code: "tg", label: "Тоҷикӣ", short: "TJ" },
@@ -25,8 +30,8 @@ let current: Lang = "tg";
 export function tr(key: string, ...args: (string | number | null | undefined)[]): string {
   const bar = key.indexOf("|");
   let s = bar > 0 ? key.slice(0, bar) : key;
-  if (current !== "tg") {
-    const hit = DICT[key];
+  if (current !== "tg" && dict) {
+    const hit = dict[key];
     if (hit) s = hit[current === "ru" ? 0 : 1];
   }
   return args.length ? s.replace(/\{(\d+)\}/g, (m, i) => (+i < args.length ? String(args[+i] ?? "") : m)) : s;
@@ -63,7 +68,14 @@ const LangContext = createContext<{ lang: Lang; setLang: (l: Lang) => void } | n
 
 export function LangProvider({ children }: { children: React.ReactNode }) {
   // Дар сервер ва ҳангоми hydration ҳамеша "tg"; пас забони захирашуда (localStorage).
-  const lang = useSyncExternalStore(subscribeLang, readLang, () => "tg" as Lang);
+  const stored = useSyncExternalStore(subscribeLang, readLang, () => "tg" as Lang);
+  // То луғат бор нашавад, тоҷикиро нишон медиҳем; баъд ба забони интихобшуда мегузарем.
+  const [dictReady, setDictReady] = useState(() => dict !== null);
+  const lang = stored === "tg" || dictReady ? stored : "tg";
+
+  useEffect(() => {
+    if (stored !== "tg" && !dictReady) loadDict().then(() => setDictReady(true));
+  }, [stored, dictReady]);
 
   useEffect(() => {
     document.documentElement.lang = lang;

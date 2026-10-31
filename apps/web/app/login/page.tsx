@@ -98,7 +98,7 @@ export default function LoginPage() {
           <h1 className="font-display text-[clamp(40px,4.4vw,62px)] leading-[1.08] font-extrabold tracking-[-0.03em]">
             <span className="reveal-up block" style={{ animationDelay: "0.1s" }}>
               {tr("Ҳамаи филиалҳо")}
-            </span>
+            </span>{" "}
             <span className="reveal-up block text-[#16120f]" style={{ animationDelay: "0.25s" }}>
               {tr("дар як ҷо.")}
             </span>
