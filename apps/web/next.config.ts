@@ -26,6 +26,11 @@ const nextConfig: NextConfig = {
           { key: "X-Content-Type-Options", value: "nosniff" },
           { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
           { key: "Permissions-Policy", value: "camera=(self), microphone=(self), geolocation=()" },
+          // Браузер сайтро як сол танҳо бо HTTPS мекушояд (дар localhost-и http браузер инро нодида мегирад)
+          { key: "Strict-Transport-Security", value: "max-age=31536000; includeSubDomains" },
+          // CSP-и бехатар: <base>, плагинҳо (object/embed), iframe-и бегона ва фиристодани формаҳо ба сайти дигар манъ.
+          // script-src маҳдуд нест — Next.js скриптҳои дохилӣ дорад; барои он nonce лозим мешавад.
+          { key: "Content-Security-Policy", value: "base-uri 'self'; object-src 'none'; frame-ancestors 'none'; form-action 'self'" },
         ],
       },
     ];

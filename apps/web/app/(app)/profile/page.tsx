@@ -153,8 +153,8 @@ export default function ProfilePage() {
 
             <Section title={tr("Иваз кардани парол")}>
               <div className="grid gap-4 xl:grid-cols-2">
-                <Field label={tr("Пароли нав")} hint={tr("Камаш 6 аломат")}>
-                  <Input type="password" minLength={6} value={f.newPassword} onChange={set("newPassword")} autoComplete="new-password" />
+                <Field label={tr("Пароли нав")} hint={tr("Камаш 8 аломат")}>
+                  <Input type="password" minLength={8} value={f.newPassword} onChange={set("newPassword")} autoComplete="new-password" />
                 </Field>
                 <Field label={tr("Пароли ҳозира")} hint={needsPassword ? tr("Лозим аст") : tr("Танҳо барои иваз кардани почта ё парол")}>
                   <Input

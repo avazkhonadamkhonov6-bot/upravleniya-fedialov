@@ -203,8 +203,8 @@ function Register({ initialRole }: { initialRole: Role }) {
                 <Input value={f.address} onChange={set("address")} placeholder={tr("Шаҳр, кӯча, хона")} autoComplete="street-address" />
               </Field>
             )}
-            <Field label={tr("Парол")} hint={tr("Камаш 6 аломат")}>
-              <Input type="password" required minLength={6} value={f.password} onChange={set("password")} autoComplete="new-password" />
+            <Field label={tr("Парол")} hint={tr("Камаш 8 аломат")}>
+              <Input type="password" required minLength={8} value={f.password} onChange={set("password")} autoComplete="new-password" />
             </Field>
           </div>
 

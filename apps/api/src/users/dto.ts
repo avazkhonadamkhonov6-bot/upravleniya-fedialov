@@ -25,7 +25,7 @@ export class CreateUserDto {
   @IsString() @MinLength(7, { message: 'Рақами телефон нодуруст аст' })
   phone: string;
 
-  @IsString() @MinLength(6, { message: 'Парол бояд камаш 6 аломат бошад' })
+  @IsString() @MinLength(8, { message: 'Парол бояд камаш 8 аломат бошад' }) @MaxLength(100)
   password: string;
 
   /** Рақами WhatsApp (ихтиёрӣ) */
@@ -66,7 +66,7 @@ export class UpdateUserDto {
   @IsOptional() @IsString() @MinLength(7)
   phone?: string;
 
-  @IsOptional() @IsString() @MinLength(6, { message: 'Парол бояд камаш 6 аломат бошад' })
+  @IsOptional() @IsString() @MinLength(8, { message: 'Парол бояд камаш 8 аломат бошад' }) @MaxLength(100)
   password?: string;
 
   /** Рақами WhatsApp (ихтиёрӣ) */

@@ -265,9 +265,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   // Мағоза «Меню» надорад — «Маҳсулот»
   const shop = !isRestaurant(user.organization?.type);
   const relabel = (n: NavItem): NavItem =>
-    shop && n.href === "/products" ? { ...n, label: "Маҳсулот ва нархҳо", short: "Маҳсулот", icon: Package } : n;
-  // «Ёрдамчии AI» — танҳо вақте ки дар сервер калиди Claude ҳаст
-  const visible = (n: NavItem) => canAccess(user, n.feature) && (!n.only || n.only(user)) && (n.href !== "/assistant" || aiOn);
+    shop && n.href === "/products"
+      ? { ...n, label: "Маҳсулот ва нархҳо", short: "Маҳсулот", icon: Package }
+      : n.href === "/assistant" && !aiOn
+        ? { ...n, label: "Ёрдамчӣ", short: "Ёрдам" }
+        : n;
+  const visible = (n: NavItem) => canAccess(user, n.feature) && (!n.only || n.only(user));
   const groups = NAV.map((g) => ({ ...g, items: g.items.filter(visible).map(relabel) })).filter((g) => g.items.length);
   const canSearch = canAccess(user, "search");
   const all = groups.flatMap((g) => g.items);

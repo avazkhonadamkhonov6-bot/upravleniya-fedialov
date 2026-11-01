@@ -17,6 +17,7 @@ import {
   Post,
   Query,
 } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
 import { Type } from 'class-transformer';
 import { ArrayMinSize, IsIn, IsInt, IsNumber, IsOptional, IsString, Max, MaxLength, Min, MinLength, ValidateNested } from 'class-validator';
 import {
@@ -562,12 +563,15 @@ export class ShopController {
   @Public()
   @Post('stores/:id/view')
   @HttpCode(204)
+  @Throttle({ default: { limit: 30, ttl: 60_000 } })
   view(@Param('id', ParseIntPipe) id: number) {
     return this.shop.view(id);
   }
 
   @Public()
   @Post('table-orders')
+  // Фармоиш аз QR-и миз бе сабти ном аст — то касе ошхонаро бо фармоишҳои қалбакӣ пур накунад
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
   table(@Body() dto: TableOrderDto) {
     return this.shop.tableOrder(dto);
   }

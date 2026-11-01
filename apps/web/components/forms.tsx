@@ -270,8 +270,8 @@ export function UserForm({
           <Input type="date" value={f.hiredAt} onChange={set("hiredAt")} />
         </Field>
       </div>
-      <Field label={user ? tr("Пароли нав (ихтиёрӣ)") : tr("Парол")} hint={tr("Камаш 6 аломат")}>
-        <Input type="password" required={!user} minLength={6} value={f.password} onChange={set("password")} autoComplete="new-password" />
+      <Field label={user ? tr("Пароли нав (ихтиёрӣ)") : tr("Парол")} hint={tr("Камаш 8 аломат")}>
+        <Input type="password" required={!user} minLength={8} value={f.password} onChange={set("password")} autoComplete="new-password" />
       </Field>
       {user && (
         <label className="flex cursor-pointer items-center gap-3 rounded-xl bg-surface-2 p-3 text-sm font-medium text-ink">

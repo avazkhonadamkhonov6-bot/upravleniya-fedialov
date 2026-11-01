@@ -81,7 +81,8 @@ export class WhatsAppWebhookController {
 
   private checkSignature(raw: Buffer | undefined, signature?: string) {
     const secret = process.env.WHATSAPP_APP_SECRET?.trim();
-    if (!secret) return;
+    // Бе сирр ҳар кас метавонист «паём аз WhatsApp»-и қалбакӣ фиристад — қабул намекунем
+    if (!secret) throw new ForbiddenException('WHATSAPP_APP_SECRET гузошта нашудааст');
     const expected = Buffer.from(`sha256=${createHmac('sha256', secret).update(raw ?? Buffer.alloc(0)).digest('hex')}`);
     const given = Buffer.from(signature ?? '');
     if (expected.length !== given.length || !timingSafeEqual(expected, given)) throw new ForbiddenException('Имзои нодуруст');

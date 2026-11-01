@@ -335,7 +335,7 @@ export const DICT: Record<string, [ru: string, en: string]> = {
   "Нақш": ["Роль", "Role"],
   "Маош (сомонӣ)": ["Зарплата (сомони)", "Salary (TJS)"],
   "Пароли нав (ихтиёрӣ)": ["Новый пароль (необязательно)", "New password (optional)"],
-  "Камаш 6 аломат": ["Минимум 6 символов", "At least 6 characters"],
+  "Камаш 8 аломат": ["Минимум 8 символов", "At least 8 characters"],
   "Фаъол (метавонад ворид шавад)": ["Активен (может входить)", "Active (can sign in)"],
   "Ҳамин рақам барои WhatsApp ва Telegram истифода мешавад": ["Этот номер используется для WhatsApp и Telegram", "This number is used for WhatsApp and Telegram"],
   "📩 Пас аз сабт ба корманд паёми хуш омадед тавассути WhatsApp/Telegram фиристода мешавад, ва менеҷери филиал огоҳ карда мешавад.": ["📩 После сохранения сотруднику придёт приветствие в WhatsApp/Telegram, а менеджер филиала получит уведомление.", "📩 After saving, the employee gets a welcome message via WhatsApp/Telegram and the branch manager is notified."],
@@ -773,8 +773,8 @@ export const DICT: Record<string, [ru: string, en: string]> = {
   "Ҳоло барои шумо смена нест": ["Сейчас у вас нет смены", "You have no shift right now"],
   "Почтаи электронӣ нодуруст аст": ["Неверный адрес почты", "Invalid email address"],
   "Парол кӯтоҳ аст": ["Пароль слишком короткий", "Password is too short"],
-  "Пароли нав бояд камаш 6 аломат бошад": ["Новый пароль должен быть не короче 6 символов", "The new password must be at least 6 characters"],
-  "Парол бояд камаш 6 аломат бошад": ["Пароль должен быть не короче 6 символов", "Password must be at least 6 characters"],
+  "Пароли нав бояд камаш 8 аломат бошад": ["Новый пароль должен быть не короче 8 символов", "The new password must be at least 8 characters"],
+  "Парол бояд камаш 8 аломат бошад": ["Пароль должен быть не короче 8 символов", "Password must be at least 8 characters"],
   "Ному насабро пурра нависед": ["Укажите полное имя", "Enter the full name"],
   "Нақш нодуруст аст": ["Неверная роль", "Invalid role"],
   "Вазифа нодуруст аст": ["Неверная должность", "Invalid position"],
@@ -1582,5 +1582,14 @@ export const DICT: Record<string, [ru: string, en: string]> = {
   "Мағозаи шумо дар бозори FilialHub пайдо мешавад: мизоҷ маҳсулотро интихоб мекунад, фармоиш медиҳад ва ҳолати онро пайгирӣ мекунад.": [
     "Ваш магазин появляется в онлайн-маркете FilialHub: клиент выбирает товары, оформляет заказ и следит за его статусом.",
     "Your store appears on the FilialHub marketplace: customers pick products, place an order and track its status.",
+  ],
+  // ---------- Ёрдамчии ройгон ----------
+  "Ёрдамчӣ": ["Помощник", "Assistant"],
+  "Ёрдам": ["Помощь", "Help"],
+  "Фурӯши имрӯз чанд аст?": ["Какая выручка сегодня?", "What are today's sales?"],
+  "Молҳои беҳтарини ин моҳ": ["Лучшие товары за месяц", "Best products this month"],
+  "Тугмаро пахш кунед ё кӯтоҳ пурсед: фурӯш, филиалҳо, мол, дермондагон, қарз, анбор, касса": [
+    "Нажмите кнопку или спросите коротко: продажи, филиалы, товары, опоздания, долги, склад, касса",
+    "Tap a button or ask briefly: sales, branches, products, late staff, debts, stock, till",
   ],
 };

@@ -8,6 +8,7 @@ export class LoginDto {
 
   @IsString()
   @MinLength(4, { message: 'Парол кӯтоҳ аст' })
+  @MaxLength(100)
   password: string;
 }
 
@@ -32,7 +33,7 @@ export class UpdateMeDto {
   @IsOptional() @IsString()
   currentPassword?: string;
 
-  @IsOptional() @IsString() @MinLength(6, { message: 'Пароли нав бояд камаш 6 аломат бошад' })
+  @IsOptional() @IsString() @MinLength(8, { message: 'Пароли нав бояд камаш 8 аломат бошад' }) @MaxLength(100)
   newPassword?: string;
 }
 
@@ -53,7 +54,7 @@ export class RegisterDto {
   @IsString() @MinLength(7, { message: 'Рақами телефон нодуруст аст' }) @MaxLength(32)
   phone: string;
 
-  @IsString() @MinLength(6, { message: 'Парол бояд камаш 6 аломат бошад' }) @MaxLength(100)
+  @IsString() @MinLength(8, { message: 'Парол бояд камаш 8 аломат бошад' }) @MaxLength(100)
   password: string;
 }
 
@@ -89,7 +90,7 @@ export class RegisterClientDto {
   @IsOptional() @IsString() @MaxLength(200)
   address?: string;
 
-  @IsString() @MinLength(6, { message: 'Парол бояд камаш 6 аломат бошад' }) @MaxLength(100)
+  @IsString() @MinLength(8, { message: 'Парол бояд камаш 8 аломат бошад' }) @MaxLength(100)
   password: string;
 }
 
