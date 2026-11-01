@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
+import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import { phoneDigits } from '@filialhub/shared';
 import { PrismaService } from '../prisma/prisma.service';
 
@@ -195,7 +195,7 @@ class GreenApiError extends Error {}
  * берун аз он бояд template-и тасдиқшуда истифода шавад.
  */
 @Injectable()
-export class WhatsAppService implements OnModuleInit {
+export class WhatsAppService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger('WhatsApp');
   /** Green-API — WhatsApp-и оддӣ бо QR, бе Facebook */
   readonly green = new GreenApi();
@@ -225,6 +225,17 @@ export class WhatsAppService implements OnModuleInit {
 
   async onModuleInit() {
     if (!this.green.configured) return;
+    await this.connectGreen(0);
+  }
+
+  private retryTimer?: NodeJS.Timeout;
+
+  onModuleDestroy() {
+    clearTimeout(this.retryTimer);
+  }
+
+  /** Ҳолат ва webhook-и Green-API; ҳангоми хато пас аз 30 с, 1, 2… дақиқа (то 10) аз нав — то ҷавобҳо аз WhatsApp гум нашаванд */
+  private async connectGreen(attempt: number) {
     // Суроғаи оммавии API барои webhook: Render худаш RENDER_EXTERNAL_URL медиҳад
     const base = greenWebhookBase();
     try {
@@ -232,9 +243,13 @@ export class WhatsAppService implements OnModuleInit {
       this.logger.log(`Green-API: ${this.greenState}`);
       if (base?.startsWith('https://')) await this.green.ensureWebhook(`${base}/api/whatsapp/webhook/greenapi`);
       else this.logger.warn('Green-API: суроғаи оммавӣ нест — ҷавобҳо аз WhatsApp ба сайт намеоянд (GREENAPI_WEBHOOK_BASE)');
+      this.lastError = null;
     } catch (e) {
       this.lastError = `Green-API: ${(e as Error).message}`;
-      this.logger.error(this.lastError);
+      const delay = Math.min(30_000 * 2 ** attempt, 10 * 60_000);
+      this.logger.error(`${this.lastError} — пас аз ${Math.round(delay / 1000)} с аз нав`);
+      this.retryTimer = setTimeout(() => void this.connectGreen(attempt + 1), delay);
+      this.retryTimer.unref();
     }
   }
 

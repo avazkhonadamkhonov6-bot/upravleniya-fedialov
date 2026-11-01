@@ -81,6 +81,16 @@ export class TelegramService implements OnModuleInit, OnModuleDestroy {
       this.logger.log('TELEGRAM_BOT_TOKEN нест — бот хомӯш аст (паёмҳо dry-run)');
       return;
     }
+    await this.connect(0);
+  }
+
+  private retryTimer?: NodeJS.Timeout;
+
+  /**
+   * Пайвастшавӣ ба Telegram. Агар ноком шавад (шабака, Telegram банд) — бот хомӯш намемонад:
+   * пас аз 30 с, 1, 2, 4… дақиқа (то 10 дақиқа) аз нав кӯшиш мекунем.
+   */
+  private async connect(attempt: number) {
     try {
       const me = await this.call<{ username: string }>('getMe');
       this.botUsername = me.username;
@@ -110,18 +120,23 @@ export class TelegramService implements OnModuleInit, OnModuleDestroy {
         ],
       });
       this.logger.log(`Бот @${me.username} пайваст шуд (${this.mode})`);
+      this.lastError = null;
       if (this.mode === 'polling') {
         this.running = true;
         void this.poll();
       }
     } catch (e) {
       this.lastError = (e as Error).message;
-      this.logger.error(`Пайваст нашуд: ${this.lastError}`);
+      const delay = Math.min(30_000 * 2 ** attempt, 10 * 60_000);
+      this.logger.error(`Пайваст нашуд: ${this.lastError} — пас аз ${Math.round(delay / 1000)} с аз нав`);
+      this.retryTimer = setTimeout(() => void this.connect(attempt + 1), delay);
+      this.retryTimer.unref();
     }
   }
 
   onModuleDestroy() {
     this.running = false;
+    clearTimeout(this.retryTimer);
   }
 
   async send(chatId: string, text: string, extra: Record<string, unknown> = {}): Promise<SendResult> {

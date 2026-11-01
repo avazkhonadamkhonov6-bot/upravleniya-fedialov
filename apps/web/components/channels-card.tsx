@@ -84,7 +84,10 @@ export function ChannelsCard({ whatsappNumber }: { whatsappNumber: string }) {
               <div className="font-semibold text-ink">Telegram</div>
               <div className="truncate text-sm text-muted">{tg?.botUsername ? `@${tg.botUsername}` : tr("Бот")}</div>
             </div>
-            {tg?.linked ? (
+            {/* Бе боти сервер паём намеравад — «Пайваст» гумроҳ мекард */}
+            {tg && !tg.configured ? (
+              <Badge tone="warn">{tr("Бот хомӯш")}</Badge>
+            ) : tg?.linked ? (
               <Badge tone="good" className="gap-1">
                 <CheckCircle2 className="size-3.5" /> {tr("Пайваст")}
               </Badge>

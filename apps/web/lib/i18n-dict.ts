@@ -1592,4 +1592,5 @@ export const DICT: Record<string, [ru: string, en: string]> = {
     "Нажмите кнопку или спросите коротко: продажи, филиалы, товары, опоздания, долги, склад, касса",
     "Tap a button or ask briefly: sales, branches, products, late staff, debts, stock, till",
   ],
+  "Бот хомӯш": ["Бот выключен", "Bot is off"],
 };
