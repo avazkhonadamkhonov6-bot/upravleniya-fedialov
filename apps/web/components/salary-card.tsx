@@ -1,6 +1,7 @@
 "use client";
 
 import { nextPayDate, type User } from "@filialhub/shared";
+import { useApi } from "@/lib/use-api";
 import { CalendarCheck, PiggyBank } from "lucide-react";
 import { useNow } from "@/lib/use-now";
 import { locale, tr } from "@/lib/i18n";
@@ -11,6 +12,10 @@ const DAY = 86400000;
 /** Маош ва кай гирифтани он: санаи навбатӣ, чанд рӯз монд ва се моҳи оянда. */
 export function SalaryCard({ user }: { user: User }) {
   const now = useNow(3600000);
+  // Давомоти моҳи ҷорӣ (шеф смена надорад)
+  const { data: att } = useApi<{ planned: number; attended: number; workedDays: number; hours: number; lateCount: number; absent: number; suggestedPay: number }>(
+    user.role === "CHEF" ? null : "/payroll/me",
+  );
   const today = new Date(now);
   const next = nextPayDate(user.payDay, today);
   const prev = nextPayDate(user.payDay, new Date(next.getFullYear(), next.getMonth() - 1, 1));
@@ -50,6 +55,28 @@ export function SalaryCard({ user }: { user: User }) {
           <span>{fmt(next)}</span>
         </div>
       </div>
+
+      {att && (
+        <div className="mt-4 grid grid-cols-3 gap-2 text-center">
+          {(
+            [
+              [tr("Рӯзҳои кор"), att.workedDays],
+              [tr("Соат"), att.hours],
+              [tr("Дер / наомад"), `${att.lateCount} / ${att.absent}`],
+            ] as const
+          ).map(([l, v]) => (
+            <div key={l} className="rounded-xl bg-surface-2 p-2.5">
+              <div className="text-base font-bold text-ink tabular">{v}</div>
+              <div className="text-[11px] text-muted">{l}</div>
+            </div>
+          ))}
+          {att.planned > 0 && att.suggestedPay < user.salary && (
+            <div className="col-span-3 rounded-xl bg-warn-soft px-3 py-2 text-xs font-semibold text-warn">
+              {tr("Аз рӯи давомоти ин моҳ: {0} ({1} аз {2} смена)", money(att.suggestedPay), att.attended, att.planned)}
+            </div>
+          )}
+        </div>
+      )}
 
       <ul className="mt-4 space-y-2">
         {upcoming.map((d) => (

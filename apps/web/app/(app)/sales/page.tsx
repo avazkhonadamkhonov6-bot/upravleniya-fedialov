@@ -5,6 +5,7 @@ import { Banknote, ChevronDown, ChevronLeft, ChevronRight, CreditCard, Plus, Pri
 import Link from "next/link";
 import { Fragment, useState } from "react";
 import { bucketLabel } from "@/components/chart-label";
+import { CashReportCard } from "@/components/cash-closing";
 import { ExportButton } from "@/components/export-button";
 import { SalesChart } from "@/components/charts-lazy";
 import { Badge, Button, Card, CardTitle, Empty, ErrorBox, formatDate, money, PageHeader, Segmented, Select, Skeleton, cn } from "@/components/ui";
@@ -54,6 +55,7 @@ export default function SalesPage() {
           </>
         }
       />
+      <CashReportCard branchId={branchId} />
       {!isStaff && <History branchId={branchId} />}
       <OrdersList branchId={branchId} showProfit={!isStaff} showBranch={isChef && !branchId} />
     </>

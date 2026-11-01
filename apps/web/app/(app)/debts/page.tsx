@@ -219,6 +219,11 @@ function DebtForm({ action, asRequest, onDone }: { action: Action; asRequest: bo
       <div className="flex flex-wrap items-center gap-2 rounded-2xl bg-surface-2 p-4 text-sm">
         {tr("Қарзи ҳозира")}: <b className="text-brand tabular">{money(action.customer.debt)}</b>
         <DueBadge due={action.customer.debtDueAt} />
+        {action.customer.creditLimit !== null && (
+          <span className="text-xs text-muted">
+            {tr("ҳад")}: <b className="tabular">{money(action.customer.creditLimit)}</b>
+          </span>
+        )}
       </div>
       <Field label={tr("Маблағ (сомонӣ)")}>
         <Input type="number" min={0.01} step="0.01" required autoFocus value={amount} onChange={(e) => setAmount(e.target.value)} />

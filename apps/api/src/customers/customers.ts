@@ -15,7 +15,7 @@ import {
   Query,
 } from '@nestjs/common';
 import { Type } from 'class-transformer';
-import { IsDateString, IsEmail, IsInt, IsOptional, IsString, MaxLength, MinLength, ValidateIf } from 'class-validator';
+import { IsDateString, IsEmail, IsInt, IsNumber, IsOptional, IsString, Max, MaxLength, Min, MinLength, ValidateIf } from 'class-validator';
 import { canSell, SEGMENTS, type Customer as CustomerDto, type CustomerStats, type Paginated, type Segment } from '@filialhub/shared';
 import { AuthUser, CurrentUser, Feature, Roles } from '../auth/decorators';
 import { branchWhere, scopeBranch } from '../common/access';
@@ -82,6 +82,7 @@ export function toCustomer(c: Customer & { branch?: Pick<Branch, 'name'> | null 
     segment: segmentOf(c),
     debt: Number(c.debt),
     debtDueAt: c.debtDueAt ? localDay(c.debtDueAt) : null,
+    creditLimit: c.creditLimit === null ? null : Number(c.creditLimit),
     createdAt: c.createdAt.toISOString(),
   };
 }
@@ -121,6 +122,10 @@ export class UpdateCustomerDto {
 
   @IsOptional() @IsString() @MaxLength(500)
   note?: string;
+
+  /** Ҳадди қарз (null — бе ҳад); танҳо шеф ва менеҷер */
+  @IsOptional() @ValidateIf((_, v) => v !== null) @Type(() => Number) @IsNumber() @Min(0) @Max(10_000_000)
+  creditLimit?: number | null;
 }
 
 @Injectable()
@@ -286,6 +291,7 @@ export class CustomersService {
         email: dto.email === undefined ? undefined : dto.email.trim() || null,
         birthday: dto.birthday === undefined ? undefined : dto.birthday ? new Date(dto.birthday) : null,
         note: dto.note,
+        creditLimit: dto.creditLimit === undefined ? undefined : dto.creditLimit,
       },
       include: { branch: true },
     });

@@ -48,7 +48,6 @@ function Pos() {
   const [requested, setRequested] = useState<DebtRequest | null>(null);
   // Мӯҳлати пардохти фурӯш ба қарз (пешфарз — 2 ҳафта)
   const [debtDueAt, setDebtDueAt] = useState(() => dayKey(14));
-  const needsApproval = user?.role === "STAFF";
   const { data: branches } = useApi<Branch[]>(isChef ? "/branches" : null);
   const [branchId, setBranchId] = useState<number | undefined>();
   const [cart, setCart] = useState<Record<number, number>>({});
@@ -93,6 +92,10 @@ function Pos() {
   const discount = customer && usePoints ? Math.min(customer.points, Math.floor(subtotal - promoOff)) : 0;
   const total = subtotal - promoOff - discount;
   const willEarn = customer ? Math.floor(total * POINTS_RATE) : 0;
+  // Кассир: то лимити ширкат бе тасдиқ; зиёдтар — дархост ба менеҷер. Ҳадди қарзи мизоҷ — барои ҳама.
+  const cashierLimit = user?.organization?.cashierDebtLimit ?? 0;
+  const needsApproval = user?.role === "STAFF" && !(cashierLimit > 0 && !!customer && customer.debt + total <= cashierLimit);
+  const overLimit = !!customer && customer.creditLimit !== null && customer.debt + total > customer.creditLimit;
   // Шумораи сатрҳо (1,5 кг — як мол)
   const count = lines.reduce((s, l) => s + (isFractionalUnit(l.product.unit) ? 1 : l.qty), 0);
   const activeBranches = branches?.filter((b) => b.isActive);
@@ -432,6 +435,11 @@ function Pos() {
                     : tr("Барои фурӯш ба қарз мизоҷро аз рӯи рақам ёбед ё сабт кунед.")}
                 </div>
               )}
+              {payment === "DEBT" && overLimit && customer?.creditLimit != null && (
+                <div className="mt-3 rounded-xl bg-brand-soft px-3 py-2 text-xs font-semibold text-brand">
+                  {tr("Ҳадди қарзи мизоҷ {0} аст — бо ин фурӯш {1} мешавад. Менеҷер ҳадро дар саҳифаи мизоҷ иваз карда метавонад.", money(customer.creditLimit), money(customer.debt + total))}
+                </div>
+              )}
               {payment === "DEBT" && customer && (
                 <div className="mt-3">
                   <DueField value={debtDueAt} onChange={setDebtDueAt} />
@@ -440,7 +448,7 @@ function Pos() {
               <div className="mt-3">
                 <ErrorBox message={error} />
               </div>
-              <Button className="mt-3 h-12 w-full text-base" loading={busy} onClick={submit} disabled={payment === "DEBT" && !customer}>
+              <Button className="mt-3 h-12 w-full text-base" loading={busy} onClick={submit} disabled={payment === "DEBT" && (!customer || overLimit)}>
                 {payment === "DEBT" && needsApproval ? tr("Дархост ба менеҷер") : tr("Сабт кардан")}
               </Button>
             </>

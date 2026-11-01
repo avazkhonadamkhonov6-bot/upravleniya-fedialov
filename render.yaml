@@ -1,8 +1,11 @@
 # Render Blueprint: Dashboard → New → Blueprint → ин репозиторийро интихоб кунед.
-# Сохта мешавад: PostgreSQL + API (NestJS) + сайт (Next.js).
-# Пас аз сохтан дар filialhub-web тағйирёбандаи API_URL-ро ба суроғаи filialhub-api гузоред
-# (масалан https://filialhub-api.onrender.com) ва «Manual Deploy → Clear build cache & deploy» кунед
-# (API_URL ҳангоми build навишта мешавад). Санҷиш: <web>/api/health → {"ok":true}.
+# Сохта мешавад: PostgreSQL + ЯК сервис, ки ҳам сайт (Next.js) ва ҳам API (NestJS)-ро иҷро мекунад.
+# Чаро як сервис: Render Free дар моҳ 750 соат медиҳад — барои як сервиси доимо бедор кифоя (≤ 744 соат),
+# барои ду сервис не. API худаш ҳар 10 дақиқа суроғаи худро мепурсад (KEEP_AWAKE), пас сайт хоб намеравад
+# ва кушодани аввал 30–60 сония интизорӣ намегирад. Сайт /api/*-ро ба API дар дохили ҳамин сервис мефиристад.
+# Санҷиш: <сайт>/api/health → {"ok":true}.
+#
+# Базаи Render Free пас аз 30 рӯз нест мешавад. Барои базаи ройгони доимӣ (Neon/Supabase) ниг. docs/specs/14-infra-va-bekhatari.md.
 
 databases:
   - name: filialhub-db
@@ -12,17 +15,22 @@ databases:
 
 services:
   - type: web
-    name: filialhub-api
+    name: filialhub-web
     runtime: node
     plan: free
     region: frankfurt
-    buildCommand: npm ci --include=dev && npm run build:api
-    # Миграцияҳо + маълумоти намунавӣ (танҳо агар база холӣ бошад) + сервер
-    startCommand: npm run start:prod -w @filialhub/api
+    buildCommand: npm ci --include=dev && npm run build
+    # Миграцияҳо + маълумоти намунавӣ (танҳо агар база холӣ бошад) + API (порти дохилии 4100) + сайт ($PORT)
+    startCommand: npm run start:render
     healthCheckPath: /api/health
     envVars:
       - key: NODE_VERSION
         value: "22"
+      # API дар ҳамин сервис; ҳангоми build навишта мешавад
+      - key: API_URL
+        value: http://127.0.0.1:4100
+      - key: API_PORT
+        value: "4100"
       - key: DATABASE_URL
         fromDatabase:
           name: filialhub-db
@@ -67,17 +75,10 @@ services:
         sync: false
       - key: SUPERADMIN_PHONE
         sync: false
-
-  - type: web
-    name: filialhub-web
-    runtime: node
-    plan: free
-    region: frankfurt
-    buildCommand: npm ci --include=dev && npm run build:web
-    startCommand: cd apps/web && npx next start -p $PORT
-    envVars:
-      - key: NODE_VERSION
-        value: "22"
-      # Суроғаи API дар Render, масалан https://filialhub-api.onrender.com (бе / дар охир)
-      - key: API_URL
+      # Занг дар шабакаҳои мобилӣ: сервери TURN (ихтиёрӣ, ҳангоми build навишта мешавад), масалан turn:turn.example.com:3478
+      - key: NEXT_PUBLIC_TURN_URL
+        sync: false
+      - key: NEXT_PUBLIC_TURN_USERNAME
+        sync: false
+      - key: NEXT_PUBLIC_TURN_CREDENTIAL
         sync: false

@@ -25,6 +25,8 @@ import { CallsModule } from './calls/calls';
 import { ShopModule } from './shop/shop';
 import { AdminModule } from './admin/admin';
 import { DebtRequestsModule } from './debts/debt-requests';
+import { PayrollModule } from './payroll/payroll';
+import { CashModule } from './cash/cash';
 
 @Module({
   imports: [
@@ -49,6 +51,8 @@ import { DebtRequestsModule } from './debts/debt-requests';
     ShopModule,
     AdminModule,
     DebtRequestsModule,
+    PayrollModule,
+    CashModule,
   ],
   controllers: [HealthController],
   providers: [

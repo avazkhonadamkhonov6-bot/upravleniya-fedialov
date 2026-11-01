@@ -9,6 +9,7 @@ import {
 } from "@filialhub/shared";
 import { useState } from "react";
 import { api } from "@/lib/api";
+import { useAuth } from "@/lib/auth";
 import { useToast } from "./toast";
 import { Badge, Button, ErrorBox, Field, Input } from "./ui";
 import { tr } from "@/lib/i18n";
@@ -68,7 +69,11 @@ export function CustomerForm({
     email: customer?.email ?? "",
     birthday: customer?.birthday?.slice(0, 10) ?? "",
     note: customer?.note ?? "",
+    creditLimit: customer?.creditLimit != null ? String(customer.creditLimit) : "",
   });
+  const { user } = useAuth();
+  // Ҳадди қарз — танҳо ҳангоми таҳрир ва танҳо шеф/менеҷер (кассир дар POS мизоҷро танҳо сабт мекунад)
+  const canLimit = !!customer && !!user && user.role !== "STAFF";
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const set = (k: keyof typeof f) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => setF({ ...f, [k]: e.target.value });
@@ -78,7 +83,12 @@ export function CustomerForm({
     setBusy(true);
     setError(null);
     try {
-      const body = { ...f, birthday: f.birthday ? new Date(f.birthday).toISOString() : "" };
+      const { creditLimit, ...rest } = f;
+      const body = {
+        ...rest,
+        birthday: f.birthday ? new Date(f.birthday).toISOString() : "",
+        ...(canLimit ? { creditLimit: creditLimit.trim() === "" ? null : Number(creditLimit) } : {}),
+      };
       const c = customer
         ? await api<Customer>(`/customers/${customer.id}`, { method: "PATCH", json: body })
         : await api<Customer>("/customers", { method: "POST", json: body });
@@ -107,6 +117,11 @@ export function CustomerForm({
       <Field label={tr("Почтаи электронӣ (ихтиёрӣ)")}>
         <Input type="email" value={f.email} onChange={set("email")} />
       </Field>
+      {canLimit && (
+        <Field label={tr("Ҳадди қарз (сомонӣ)")} hint={tr("Холӣ — бе ҳад. Қарзи умумии мизоҷ аз ин зиёд намешавад.")}>
+          <Input type="number" min={0} step="1" value={f.creditLimit} onChange={set("creditLimit")} placeholder={tr("Бе ҳад")} />
+        </Field>
+      )}
       <Field label={tr("Эзоҳ")}>
         <textarea
           value={f.note}

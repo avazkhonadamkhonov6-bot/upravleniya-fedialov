@@ -10,7 +10,7 @@ import { Prisma } from '../generated/prisma/client';
 import { CreateOrderDto, OrdersModule, OrdersService } from '../orders/orders';
 import { PrismaService } from '../prisma/prisma.service';
 import { localDay, startOfLocalDay } from '../common/time';
-import { DebtsModule, DebtsService, dueKey, parseDueDate, requestScope } from './debts';
+import { assertCreditLimit, DebtsModule, DebtsService, dueKey, parseDueDate, requestScope } from './debts';
 
 export class CreateDebtRequestDto {
   @Type(() => Number) @IsInt()
@@ -94,6 +94,7 @@ export class DebtRequestsService {
     const branchId = user.branchId ?? c.branchId;
     if (!branchId) throw new BadRequestException('Филиали мизоҷ маълум нест');
     const dueAt = parseDueDate(dto.dueAt);
+    assertCreditLimit(c, dto.amount);
     return this.save(user, { branchId, customerId: c.id, amount: Math.round(dto.amount * 100) / 100, note: dto.note?.trim() ?? '', sale: null, dueAt });
   }
 
@@ -102,7 +103,7 @@ export class DebtRequestsService {
     if (dto.payment !== 'DEBT' || !dto.customerId) throw new BadRequestException('Барои фурӯш ба қарз мизоҷро интихоб кунед');
     // Санҷиши пурра (филиал, мол, мизоҷ, промо, бонус) — ҳамон тавре ки фурӯши воқеӣ ҳисоб мешавад
     const q = await this.orders.quote(user, dto);
-    await this.debts.customer(user, dto.customerId);
+    assertCreditLimit(await this.debts.customer(user, dto.customerId), q.total);
     const products = await this.prisma.product.findMany({ where: { id: { in: q.lines.map((l) => l.productId) } }, select: { id: true, name: true } });
     const lines = q.lines.map((l) => ({ name: products.find((p) => p.id === l.productId)?.name ?? '?', qty: l.qty }));
     const sale = { ...dto, branchId: q.branchId, clientRef: undefined, soldAt: undefined, lines };

@@ -8,7 +8,7 @@ import type { EventsService } from '../core/events';
 import type { OrdersService } from '../orders/orders';
 import type { PrismaService } from '../prisma/prisma.service';
 import { DebtRequestsService } from './debt-requests';
-import { debtScope, DebtsService, nextDueAt, parseDueDate, requestScope } from './debts';
+import { assertCreditLimit, debtScope, DebtsService, nextDueAt, parseDueDate, requestScope } from './debts';
 
 const chef = { id: 1, organizationId: 100, branchIds: [1, 2], role: 'CHEF', branchId: null, position: null, fullName: 'Шеф' } as unknown as AuthUser;
 const manager = { ...chef, id: 2, role: 'MANAGER', branchId: 1, fullName: 'Менеҷер' } as AuthUser;
@@ -163,5 +163,13 @@ describe('мӯҳлати қарз', () => {
     assert.equal(nextDueAt(50, null, b), b);
     assert.equal(nextDueAt(50, a, null), a); // қарзи нав бе мӯҳлат — мӯҳлати кӯҳна мемонад
     assert.equal(nextDueAt(0, null, null), null);
+  });
+});
+
+describe('ҳадди қарзи мизоҷ', () => {
+  it('бе ҳад — ҳар маблағ', () => assert.doesNotThrow(() => assertCreditLimit({ debt: 900, creditLimit: null }, 10_000)));
+  it('то ҳад — мумкин, аз ҳад зиёд — 400', () => {
+    assert.doesNotThrow(() => assertCreditLimit({ debt: 300, creditLimit: 500 }, 200));
+    assert.throws(() => assertCreditLimit({ debt: 300, creditLimit: 500 }, 200.01), BadRequestException);
   });
 });

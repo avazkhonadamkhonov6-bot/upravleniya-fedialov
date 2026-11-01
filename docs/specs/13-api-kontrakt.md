@@ -1,6 +1,6 @@
 # 13 — Контракти API
 
-Ҳамаи **141 роҳ** аз контроллерҳо ҷамъ шудаанд (`apps/api/src/**/*.ts`: `@Controller` + `@Get/@Post/…` ва декораторҳои дастрасӣ).
+Ҳамаи **151 роҳ** аз контроллерҳо ҷамъ шудаанд (`apps/api/src/**/*.ts`: `@Controller` + `@Get/@Post/…` ва декораторҳои дастрасӣ).
 Префикс: `/api`. Формат: JSON (ба ҷуз Excel, медиа ва SSE). Воридшавӣ: `Authorization: Bearer <token>`.
 
 ## Қоидаҳои умумӣ
@@ -91,6 +91,15 @@
 | POST | `/api/calls/:id/answer` | `@Feature(calls)` |
 | POST | `/api/calls/:id/decline` | `@Feature(calls)` |
 | POST | `/api/calls/:id/end` | `@Feature(calls)` |
+
+### `cash/cash.ts`
+
+Дастрасӣ: фурӯшандагон: кассир — худ, менеҷер — филиал, шеф — ҳама
+
+| Метод | Роҳ | Декораторҳо |
+|---|---|---|
+| GET | `/api/cash/z` | `@Feature(sales)` |
+| POST | `/api/cash/close` | `@Feature(sales)` |
 
 ### `core/client-errors.ts`
 
@@ -267,6 +276,16 @@
 | GET | `/api/orders/export` | `@Feature(pos, sales)` |
 | POST | `/api/orders` | `@Feature(pos, sales)` |
 
+### `payroll/payroll.ts`
+
+Дастрасӣ: шеф, менеҷер; `me` — ҳар корманд (худ)
+
+| Метод | Роҳ | Декораторҳо |
+|---|---|---|
+| GET | `/api/payroll` | `@Roles(CHEF, MANAGER)` `@Feature(staff)` |
+| GET | `/api/payroll/export` | `@Roles(CHEF, MANAGER)` `@Feature(staff)` |
+| GET | `/api/payroll/me` | `@Feature(profile)` |
+
 ### `products/products.ts`
 
 Дастрасӣ: хондан — `products`/`pos`; тағйир — шеф; акс — ҷамъиятӣ
@@ -274,6 +293,9 @@
 | Метод | Роҳ | Декораторҳо |
 |---|---|---|
 | GET | `/api/products` | `@Feature(products, pos)` |
+| GET | `/api/products/reorder` | `@Feature(products, pos)` |
+| GET | `/api/products/suppliers` | `@Feature(products, pos)` |
+| GET | `/api/products/:id/moves` | `@Feature(products, pos)` |
 | POST | `/api/products` | `@Feature(products, pos)` `@Roles(CHEF)` |
 | PATCH | `/api/products/:id` | `@Feature(products, pos)` `@Roles(CHEF)` |
 | DELETE | `/api/products/:id` | `@Feature(products, pos)` `@Roles(CHEF)` |
@@ -302,6 +324,8 @@
 |---|---|---|
 | GET | `/api/shifts` | `@Feature(schedule)` |
 | GET | `/api/shifts/today` | `@Feature(schedule)` `@Roles(CHEF, MANAGER)` |
+| GET | `/api/shifts/qr` | `@Feature(schedule)` `@Roles(CHEF, MANAGER)` |
+| PATCH | `/api/shifts/qr` | `@Feature(schedule)` `@Roles(CHEF, MANAGER)` |
 | GET | `/api/shifts/mine` | `@Feature(schedule)` |
 | POST | `/api/shifts` | `@Feature(schedule)` `@Roles(CHEF, MANAGER)` |
 | POST | `/api/shifts/copy-week` | `@Feature(schedule)` `@Roles(CHEF, MANAGER)` |

@@ -1,18 +1,29 @@
 "use client";
 
-import { LANGS, tr, useLang } from "@/lib/i18n";
+import { usePathname, useRouter } from "next/navigation";
+import { LANGS, tr, useLang, type Lang } from "@/lib/i18n";
 import { cn } from "./ui";
 
-/** Ивази забон: ТҶ / RU / EN — се тугма дар як қатор (дизайни FilialHub) */
-export function LangSwitcher({ className }: { className?: string }) {
+/**
+ * Ивази забон: ТҶ / RU / EN — се тугма дар як қатор (дизайни FilialHub).
+ * routes — агар забон суроғаи худро дошта бошад (саҳифаи асосӣ: / ва /ru), ба он ҷо мегузарад.
+ */
+export function LangSwitcher({ className, routes }: { className?: string; routes?: Partial<Record<Lang, string>> }) {
   const { lang, setLang } = useLang();
+  const router = useRouter();
+  const pathname = usePathname();
+  const pick = (code: Lang) => {
+    setLang(code);
+    const to = routes?.[code];
+    if (to && to !== pathname) router.push(to);
+  };
   return (
     <div className={className ?? "relative"}>
       <div role="group" aria-label={tr("Забон")} className="flex gap-0.5 rounded-[14px] bg-surface-2 p-1">
         {LANGS.map((l) => (
           <button
             key={l.code}
-            onClick={() => setLang(l.code)}
+            onClick={() => pick(l.code)}
             aria-pressed={l.code === lang}
             title={l.label}
             className={cn(

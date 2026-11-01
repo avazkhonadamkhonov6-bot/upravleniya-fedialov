@@ -149,7 +149,7 @@ export class AuthService {
   async updateOrganization(organizationId: number, dto: UpdateOrganizationDto) {
     const o = await this.prisma.organization.update({
       where: { id: organizationId },
-      data: { name: dto.name?.trim(), type: dto.type, description: dto.description?.trim(), isPublic: dto.isPublic },
+      data: { name: dto.name?.trim(), type: dto.type, description: dto.description?.trim(), isPublic: dto.isPublic, cashierDebtLimit: dto.cashierDebtLimit },
     });
     return toOrganization(o);
   }

@@ -223,10 +223,6 @@ export class OrdersService {
    */
   async create(user: AuthUser, dto: CreateOrderDto, opts: { sellerId?: number; approved?: boolean } = {}) {
     assertCanSell(user);
-    // Кассир қарзро худаш дода наметавонад — танҳо дархост ба менеҷер (DebtRequestsService)
-    if (dto.payment === 'DEBT' && user.role === 'STAFF' && !opts.approved) {
-      throw new ForbiddenException('Фурӯш ба қарз бояд аз ҷониби менеҷер тасдиқ шавад');
-    }
     // Фурӯши офлайн, ки аллакай расида буд (интернет пас аз сабт канда шуд) — ҳамонро бармегардонем
     if (dto.clientRef) {
       const existing = await this.prisma.order.findUnique({ where: { clientRef: dto.clientRef }, include });
@@ -236,6 +232,15 @@ export class OrdersService {
       }
     }
     const { branchId, lines, subtotal, totalCost, promo, pointsUsed, total, soldAt, pointsEarned, dueAt } = await this.quote(user, dto);
+    // Кассир ба қарз танҳо то лимити ширкат (Organization.cashierDebtLimit) мефурӯшад; зиёдтар — дархост ба менеҷер (DebtRequestsService)
+    if (dto.payment === 'DEBT' && user.role === 'STAFF' && !opts.approved) {
+      const [org, cust] = await Promise.all([
+        this.prisma.organization.findUniqueOrThrow({ where: { id: user.organizationId }, select: { cashierDebtLimit: true } }),
+        this.prisma.customer.findUniqueOrThrow({ where: { id: dto.customerId! }, select: { debt: true } }),
+      ]);
+      const limit = Number(org.cashierDebtLimit);
+      if (!(limit > 0 && Number(cust.debt) + total <= limit)) throw new ForbiddenException('Фурӯш ба қарз бояд аз ҷониби менеҷер тасдиқ шавад');
+    }
 
     let low: Awaited<ReturnType<StockService['take']>> = [];
     const order = await this.prisma.$transaction(async (tx) => {
@@ -272,7 +277,7 @@ export class OrdersService {
       if (dto.payment === 'DEBT' && dto.customerId) {
         await this.debts.addFromSale(tx, { organizationId: user.organizationId, customerId: dto.customerId, orderId: created.id, amount: total, userId: opts.sellerId ?? user.id, dueAt });
       }
-      low = await this.stock.take(tx, branchId, lines);
+      low = await this.stock.take(tx, branchId, lines, { reason: 'SALE', orderId: created.id, userId: opts.sellerId ?? user.id });
       return created;
     });
     if (low.length) void this.stock.warn(branchId, low);

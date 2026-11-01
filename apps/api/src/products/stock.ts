@@ -5,10 +5,23 @@ import { PrismaService } from '../prisma/prisma.service';
 
 type Tx = Prisma.TransactionClient;
 
+export type StockReason = 'SALE' | 'ONLINE' | 'PURCHASE' | 'ADJUST' | 'WRITE_OFF';
+
+/** Маълумоти иловагӣ барои таърихи анбор */
+export interface StockMeta {
+  userId?: number | null;
+  orderId?: number | null;
+  reason?: StockReason;
+  supplier?: string;
+  unitCost?: number | null;
+  note?: string;
+}
+
 /**
  * Анбори ҳар филиал: ҳангоми фурӯш (POS ва фармоиши онлайн) аз ҳамон филиал кам мешавад.
  * Product.stock — ҷамъи ҳамаи филиалҳо; молҳое, ки stock = null доранд, ҳисоб карда намешаванд.
  * Агар боқимондаи филиал аз ҳадди lowStock (ё 0) гузарад — 🔔 ба шеф ва менеҷерони ҳамон филиал.
+ * Ҳар тағйир дар StockMove сабт мешавад (кӣ, кай, чаро, чанд, таъминкунанда, боқимонда).
  */
 @Injectable()
 export class StockService {
@@ -20,7 +33,7 @@ export class StockService {
   ) {}
 
   /** Дар дохили транзаксияи фурӯш; бармегардонад молҳое, ки акнун кам монданд (огоҳӣ пас аз commit) */
-  async take(tx: Tx, branchId: number, lines: { productId: number | null; qty: number }[]) {
+  async take(tx: Tx, branchId: number, lines: { productId: number | null; qty: number }[], meta: StockMeta = {}) {
     const low: { name: string; stock: number; unit: string }[] = [];
     for (const l of lines) {
       if (!l.productId) continue;
@@ -32,8 +45,11 @@ export class StockService {
         create: { productId: l.productId, branchId, qty: -l.qty },
         update: { qty: { decrement: l.qty } },
       });
-      const p = await tx.product.findUniqueOrThrow({ where: { id: l.productId }, select: { name: true, unit: true, lowStock: true } });
+      const p = await tx.product.findUniqueOrThrow({ where: { id: l.productId }, select: { name: true, unit: true, lowStock: true, organizationId: true } });
       const now = Number(row.qty);
+      await tx.stockMove.create({
+        data: { organizationId: p.organizationId, branchId, productId: l.productId, qty: -l.qty, balance: now, reason: meta.reason ?? 'SALE', orderId: meta.orderId ?? null, userId: meta.userId ?? null },
+      });
       const limit = p.lowStock === null ? 0 : Number(p.lowStock);
       // Огоҳӣ танҳо вақте ки маҳз ҳамин фурӯш ҳадро убур кард — на дар ҳар фурӯши баъдӣ
       if (now <= limit && now + l.qty > limit) low.push({ name: p.name, stock: now, unit: p.unit });
@@ -42,13 +58,33 @@ export class StockService {
   }
 
   /** Қабул (add) ё ҳисоби дастӣ (set) дар як филиал; ҷамъи Product.stock аз нав ҳисоб мешавад */
-  async adjust(productId: number, branchId: number, change: { add?: number; set?: number }) {
+  async adjust(productId: number, branchId: number, change: { add?: number; set?: number }, meta: StockMeta = {}) {
     return this.prisma.$transaction(async (tx) => {
-      await tx.branchStock.upsert({
+      const before = await tx.branchStock.findUnique({ where: { productId_branchId: { productId, branchId } } });
+      const row = await tx.branchStock.upsert({
         where: { productId_branchId: { productId, branchId } },
         create: { productId, branchId, qty: change.set ?? change.add ?? 0 },
         update: { qty: change.set !== undefined ? change.set : { increment: change.add ?? 0 } },
       });
+      const delta = Number(row.qty) - Number(before?.qty ?? 0);
+      if (delta !== 0) {
+        const p = await tx.product.findUniqueOrThrow({ where: { id: productId }, select: { organizationId: true } });
+        const reason: StockReason = meta.reason ?? (change.set !== undefined ? 'ADJUST' : delta > 0 ? 'PURCHASE' : 'WRITE_OFF');
+        await tx.stockMove.create({
+          data: {
+            organizationId: p.organizationId,
+            branchId,
+            productId,
+            qty: delta,
+            balance: row.qty,
+            reason,
+            supplier: reason === 'PURCHASE' ? (meta.supplier?.trim() ?? '') : '',
+            unitCost: reason === 'PURCHASE' ? (meta.unitCost ?? null) : null,
+            note: meta.note?.trim() ?? '',
+            userId: meta.userId ?? null,
+          },
+        });
+      }
       return this.resum(tx, productId);
     });
   }

@@ -21,11 +21,15 @@ const customers: Record<number, { organizationId: number; points: number }> = {
   8: { organizationId: 200, points: 999 }, // мизоҷи ширкати дигар
 };
 
-function service(promoDiscount = 0) {
+function service(promoDiscount = 0, cashierDebtLimit = 0) {
   const prisma = {
     branch: { findUnique: async () => ({ id: 1, isActive: true }) },
     product: { findMany: async ({ where }: { where: { id: { in: number[] }; organizationId: number } }) => products.filter((p) => where.id.in.includes(p.id) && p.organizationId === where.organizationId) },
-    customer: { findUnique: async ({ where }: { where: { id: number } }) => customers[where.id] ?? null },
+    customer: {
+      findUnique: async ({ where }: { where: { id: number } }) => customers[where.id] ?? null,
+      findUniqueOrThrow: async () => ({ debt: 30 }),
+    },
+    organization: { findUniqueOrThrow: async () => ({ cashierDebtLimit }) },
   } as unknown as PrismaService;
   const promos = { check: async (_org: number, code: string) => ({ code, discount: promoDiscount, label: '' }) } as unknown as PromosService;
   return new OrdersService(prisma, {} as StockService, {} as DebtsService, promos);
@@ -73,8 +77,18 @@ describe('OrdersService.quote — нарх аз база', () => {
 });
 
 describe('OrdersService.create — қарз танҳо бо тасдиқ', () => {
-  it('кассир худаш ба қарз фурӯхта наметавонад', async () => {
+  it('кассир худаш ба қарз фурӯхта наметавонад (лимити ширкат 0)', async () => {
     await assert.rejects(service().create(cashier, dto({ payment: 'DEBT', customerId: 7 })), ForbiddenException);
+  });
+
+  it('кассир аз лимити ширкат зиёд ба қарз фурӯхта наметавонад', async () => {
+    // қарзи ҳозира 30 + 225.5 > 200
+    await assert.rejects(service(0, 200).create(cashier, dto({ payment: 'DEBT', customerId: 7 })), ForbiddenException);
+  });
+
+  it('кассир то лимити ширкат бе тасдиқ мефурӯшад', async () => {
+    // 30 + 225.5 <= 300 — санҷиш мегузарад (баъд транзаксияи сохта нест, вале хатои 403 нест)
+    await assert.rejects(service(0, 300).create(cashier, dto({ payment: 'DEBT', customerId: 7 })), (e: Error) => !(e instanceof ForbiddenException));
   });
 
   it('ошпаз умуман фурӯш сабт карда наметавонад', async () => {

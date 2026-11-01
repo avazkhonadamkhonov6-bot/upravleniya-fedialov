@@ -1,5 +1,6 @@
 import { BUSINESS_TYPES, TELEGRAM_RE, type BusinessType } from '@filialhub/shared';
-import { IsBoolean, IsEmail, IsIn, IsOptional, IsString, Matches, MaxLength, MinLength } from 'class-validator';
+import { Type } from 'class-transformer';
+import { IsBoolean, IsEmail, IsIn, IsNumber, IsOptional, IsString, Matches, Max, MaxLength, Min, MinLength } from 'class-validator';
 
 export class LoginDto {
   @IsEmail({}, { message: 'Почтаи электронӣ нодуруст аст' })
@@ -68,6 +69,10 @@ export class UpdateOrganizationDto {
 
   @IsOptional() @IsIn(BUSINESS_TYPES, { message: 'Навъи корро интихоб кунед' })
   type?: BusinessType;
+
+  /** Кассир то ин маблағ бе тасдиқи менеҷер ба қарз мефурӯшад */
+  @IsOptional() @Type(() => Number) @IsNumber() @Min(0) @Max(10_000_000)
+  cashierDebtLimit?: number;
 }
 
 /** Сабти номи мизоҷи онлайн */

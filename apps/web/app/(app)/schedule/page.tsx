@@ -9,7 +9,8 @@ import {
   type ShiftState,
   type User,
 } from "@filialhub/shared";
-import { ChevronLeft, ChevronRight, Copy, Plus, Trash2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, Copy, Plus, QrCode, Trash2 } from "lucide-react";
+import dynamic from "next/dynamic";
 import { useEffect, useMemo, useState } from "react";
 import { ShiftButton, timeOf } from "@/components/shift-button";
 import { useToast } from "@/components/toast";
@@ -20,6 +21,9 @@ import { useApi } from "@/lib/use-api";
 import { useServerEvent } from "@/lib/events";
 import { tr, locale } from "@/lib/i18n";
 import { Glyph, Iconized, PositionIcon, stripEmoji } from "@/components/glyph";
+
+// QR (китобхонаи qrcode) танҳо ҳангоми кушодани равзана бор мешавад — саҳифа сабуктар
+const AttendanceQr = dynamic(() => import("@/components/attendance-qr").then((m) => m.AttendanceQr), { ssr: false });
 
 const DAYS = ["Дш", "Сш", "Чш", "Пш", "Ҷм", "Шб", "Яш"];
 const DAY_NAMES = ["Душанбе", "Сешанбе", "Чоршанбе", "Панҷшанбе", "Ҷумъа", "Шанбе", "Якшанбе"];
@@ -84,6 +88,7 @@ function TeamSchedule() {
   const [pickedBranch, setPickedBranch] = useState<number | undefined>();
   const [editing, setEditing] = useState<{ shift?: Shift; userId?: number; day?: Date } | null>(null);
   const [copying, setCopying] = useState(false);
+  const [qrOpen, setQrOpen] = useState(false);
 
   const { data: branches } = useApi<Branch[]>(isChef ? "/branches" : null);
   const branchId = isChef ? (pickedBranch ?? branches?.[0]?.id) : (user?.branchId ?? undefined);
@@ -139,6 +144,9 @@ function TeamSchedule() {
             <WeekNav week={week} setWeek={setWeek} />
             <Button variant="outline" onClick={copyWeek} loading={copying} title={tr("Ҷадвали ҳафтаи гузаштаро ба ин ҳафта нусха бардоштан")}>
               <Copy className="size-4" /> {tr("Нусхаи ҳафтаи гузашта")}
+            </Button>
+            <Button variant="outline" onClick={() => setQrOpen(true)} disabled={!branchId}>
+              <QrCode className="size-4" /> {tr("QR барои давомот")}
             </Button>
             {user?.role === "MANAGER" && <ShiftButton />}
           </>
@@ -295,6 +303,10 @@ function TeamSchedule() {
           </ul>
         </Card>
       )}
+
+      <Modal open={qrOpen} onClose={() => setQrOpen(false)} title={tr("QR барои давомот")}>
+        {qrOpen && branchId && <AttendanceQr branchId={isChef ? branchId : undefined} branchName={branches?.find((b) => b.id === branchId)?.name ?? user?.branch?.name ?? ""} />}
+      </Modal>
 
       <Modal open={!!editing} onClose={() => setEditing(null)} title={editing?.shift ? tr("Смена") : tr("Сменаи нав")}>
         {editing && (

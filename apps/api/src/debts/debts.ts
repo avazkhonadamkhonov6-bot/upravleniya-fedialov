@@ -62,6 +62,16 @@ export function nextDueAt(currentDebt: number, currentDue: Date | null, newDue: 
   return newDue < currentDue ? newDue : currentDue;
 }
 
+/** Ҳадди қарзи мизоҷ: қарзи нав набояд қарзи умумиро аз ҳад гузаронад (null — бе ҳад) */
+export function assertCreditLimit(c: { debt: Prisma.Decimal | number; creditLimit: Prisma.Decimal | number | null }, amount: number) {
+  if (c.creditLimit === null) return;
+  const limit = Number(c.creditLimit);
+  const after = r2(Number(c.debt) + amount);
+  if (after > limit) {
+    throw new BadRequestException(`Ҳадди қарзи ин мизоҷ ${formatMoney(limit)} аст: ҳозира ${formatMoney(Number(c.debt))}, бо ин қарз ${formatMoney(after)} мешуд`);
+  }
+}
+
 /** Date → «2026-11-15» (вақти Душанбе) */
 export const dueKey = (d: Date | null | undefined) => (d ? localDay(d) : null);
 /** «15.11.2026» барои паём ба мизоҷ */
@@ -105,7 +115,8 @@ export class DebtsService {
 
   /** Қарзи нав дар транзаксия: сабт + ҷамъи қарз + мӯҳлати наздиктарин */
   private async credit(tx: Tx, p: { organizationId: number; customerId: number; amount: number; userId: number; orderId?: number; note?: string; dueAt: Date | null }) {
-    const cur = await tx.customer.findUniqueOrThrow({ where: { id: p.customerId }, select: { debt: true, debtDueAt: true } });
+    const cur = await tx.customer.findUniqueOrThrow({ where: { id: p.customerId }, select: { debt: true, debtDueAt: true, creditLimit: true } });
+    assertCreditLimit(cur, p.amount);
     await tx.debtEntry.create({
       data: { organizationId: p.organizationId, customerId: p.customerId, orderId: p.orderId ?? null, amount: p.amount, note: p.note ?? '', userId: p.userId, dueAt: p.dueAt },
     });

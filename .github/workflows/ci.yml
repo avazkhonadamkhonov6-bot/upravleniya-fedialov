@@ -1,0 +1,55 @@
+# Ҳар push ва pull request: тестҳо, TypeScript, ESLint ва build.
+# Агар чизе вайрон шавад — GitHub пеш аз deploy-и Render нишон медиҳад (сурх ❌ дар commit).
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install
+        run: npm ci --include=dev
+
+      - name: Shared package
+        run: npm run build -w @filialhub/shared
+
+      - name: Prisma client
+        run: npm run prisma:generate -w @filialhub/api
+
+      - name: API — TypeScript
+        run: npx tsc --noEmit -p apps/api/tsconfig.json
+
+      - name: API — tests
+        run: npm test
+
+      - name: Web — TypeScript
+        working-directory: apps/web
+        run: npx tsc --noEmit
+
+      - name: Web — ESLint
+        run: npm run lint -w @filialhub/web
+
+      - name: Build
+        run: npm run build -w @filialhub/api && npm run build -w @filialhub/web
+
+      - name: Security audit
+        run: npm audit --omit=dev --audit-level=high

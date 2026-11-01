@@ -19,7 +19,7 @@ const people = [
 ];
 
 /** Prisma-и сохта: сменаҳо дар массив, шартҳои where-и лозимӣ */
-function setup(shifts: Row[], opts: { noManager?: boolean } = {}) {
+function setup(shifts: Row[], opts: { noManager?: boolean; requireQr?: boolean } = {}) {
   const alerts: { ids: number[]; title: string; body?: string }[] = [];
   const chats: { to: number; text: string }[] = [];
   let nextId = 100;
@@ -36,6 +36,7 @@ function setup(shifts: Row[], opts: { noManager?: boolean } = {}) {
     return r.userId === w.userId && cmp(r.checkInAt, w.checkInAt) && cmp(r.checkOutAt, w.checkOutAt) && cmp(r.startsAt, w.startsAt) && cmp(r.endsAt, w.endsAt);
   };
   const prisma = {
+    branch: { findUnique: async () => ({ attendanceCode: 'QR-OK', requireQrCheckIn: !!opts.requireQr }) },
     shift: {
       findFirst: async ({ where, orderBy }: { where: Record<string, any>; orderBy?: { startsAt: 'asc' | 'desc' } }) => {
         const list = shifts.filter((r) => match(r, where)).sort((a, b) => (orderBy?.startsAt === 'desc' ? -1 : 1) * (a.startsAt.getTime() - b.startsAt.getTime()));
@@ -136,5 +137,17 @@ describe('«Омадам» — давомот', () => {
     assert.equal(shifts.length, 1);
     assert.equal(r.checkOutAt, null);
     assert.equal(r.state, 'ON_SHIFT');
+  });
+
+  it('филиал «танҳо бо QR»: бе QR — 400, бо QR-и дуруст — қабул', async () => {
+    const { s } = setup([], { requireQr: true });
+    await assert.rejects(s.checkIn(cashier), /танҳо бо QR/);
+    const r = await s.checkIn(cashier, { code: 'QR-OK' });
+    assert.ok(r.checkInAt);
+  });
+
+  it('QR-и нодуруст ё кӯҳна ҳамеша рад мешавад', async () => {
+    const { s } = setup([]);
+    await assert.rejects(s.checkIn(cashier, { code: 'OLD' }), /QR нодуруст/);
   });
 });

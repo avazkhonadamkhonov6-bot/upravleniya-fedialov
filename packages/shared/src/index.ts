@@ -96,6 +96,8 @@ export interface Organization {
   status: OrgStatus;
   /** Сабаби рад ё бастан */
   statusNote: string;
+  /** Кассир то ин қарзи умумии мизоҷ бе тасдиқи менеҷер ба қарз мефурӯшад (0 — ҳамеша тасдиқ) */
+  cashierDebtLimit: number;
   createdAt: string;
 }
 
@@ -268,6 +270,7 @@ export function featureOfPath(pathname: string): Feature | null {
     online: 'online',
     debts: 'debts',
     promos: 'customers',
+    payroll: 'staff',
     admin: 'admin',
   };
   return map[seg] ?? null;
@@ -579,6 +582,8 @@ export interface Customer {
   debt: number;
   /** Мӯҳлати пардохти қарз (YYYY-MM-DD) ё null */
   debtDueAt: string | null;
+  /** Ҳадди қарз (null — бе ҳад) */
+  creditLimit: number | null;
   createdAt: string;
 }
 
@@ -742,6 +747,105 @@ export interface Shift {
   state: ShiftState;
 }
 
+export const STOCK_REASON_LABELS: Record<StockMove['reason'], string> = {
+  SALE: 'Фурӯш',
+  ONLINE: 'Фармоиши онлайн',
+  PURCHASE: 'Харид',
+  ADJUST: 'Ҳисоби дастӣ',
+  WRITE_OFF: 'Хориҷ',
+};
+
+/** Рӯйхати харид: моле, ки дар филиал кам монд ё тамом шуд */
+export interface ReorderItem {
+  productId: number;
+  name: string;
+  emoji: string;
+  unit: string;
+  branchId: number;
+  branchName: string;
+  qty: number;
+  lowStock: number;
+  /** Чанд харидан лозим: то 2 × ҳадди «кам монд» (камаш 1) */
+  suggested: number;
+  lastSupplier: string | null;
+  lastUnitCost: number | null;
+}
+
+/** Як сатр дар таърихи анбор */
+export interface StockMove {
+  id: number;
+  branchName: string;
+  /** + омад, − рафт */
+  qty: number;
+  /** Боқимондаи филиал пас аз тағйир */
+  balance: number;
+  reason: 'SALE' | 'ONLINE' | 'PURCHASE' | 'ADJUST' | 'WRITE_OFF';
+  supplier: string;
+  unitCost: number | null;
+  orderId: number | null;
+  note: string;
+  userName: string | null;
+  createdAt: string;
+}
+
+/** Z-ҳисобот: фурӯш ва пули як кассир дар як рӯз */
+export interface CashReport {
+  userId: number;
+  userName: string;
+  branchName: string;
+  orders: number;
+  cashSales: number;
+  cardSales: number;
+  debtSales: number;
+  discounts: number;
+  /** Пардохти қарз, ки ҳамин кас қабул кард */
+  debtPaidCash: number;
+  debtPaidCard: number;
+  /** Пуле, ки бояд дар касса бошад: фурӯши нақд + пардохти нақди қарз */
+  expectedCash: number;
+  /** Агар касса пӯшида бошад */
+  closing: { countedCash: number; diff: number; note: string; closedAt: string } | null;
+}
+
+export interface ZReport {
+  /** «2026-10-31» */
+  date: string;
+  rows: CashReport[];
+  totals: { orders: number; cashSales: number; cardSales: number; debtSales: number; debtPaidCash: number; debtPaidCard: number; expectedCash: number; diff: number };
+}
+
+/** Маош аз рӯи давомот: як корманд дар як моҳ */
+export interface PayrollRow {
+  userId: number;
+  fullName: string;
+  role: Role;
+  position: Position | null;
+  branchName: string | null;
+  /** Маоши моҳона (аз профил) */
+  salary: number;
+  payDay: number;
+  /** Сменаҳои ҷадвалшуда, ки вақташон расид (то имрӯз) */
+  planned: number;
+  /** Аз онҳо — омад */
+  attended: number;
+  /** Рӯзҳое, ки «Омадам» пахш кард (бо сменаҳои бе ҷадвал) */
+  workedDays: number;
+  hours: number;
+  lateCount: number;
+  lateMinutes: number;
+  /** Сменаи ҷадвалшуда, ки наомад */
+  absent: number;
+  /** Маош × (омад / ҷадвал); бе ҷадвал — маоши пурра. Пешниҳод, на ҳисоби ниҳоӣ */
+  suggestedPay: number;
+}
+
+export interface Payroll {
+  /** «2026-10» */
+  month: string;
+  rows: PayrollRow[];
+  totals: { salary: number; suggestedPay: number; hours: number; lateCount: number; absent: number };
+}
+
 export interface AttendanceSummary {
   date: string;
   planned: number;
@@ -814,6 +918,7 @@ export const AUDIT_ENTITY_LABELS: Record<string, string> = {
   promo: 'Аксия',
   organization: 'Ширкат',
   debtRequest: 'Дархости қарз',
+  cash: 'Касса',
 };
 
 export interface Alert {

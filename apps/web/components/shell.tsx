@@ -39,6 +39,7 @@ import {
   NotebookPen,
   TicketPercent,
   Wallet,
+  PiggyBank,
   X,
 } from "lucide-react";
 import Link from "next/link";
@@ -81,6 +82,7 @@ const NAV: { title: string; items: NavItem[] }[] = [
       { href: "/branches", label: "Филиалҳо", short: "Филиалҳо", icon: Building2, feature: "branches", only: (u) => u.role === "CHEF" },
       { href: "/branches/view", label: "Филиали ман", short: "Филиал", icon: Building2, feature: "branches", only: (u) => u.role === "MANAGER" },
       { href: "/staff", label: "Кормандон", short: "Кормандон", icon: Users, feature: "staff" },
+      { href: "/payroll", label: "Маош аз давомот", short: "Маош", icon: PiggyBank, feature: "staff" },
     ],
   },
   {

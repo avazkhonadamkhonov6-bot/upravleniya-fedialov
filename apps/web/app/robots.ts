@@ -17,6 +17,8 @@ export default function robots(): MetadataRoute.Robots {
         "/debts",
         "/tasks",
         "/schedule",
+        "/checkin",
+        "/payroll",
         "/messages",
         "/online",
         "/pos",

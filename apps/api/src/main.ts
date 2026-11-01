@@ -28,8 +28,24 @@ async function bootstrap() {
     const document = SwaggerModule.createDocument(app, config);
     SwaggerModule.setup('api/docs', app, document, { swaggerOptions: { persistAuthorization: true } });
   }
-  const port = Number(process.env.PORT ?? 4100);
+  // API_PORT — вақте API ва сайт дар як сервиси Render кор мекунанд: PORT-и оммавӣ аз они Next.js аст.
+  const port = Number(process.env.API_PORT ?? process.env.PORT ?? 4100);
   await app.listen(port);
   console.log(`🚀 FilialHub API: http://localhost:${port}/api`);
+  keepAwake();
+}
+
+/**
+ * Render Free пас аз 15 дақиқаи бе дархост сервисро хоб мекунад ва кушодани аввал 30–60 сония мегирад.
+ * Ҳар 10 дақиқа суроғаи оммавии худро мепурсем (аз роҳи Render, на localhost) — сервис бедор мемонад.
+ * Як сервис дар моҳ ≤ 744 соат — дар ҳудуди 750 соати ройгони Render. KEEP_AWAKE=false — хомӯш.
+ */
+function keepAwake() {
+  const base = process.env.RENDER_EXTERNAL_URL?.replace(/\/+$/, '');
+  if (!base || process.env.KEEP_AWAKE === 'false') return;
+  const timer = setInterval(() => {
+    fetch(`${base}/api/health`, { signal: AbortSignal.timeout(30000) }).catch(() => {});
+  }, 10 * 60 * 1000);
+  timer.unref();
 }
 bootstrap();

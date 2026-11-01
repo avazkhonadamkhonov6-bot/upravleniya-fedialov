@@ -16,7 +16,8 @@ import {
   Query,
 } from '@nestjs/common';
 import { Type } from 'class-transformer';
-import { IsDateString, IsInt, IsOptional, IsString, MaxLength } from 'class-validator';
+import { randomBytes } from 'node:crypto';
+import { IsBoolean, IsDateString, IsInt, IsOptional, IsString, MaxLength } from 'class-validator';
 import { LATE_MINUTES, type AttendanceSummary, type Shift as ShiftDto, type ShiftState } from '@filialhub/shared';
 import { AuthUser, CurrentUser, Feature, Roles } from '../auth/decorators';
 import { branchWhere, scopeBranch } from '../common/access';
@@ -40,7 +41,25 @@ const EARLY_LEAVE_MINUTES = 10;
 export class CheckDto {
   @IsOptional() @IsString() @MaxLength(300)
   note?: string;
+
+  /** Коди QR-и филиал (аз саҳифаи /checkin?c=…) */
+  @IsOptional() @IsString() @MaxLength(64)
+  code?: string;
 }
+
+/** QR-и давомот: «танҳо бо QR» ва/ё коди нав (кӯҳна кор намекунад) */
+export class AttendanceQrDto {
+  @IsOptional() @Type(() => Number) @IsInt()
+  branchId?: number;
+
+  @IsOptional() @IsBoolean()
+  required?: boolean;
+
+  @IsOptional() @IsBoolean()
+  rotate?: boolean;
+}
+
+const newAttendanceCode = () => randomBytes(9).toString('base64url');
 
 export class CreateShiftDto {
   @Type(() => Number) @IsInt()
@@ -213,6 +232,7 @@ export class ShiftsService {
     const now = new Date();
     const open = await this.prisma.shift.findFirst({ where: { userId: user.id, checkInAt: { not: null }, checkOutAt: null } });
     if (open) throw new BadRequestException('Шумо аллакай дар кор ҳастед — аввал «Рафтам»-ро пахш кунед');
+    await this.verifyQr(user, dto.code);
     let s = await this.prisma.shift.findFirst({
       where: { userId: user.id, checkInAt: null, startsAt: { lte: new Date(now.getTime() + EARLY_CHECKIN_MS) }, endsAt: { gt: now } },
       include,
@@ -230,7 +250,7 @@ export class ShiftsService {
       const next = await this.prisma.shift.findFirst({ where: { userId: user.id, startsAt: { gt: now } }, orderBy: { startsAt: 'asc' } });
       const endsAt = new Date(Math.min(now.getTime() + AD_HOC_MS, next ? next.startsAt.getTime() : Infinity));
       await this.ensureNoOverlap(user.id, now, endsAt);
-      updated = await this.prisma.shift.create({ data: { userId: user.id, branchId: user.branchId, startsAt: now, endsAt, checkInAt: now }, include });
+      updated = await this.prisma.shift.create({ data: { userId: user.id, branchId: user.branchId, startsAt: now, endsAt, checkInAt: now, isAdHoc: true }, include });
     }
     const dto2 = toShift(updated);
     const scheduled = !!s;
@@ -243,6 +263,31 @@ export class ShiftsService {
       link: '/schedule',
     });
     return dto2;
+  }
+
+  /**
+   * QR-и давомот: агар филиал «танҳо бо QR» бошад — бе коди дуруст «Омадам» қабул намешавад.
+   * Коди нодуруст ҳамеша рад мешавад (масалан QR-и кӯҳна пас аз «коди нав»).
+   */
+  private async verifyQr(user: AuthUser, code?: string) {
+    if (!user.branchId) return;
+    const b = await this.prisma.branch.findUnique({ where: { id: user.branchId }, select: { attendanceCode: true, requireQrCheckIn: true } });
+    if (!b) return;
+    if (code && code !== b.attendanceCode) throw new BadRequestException('QR нодуруст ё кӯҳна аст — QR-и навро аз менеҷер пурсед');
+    if (b.requireQrCheckIn && !code) throw new BadRequestException('Дар ин филиал «Омадам» танҳо бо QR аст — QR-и девори филиалро бо телефон скан кунед');
+  }
+
+  /** QR-и давомоти филиал (коди он бори аввал худкор сохта мешавад) */
+  async attendanceQr(user: AuthUser, dto: AttendanceQrDto = {}) {
+    const branchId = scopeBranch(user, dto.branchId);
+    if (!branchId) throw new BadRequestException('Филиалро интихоб кунед');
+    const b = await this.prisma.branch.findUniqueOrThrow({ where: { id: branchId }, select: { attendanceCode: true, requireQrCheckIn: true } });
+    const data: { attendanceCode?: string; requireQrCheckIn?: boolean } = {};
+    if (!b.attendanceCode || dto.rotate) data.attendanceCode = newAttendanceCode();
+    if (dto.required !== undefined) data.requireQrCheckIn = dto.required;
+    const u = Object.keys(data).length ? await this.prisma.branch.update({ where: { id: branchId }, data, select: { attendanceCode: true, requireQrCheckIn: true } }) : b;
+    if (dto.rotate || dto.required !== undefined) this.audit.log(user, 'UPDATE', 'branch', branchId, `QR-и давомот: ${dto.rotate ? 'коди нав' : ''}${dto.required !== undefined ? (dto.required ? ' танҳо бо QR' : ' бе QR ҳам') : ''}`, branchId);
+    return { branchId, code: u.attendanceCode!, required: u.requireQrCheckIn };
   }
 
   /** «Рафтам»: вақти рафтан ва соатҳои кор; хабар ба менеҷер (ё шеф) */
@@ -340,6 +385,18 @@ export class ShiftsController {
   @Roles('CHEF', 'MANAGER')
   today(@CurrentUser() user: AuthUser, @Query('branchId') branchId?: string) {
     return this.shifts.today(user, Number(branchId) || undefined);
+  }
+
+  @Get('qr')
+  @Roles('CHEF', 'MANAGER')
+  qr(@CurrentUser() user: AuthUser, @Query('branchId') branchId?: string) {
+    return this.shifts.attendanceQr(user, { branchId: Number(branchId) || undefined });
+  }
+
+  @Patch('qr')
+  @Roles('CHEF', 'MANAGER')
+  updateQr(@CurrentUser() user: AuthUser, @Body() dto: AttendanceQrDto) {
+    return this.shifts.attendanceQr(user, dto);
   }
 
   @Get('mine')

@@ -16,6 +16,7 @@ export function toOrganization(o: Organization): OrganizationDto {
     isPublic: o.isPublic,
     status: o.status,
     statusNote: o.statusNote,
+    cashierDebtLimit: Number(o.cashierDebtLimit),
     createdAt: o.createdAt.toISOString(),
   };
 }

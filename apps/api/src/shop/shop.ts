@@ -4,6 +4,7 @@ import {
   Controller,
   ForbiddenException,
   Get,
+  Header,
   HttpCode,
   HttpException,
   HttpStatus,
@@ -480,7 +481,7 @@ export class ShopService {
           data: { branchId: o.branchId, userId: user.id, total: o.total, totalCost, payment: o.payment, items: { create: lines } },
         });
         saleOrderId = sale.id;
-        low = await this.stock.take(tx, o.branchId, lines.map((l) => ({ productId: l.productId, qty: Number(l.qty) })));
+        low = await this.stock.take(tx, o.branchId, lines.map((l) => ({ productId: l.productId, qty: Number(l.qty) })), { reason: 'ONLINE', orderId: sale.id, userId: user.id });
       }
       return tx.onlineOrder.update({ where: { id }, data: { status, saleOrderId }, include: orderInclude });
     });
@@ -506,12 +507,15 @@ export class ShopController {
 
   @Public()
   @Get('stores')
+  // Маълумоти ҷамъиятӣ: браузер 30 сония аз кеш медиҳад, 2 дақиқа кӯҳнаро нишон дода дар пасзамина нав мекунад
+  @Header('Cache-Control', 'public, max-age=30, stale-while-revalidate=120')
   stores(@Query('type') type?: string) {
     return this.shop.stores(type);
   }
 
   @Public()
   @Get('stores/:id')
+  @Header('Cache-Control', 'public, max-age=30, stale-while-revalidate=120')
   store(@Param('id', ParseIntPipe) id: number) {
     return this.shop.store(id);
   }

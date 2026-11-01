@@ -23,9 +23,10 @@
 | 10 | [10-ogohinomaho-va-integratsiyaho.md](10-ogohinomaho-va-integratsiyaho.md) | 🔔, Web Push, Telegram, WhatsApp, ҳисоботи рӯзона |
 | 11 | [11-bozori-onlayn.md](11-bozori-onlayn.md) | Бозори онлайн, мизоҷони онлайн, фармоиш аз миз (QR), баҳо, SEO |
 | 12 | [12-frontend-dizayn.md](12-frontend-dizayn.md) | Next.js, сохтори саҳифаҳо, компонентҳо, забонҳо, PWA, дизайн |
-| 13 | [13-api-kontrakt.md](13-api-kontrakt.md) | Ҳамаи 141 роҳи API, хатоҳо, рӯйдодҳои SSE |
+| 13 | [13-api-kontrakt.md](13-api-kontrakt.md) | Ҳамаи 151 роҳи API, хатоҳо, рӯйдодҳои SSE |
 | 14 | [14-infra-va-bekhatari.md](14-infra-va-bekhatari.md) | Render, тағйирёбандаҳо, нусхаи база, ҳудуди дархостҳо, амният |
 | 15 | [15-sanjish.md](15-sanjish.md) | Тестҳо, санҷиши дастӣ, ҳисобҳои демо |
+| 16 | [16-maosh-kassa-anbor.md](16-maosh-kassa-anbor.md) | Маош аз давомот, пӯшидани касса, лимити қарз, QR-и давомот, таърихи анбор ва рӯйхати харид |
 
 ## Қоидаи навсозӣ
 

@@ -13,19 +13,21 @@ import {
   ParseIntPipe,
   Patch,
   Post,
+  Query,
   Put,
   Req,
   Res,
 } from '@nestjs/common';
 import { Type } from 'class-transformer';
 import type { Request, Response } from 'express';
-import { DEFAULT_PRODUCT_EMOJI, defaultUnit, type BusinessType } from '@filialhub/shared';
+import { DEFAULT_PRODUCT_EMOJI, defaultUnit, type BusinessType, type ReorderItem, type StockMove as StockMoveDto } from '@filialhub/shared';
 import { IsBoolean, IsInt, IsNumber, IsOptional, IsString, MaxLength, Min, MinLength } from 'class-validator';
 import { AuthUser, CurrentUser, Feature, Public, Roles } from '../auth/decorators';
 import { toProduct } from '../common/serializers';
 import { AuditService } from '../core/audit.service';
 import { scopeBranch } from '../common/access';
 import { StockService } from './stock';
+import { Prisma } from '../generated/prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 
 const IMAGE_TYPES = ['image/webp', 'image/jpeg', 'image/png'];
@@ -105,6 +107,21 @@ export class StockDto {
   /** Филиал (шеф интихоб мекунад; менеҷер ва анбордор — филиали худ) */
   @IsOptional() @Type(() => Number) @IsInt()
   branchId?: number;
+
+  /** Харид: аз кӣ (таъминкунанда) */
+  @IsOptional() @IsString() @MaxLength(80)
+  supplier?: string;
+
+  /** Харид: нархи як воҳид */
+  @IsOptional() @Type(() => Number) @IsNumber() @Min(0)
+  unitCost?: number;
+
+  /** Нархи харидро ҳамчун арзиши аслии мол гузоштан (фоида аз нав ҳисоб мешавад) */
+  @IsOptional() @IsBoolean()
+  updateCost?: boolean;
+
+  @IsOptional() @IsString() @MaxLength(200)
+  note?: string;
 }
 
 @Injectable()
@@ -147,7 +164,7 @@ export class ProductsService {
     this.audit.log(user, 'CREATE', 'product', created.id, `Маҳсулоти нав: ${created.name} — ${Number(created.price)} сомонӣ`);
     // Боқимондаи аввал ба филиали аввал (баъд дар «Қабули мол» байни филиалҳо тақсим мешавад)
     const branchId = stock ? await this.firstBranch(user.organizationId) : null;
-    const p = branchId ? await this.stock.adjust(created.id, branchId, { set: stock! }) : created;
+    const p = branchId ? await this.stock.adjust(created.id, branchId, { set: stock! }, { userId: user.id, note: 'Ҳисоби аввал' }) : created;
     return toProduct(p);
   }
 
@@ -169,7 +186,7 @@ export class ProductsService {
     });
     if (typeof stock === 'number' && stock > 0 && before.stock === null) {
       const branchId = await this.firstBranch(user.organizationId);
-      if (branchId) p = await this.stock.adjust(id, branchId, { set: stock });
+      if (branchId) p = await this.stock.adjust(id, branchId, { set: stock }, { userId: user.id });
     }
     const changes = [
       dto.price !== undefined && Number(before.price) !== dto.price && `нарх: ${Number(before.price)} → ${dto.price}`,
@@ -220,6 +237,83 @@ export class ProductsService {
     return toProduct(updated);
   }
 
+  /** Таърихи анбори мол: шеф — ҳамаи филиалҳо, дигарон — филиали худ */
+  async moves(user: AuthUser, id: number, branchId?: number): Promise<StockMoveDto[]> {
+    if (user.role === 'STAFF' && user.position !== 'STOREKEEPER') throw new ForbiddenException('Танҳо шеф, менеҷер ё анбордор');
+    await this.ensure(user, id);
+    const b = scopeBranch(user, branchId);
+    const rows = await this.prisma.stockMove.findMany({
+      where: { productId: id, branchId: b ?? { in: user.branchIds } },
+      include: { user: { select: { fullName: true } }, branch: { select: { name: true } } },
+      orderBy: { id: 'desc' },
+      take: 100,
+    });
+    return rows.map((m) => ({
+      id: m.id,
+      branchName: m.branch.name,
+      qty: Number(m.qty),
+      balance: Number(m.balance),
+      reason: m.reason as StockMoveDto['reason'],
+      supplier: m.supplier,
+      unitCost: m.unitCost === null ? null : Number(m.unitCost),
+      orderId: m.orderId,
+      note: m.note,
+      userName: m.user?.fullName ?? null,
+      createdAt: m.createdAt.toISOString(),
+    }));
+  }
+
+  /**
+   * Рӯйхати харид: молҳои ҳисобшаванда, ки дар филиал ба ҳадди «кам монд» (ё 0) расиданд.
+   * Миқдори пешниҳодшуда — то 2 × ҳад; таъминкунанда ва нарх — аз охирин харид.
+   */
+  async reorder(user: AuthUser, branchId?: number): Promise<ReorderItem[]> {
+    if (user.role === 'STAFF' && user.position !== 'STOREKEEPER') throw new ForbiddenException('Танҳо шеф, менеҷер ё анбордор');
+    const b = scopeBranch(user, branchId);
+    const rows = await this.prisma.branchStock.findMany({
+      where: { branchId: b ?? { in: user.branchIds }, product: { organizationId: user.organizationId, isActive: true, stock: { not: null } } },
+      include: { product: true, branch: { select: { name: true, isActive: true } } },
+    });
+    const low = rows.filter((r) => r.branch.isActive && Number(r.qty) <= (r.product.lowStock === null ? 0 : Number(r.product.lowStock)));
+    const last = await this.prisma.stockMove.findMany({
+      where: { organizationId: user.organizationId, reason: 'PURCHASE', productId: { in: low.map((r) => r.productId) } },
+      orderBy: { id: 'desc' },
+      distinct: ['productId'],
+      select: { productId: true, supplier: true, unitCost: true },
+    });
+    return low
+      .map((r) => {
+        const limit = r.product.lowStock === null ? 0 : Number(r.product.lowStock);
+        const qty = Number(r.qty);
+        const l = last.find((x) => x.productId === r.productId);
+        return {
+          productId: r.productId,
+          name: r.product.name,
+          emoji: r.product.emoji,
+          unit: r.product.unit,
+          branchId: r.branchId,
+          branchName: r.branch.name,
+          qty,
+          lowStock: limit,
+          suggested: Math.max(Math.ceil(limit * 2 - qty), 1),
+          lastSupplier: l?.supplier || null,
+          lastUnitCost: l?.unitCost == null ? null : Number(l.unitCost),
+        };
+      })
+      .sort((a, b) => a.qty - a.lowStock - (b.qty - b.lowStock) || a.name.localeCompare(b.name));
+  }
+
+  async suppliers(user: AuthUser): Promise<string[]> {
+    const rows = await this.prisma.stockMove.findMany({
+      where: { organizationId: user.organizationId, reason: 'PURCHASE', supplier: { not: '' } },
+      distinct: ['supplier'],
+      select: { supplier: true },
+      orderBy: { supplier: 'asc' },
+      take: 200,
+    });
+    return rows.map((r) => r.supplier);
+  }
+
   /** Қабули мол (add) ё ҳисоби дастӣ (set). Шеф, менеҷер ва анбордор */
   async adjustStock(user: AuthUser, id: number, dto: StockDto) {
     if (user.role === 'STAFF' && user.position !== 'STOREKEEPER') throw new ForbiddenException('Танҳо шеф, менеҷер ё анбордор');
@@ -228,7 +322,17 @@ export class ProductsService {
     const branchId = scopeBranch(user, dto.branchId) ?? (await this.firstBranch(user.organizationId));
     if (!branchId) throw new BadRequestException('Филиалро интихоб кунед');
     const before = await this.prisma.branchStock.findUnique({ where: { productId_branchId: { productId: id, branchId } } });
-    const fixed = await this.stock.adjust(id, branchId, dto.set !== undefined ? { set: dto.set } : { add: dto.add });
+    const fixed = await this.stock.adjust(id, branchId, dto.set !== undefined ? { set: dto.set } : { add: dto.add }, {
+      userId: user.id,
+      supplier: dto.supplier,
+      unitCost: dto.unitCost ?? null,
+      note: dto.note,
+    });
+    // Нархи нави харид → арзиши аслӣ (фақат шеф ва менеҷер; анбордор нархро иваз намекунад)
+    if (dto.updateCost && dto.unitCost !== undefined && dto.add && dto.add > 0 && user.role !== 'STAFF') {
+      await this.prisma.product.update({ where: { id }, data: { cost: dto.unitCost } });
+      fixed.cost = new Prisma.Decimal(dto.unitCost);
+    }
     const now = fixed.branchStocks.find((b) => b.branchId === branchId);
     this.audit.log(user, 'UPDATE', 'product', id, `${p.name}: анбори филиал ${before ? Number(before.qty) : 0} → ${Number(now?.qty ?? 0)} ${p.unit}`, branchId);
     return toProduct(fixed, user.role === 'STAFF');
@@ -256,6 +360,23 @@ export class ProductsController {
   @Get()
   list(@CurrentUser() user: AuthUser) {
     return this.products.list(user);
+  }
+
+  /** Рӯйхати харид: моли кам монда */
+  @Get('reorder')
+  reorder(@CurrentUser() user: AuthUser, @Query('branchId') branchId?: string) {
+    return this.products.reorder(user, Number(branchId) || undefined);
+  }
+
+  /** Номҳои таъминкунандагон (барои пешниҳод ҳангоми харид) */
+  @Get('suppliers')
+  suppliers(@CurrentUser() user: AuthUser) {
+    return this.products.suppliers(user);
+  }
+
+  @Get(':id/moves')
+  moves(@CurrentUser() user: AuthUser, @Param('id', ParseIntPipe) id: number, @Query('branchId') branchId?: string) {
+    return this.products.moves(user, id, Number(branchId) || undefined);
   }
 
   @Post()

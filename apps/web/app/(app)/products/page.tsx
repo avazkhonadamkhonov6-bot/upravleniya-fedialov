@@ -1,7 +1,8 @@
 "use client";
 
 import type { Product } from "@filialhub/shared";
-import { PackagePlus, Pencil, Plus } from "lucide-react";
+import { ClipboardList, PackagePlus, Pencil, Plus } from "lucide-react";
+import { ReorderList } from "@/components/reorder-list";
 import { useState } from "react";
 import { ProductForm } from "@/components/forms";
 import { Badge, Button, Card, Empty, ErrorBox, Modal, money, PageHeader, Skeleton, cn } from "@/components/ui";
@@ -19,6 +20,7 @@ export default function ProductsPage() {
   const { data, error, reload } = useApi<Product[]>("/products");
   const [editing, setEditing] = useState<Product | "new" | null>(null);
   const [receiving, setReceiving] = useState<Product | null>(null);
+  const [reorder, setReorder] = useState(false);
   // Анборро шеф, менеҷер ва анбордор пур мекунанд
   const canStock = user?.role !== "STAFF" || user?.position === "STOREKEEPER";
   const tracksStock = data?.some((p) => p.stock !== null) ?? false;
@@ -42,11 +44,19 @@ export default function ProductsPage() {
         title={restaurant ? tr("Меню ва нархҳо") : tr("Маҳсулот ва нархҳо")}
         subtitle={isChef ? tr("Нархҳо барои ҳамаи филиалҳо як хел аст. Фоида = нарх − арзиши аслӣ.") : tr("Нархҳои ҳамаи филиалҳо")}
         actions={
-          isChef && (
-            <Button onClick={() => setEditing("new")}>
-              <Plus className="size-4" /> {tr("Маҳсулоти нав")}
-            </Button>
-          )
+          <>
+            {canStock && tracksStock && (
+              <Button variant="outline" onClick={() => setReorder(true)}>
+                <ClipboardList className="size-4" /> {tr("Рӯйхати харид")}
+                {lowCount > 0 && <span className="grid h-5 min-w-5 place-items-center rounded-full bg-brand px-1.5 text-[11px] font-bold text-white">{lowCount}</span>}
+              </Button>
+            )}
+            {isChef && (
+              <Button onClick={() => setEditing("new")}>
+                <Plus className="size-4" /> {tr("Маҳсулоти нав")}
+              </Button>
+            )}
+          </>
         }
       />
 
@@ -197,6 +207,10 @@ export default function ProductsPage() {
             }}
           />
         )}
+      </Modal>
+
+      <Modal open={reorder} onClose={() => setReorder(false)} title={tr("Рӯйхати харид")}>
+        {reorder && <ReorderList />}
       </Modal>
 
       <Modal open={!!receiving} onClose={() => setReceiving(null)} title={tr("Қабули мол")}>

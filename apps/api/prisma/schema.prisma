@@ -51,69 +51,79 @@ enum DeliveryStatus {
 
 /// Ширкати соҳибкор (тарабхона, мағозаи либос, хӯрокворӣ, сантехника…). Маълумоти ҳар ширкат аз дигарон пурра ҷудо аст.
 model Organization {
-  id            Int            @id @default(autoincrement())
-  name          String
+  id               Int            @id @default(autoincrement())
+  name             String
   /// BusinessType аз packages/shared: RESTAURANT | GROCERY | CLOTHING | PLUMBING | …
-  type          String         @default("RESTAURANT")
+  type             String         @default("RESTAURANT")
   /// Корбаре (шеф), ки бизнесро сохт — як шеф метавонад якчанд бизнес дошта бошад
-  ownerId       Int?
+  ownerId          Int?
   /// Тавсифи кӯтоҳ барои мағозаи онлайн
-  description   String         @default("")
+  description      String         @default("")
   /// Дар бозори онлайн ба мизоҷон нишон дода шавад
-  isPublic      Boolean        @default(true)
+  isPublic         Boolean        @default(true)
+  /// Кассир то ин маблағи қарзи умумии мизоҷ бе тасдиқи менеҷер ба қарз мефурӯшад (0 — ҳамеша тасдиқ)
+  cashierDebtLimit Decimal        @default(0) @db.Decimal(12, 2)
   /// Бизнеси нав PENDING аст; супер-админ тасдиқ (APPROVED), рад (REJECTED) ё баста (BLOCKED) мекунад
-  status        OrgStatus      @default(PENDING)
+  status           OrgStatus      @default(PENDING)
   /// Сабаби рад/бастан (ба соҳиб нишон дода мешавад)
-  statusNote    String         @default("")
-  reviewedAt    DateTime?
-  reviewedById  Int?
+  statusNote       String         @default("")
+  reviewedAt       DateTime?
+  reviewedById     Int?
   /// Ширкати хизматии супер-админ (дар рӯйхати бизнесҳо нест)
-  isPlatform    Boolean        @default(false)
+  isPlatform       Boolean        @default(false)
   /// WhatsApp-и худи бизнес (Green-API). Холӣ — рақами умумии FilialHub истифода мешавад
-  waInstanceId  String?
+  waInstanceId     String?
   /// Махфӣ: ҳеҷ гоҳ ба браузер фиристода намешавад
-  waApiToken    String?
-  waApiUrl      String?
-  waMediaUrl    String?
-  onlineOrders  OnlineOrder[]
-  debtEntries   DebtEntry[]
-  debtRequests  DebtRequest[]
-  promoCodes    PromoCode[]
-  reviews       Review[]
-  storeViews    StoreView[]
-  createdAt     DateTime       @default(now())
-  branches      Branch[]
-  users         User[]
-  products      Product[]
-  customers     Customer[]
-  tasks         Task[]
-  auditLogs     AuditLog[]
-  notifications Notification[]
+  waApiToken       String?
+  waApiUrl         String?
+  waMediaUrl       String?
+  onlineOrders     OnlineOrder[]
+  debtEntries      DebtEntry[]
+  debtRequests     DebtRequest[]
+  promoCodes       PromoCode[]
+  reviews          Review[]
+  storeViews       StoreView[]
+  createdAt        DateTime       @default(now())
+  branches         Branch[]
+  users            User[]
+  products         Product[]
+  customers        Customer[]
+  tasks            Task[]
+  auditLogs        AuditLog[]
+  notifications    Notification[]
+  cashClosings     CashClosing[]
+  stockMoves       StockMove[]
 
   @@index([status])
 }
 
 model Branch {
-  id             Int           @id @default(autoincrement())
-  organizationId Int
-  organization   Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  name           String
-  city           String
-  address        String
-  phone          String
-  email          String
-  openedAt       DateTime      @default(now())
-  isActive       Boolean       @default(true)
-  createdAt      DateTime      @default(now())
-  users          User[]
-  orders         Order[]
-  customers      Customer[]
-  tasks          Task[]
-  shifts         Shift[]
-  expenses       Expense[]
-  onlineOrders   OnlineOrder[]
-  stocks         BranchStock[]
-  debtRequests   DebtRequest[]
+  id               Int           @id @default(autoincrement())
+  organizationId   Int
+  organization     Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  name             String
+  city             String
+  address          String
+  phone            String
+  email            String
+  openedAt         DateTime      @default(now())
+  isActive         Boolean       @default(true)
+  createdAt        DateTime      @default(now())
+  users            User[]
+  orders           Order[]
+  customers        Customer[]
+  tasks            Task[]
+  shifts           Shift[]
+  expenses         Expense[]
+  onlineOrders     OnlineOrder[]
+  stocks           BranchStock[]
+  /// Коди QR-и давомот (дар девори филиал); «Омадам» бо скани он
+  attendanceCode   String?
+  /// «Омадам» танҳо бо скани QR (на аз хона)
+  requireQrCheckIn Boolean       @default(false)
+  debtRequests     DebtRequest[]
+  cashClosings     CashClosing[]
+  stockMoves       StockMove[]
 
   @@index([organizationId])
 }
@@ -161,6 +171,8 @@ model User {
   media               Media[]
   outgoingCalls       Call[]             @relation("CallCaller")
   incomingCalls       Call[]             @relation("CallCallee")
+  cashClosings        CashClosing[]
+  stockMoves          StockMove[]
 
   @@index([branchId])
   @@index([organizationId])
@@ -191,6 +203,7 @@ model Product {
   items          OrderItem[]
   onlineItems    OnlineOrderItem[]
   branchStocks   BranchStock[]
+  stockMoves     StockMove[]
 
   @@index([organizationId])
   @@index([organizationId, barcode])
@@ -297,6 +310,8 @@ model Customer {
   note           String        @default("")
   /// Қарзи ҳозира (ҷамъи DebtEntry); 0 — қарз нест
   debt           Decimal       @default(0) @db.Decimal(12, 2)
+  /// Ҳадди қарзи мизоҷ (null — бе ҳад): аз ин зиёд ҳеҷ кас қарз дода наметавонад
+  creditLimit    Decimal?      @db.Decimal(12, 2)
   /// Мӯҳлати пардохти қарз (наздиктарин); пас аз пардохти пурра — null
   debtDueAt      DateTime?
   /// Охирин ёдрас дар бораи қарз (WhatsApp)
@@ -427,6 +442,8 @@ model Shift {
   branch     Branch    @relation(fields: [branchId], references: [id], onDelete: Cascade)
   startsAt   DateTime
   endsAt     DateTime
+  /// «Омадам» бе ҷадвал — сменаи худкор (дар ҳисоби маош ба «ҷадвал» дохил намешавад)
+  isAdHoc    Boolean   @default(false)
   checkInAt  DateTime?
   checkOutAt DateTime?
   createdAt  DateTime  @default(now())
@@ -677,4 +694,61 @@ model DebtRequest {
 
   @@index([organizationId, status])
   @@index([branchId, status])
+}
+
+/// Пӯшидани касса дар охири рӯз: нақди интизоршуда (фурӯши нақд + пардохти нақди қарз) ва пули ҳисобшуда
+model CashClosing {
+  id             Int          @id @default(autoincrement())
+  organizationId Int
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  branchId       Int
+  branch         Branch       @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  userId         Int
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /// Оғози рӯз (вақти Душанбе)
+  day            DateTime
+  orders         Int
+  cashSales      Decimal      @db.Decimal(12, 2)
+  cardSales      Decimal      @db.Decimal(12, 2)
+  debtSales      Decimal      @db.Decimal(12, 2)
+  debtPaidCash   Decimal      @db.Decimal(12, 2)
+  debtPaidCard   Decimal      @db.Decimal(12, 2)
+  expectedCash   Decimal      @db.Decimal(12, 2)
+  countedCash    Decimal      @db.Decimal(12, 2)
+  /// ҳисобшуда − интизоршуда (манфӣ — камомад)
+  diff           Decimal      @db.Decimal(12, 2)
+  note           String       @default("")
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  @@unique([userId, day])
+  @@index([branchId, day])
+}
+
+/// Таърихи анбор: ҳар тағйир (фурӯш, фармоиши онлайн, харид аз таъминкунанда, ҳисоби дастӣ)
+model StockMove {
+  id             Int          @id @default(autoincrement())
+  organizationId Int
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  branchId       Int
+  branch         Branch       @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  productId      Int
+  product        Product      @relation(fields: [productId], references: [id], onDelete: Cascade)
+  /// + омад, − рафт
+  qty            Decimal      @db.Decimal(12, 3)
+  /// SALE | ONLINE | PURCHASE | ADJUST | WRITE_OFF
+  reason         String
+  supplier       String       @default("")
+  /// Нархи харид барои як воҳид (танҳо PURCHASE)
+  unitCost       Decimal?     @db.Decimal(12, 2)
+  /// Боқимондаи филиал пас аз ин тағйир
+  balance        Decimal      @db.Decimal(12, 3)
+  orderId        Int?
+  note           String       @default("")
+  userId         Int?
+  user           User?        @relation(fields: [userId], references: [id], onDelete: SetNull)
+  createdAt      DateTime     @default(now())
+
+  @@index([productId, createdAt])
+  @@index([organizationId, createdAt])
 }

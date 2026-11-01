@@ -26,6 +26,7 @@ export function OrganizationCard() {
   const [type, setType] = useState<BusinessType>(org?.type ?? "OTHER");
   const [description, setDescription] = useState(org?.description ?? "");
   const [isPublic, setIsPublic] = useState(org?.isPublic ?? true);
+  const [cashierDebtLimit, setCashierDebtLimit] = useState(String(org?.cashierDebtLimit ?? 0));
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
@@ -38,7 +39,7 @@ export function OrganizationCard() {
     setBusy(true);
     setError(null);
     try {
-      const updated = await api<Organization>("/auth/organization", { method: "PATCH", json: { name, type, description, isPublic } });
+      const updated = await api<Organization>("/auth/organization", { method: "PATCH", json: { name, type, description, isPublic, cashierDebtLimit: Number(cashierDebtLimit) || 0 } });
       setUser({ ...user, organization: updated });
       toast.success(tr("Захира шуд"));
     } catch (err) {
@@ -90,6 +91,9 @@ export function OrganizationCard() {
               <input type="checkbox" checked={isPublic} onChange={(e) => setIsPublic(e.target.checked)} className="size-4 accent-[var(--brand)]" />
               {tr("Дар бозори онлайн нишон дода шавад")}
             </label>
+            <Field label={tr("Кассир бе тасдиқи менеҷер ба қарз мефурӯшад то (сомонӣ)")} hint={tr("Қарзи умумии мизоҷ то ин маблағ — бе дархост; зиёдтар — менеҷер тасдиқ мекунад. 0 — ҳамеша тасдиқ.")}>
+              <Input type="number" min={0} step="1" value={cashierDebtLimit} onChange={(e) => setCashierDebtLimit(e.target.value)} />
+            </Field>
             <ErrorBox message={error} />
             <Button type="submit" loading={busy} className="w-full">
               {tr("Захира кардан")}

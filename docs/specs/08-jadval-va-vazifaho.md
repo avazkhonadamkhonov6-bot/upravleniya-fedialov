@@ -41,6 +41,8 @@
 Контроллер: `@Feature('schedule')`. «Ҷадвал» дар `STAFF_FEATURES` барои ҳамаи вазифаҳо кушода аст.
 Модел: `Shift` (userId, branchId, startsAt, endsAt, checkInAt, checkOutAt).
 
+QR-и девори филиал ва «Омадам танҳо бо QR», ва маош аз рӯи давомот: ниг. [16](16-maosh-kassa-anbor.md).
+
 ## Вазифаҳо (`/tasks`)
 
 - Ҳолатҳо: `TODO` (нав) → `IN_PROGRESS` (дар раванд) → `DONE` (тайёр). Афзалият: паст, миёна, фаврӣ. Мӯҳлат.
