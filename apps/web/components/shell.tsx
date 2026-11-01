@@ -44,8 +44,10 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useState, useSyncExternalStore, ViewTransition } from "react";
+import { useCallback, useEffect, useState, useSyncExternalStore, ViewTransition } from "react";
 import { api } from "@/lib/api";
+import { useServerEvent } from "@/lib/events";
+import { useVisibleInterval } from "@/lib/use-interval";
 import { useAuth } from "@/lib/auth";
 import { AlertsBell } from "./alerts-bell";
 import { CommandPalette } from "./command-palette";
@@ -175,24 +177,19 @@ export function Logo({ light, compact, org }: { light?: boolean; compact?: boole
   );
 }
 
-/** Шумораи паёмҳои нохондашуда (ҳар 20 сония нав мешавад) */
+/** Шумораи паёмҳои нохондашуда: фавран аз хабари сервер, эҳтиётан ҳар 60 сония (танҳо дар таби намоён) */
 function useUnreadMessages(enabled: boolean) {
   const [count, setCount] = useState(0);
-  useEffect(() => {
+  const pull = useCallback(() => {
     if (!enabled) return;
-    let alive = true;
-    const pull = () =>
-      api<{ count: number }>("/messages/unread")
-        .then((r) => alive && setCount(r.count))
-        .catch(() => {});
-    pull();
-    const t = setInterval(pull, 20000);
-    return () => {
-      alive = false;
-      clearInterval(t);
-    };
+    api<{ count: number }>("/messages/unread")
+      .then((r) => setCount(r.count))
+      .catch(() => {});
   }, [enabled]);
-  return count;
+  useEffect(pull, [pull]);
+  useServerEvent("messages", pull);
+  useVisibleInterval(pull, 60_000);
+  return enabled ? count : 0;
 }
 
 /** «Фирӯз Раҳимзода» → «ФР» */

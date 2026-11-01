@@ -76,13 +76,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   useEffect(() => {
-    const check = !getToken()
-      ? Promise.resolve()
-      : getKind() === "client"
-        ? api<Client>("/shop/me").then(setClient)
-        : api<User>("/auth/me").then(setUser);
+    let alive = true;
     // 401 токенро дар api() тоза мекунад; хатои шабака ё сервер набояд корбарро аз система барорад.
-    check.catch(() => {}).finally(() => setLoading(false));
+    // Сервер пас аз deploy ё бедоршавӣ чанд сония ҷавоб намедиҳад — то ~30 сония аз нав мепурсем,
+    // вагарна корбар бо токени дуруст ба /login партофта мешуд.
+    const check = async (attempt: number): Promise<void> => {
+      if (!getToken()) return;
+      try {
+        if (getKind() === "client") setClient(await api<Client>("/shop/me"));
+        else setUser(await api<User>("/auth/me"));
+      } catch {
+        if (!alive || !getToken() || attempt >= 6) return;
+        await new Promise((r) => setTimeout(r, 1000 * 2 ** Math.min(attempt, 3)));
+        return check(attempt + 1);
+      }
+    };
+    void check(0).finally(() => alive && setLoading(false));
+    return () => {
+      alive = false;
+    };
   }, []);
 
   const accept = useCallback((res: LoginResponse): Account => {

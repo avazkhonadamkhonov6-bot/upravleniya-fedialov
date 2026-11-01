@@ -6,6 +6,7 @@ import { createContext, useCallback, useContext, useEffect, useRef, useState } f
 import { api, getToken } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { subscribe } from "@/lib/events";
+import { useVisibleInterval } from "@/lib/use-interval";
 import { tr } from "@/lib/i18n";
 import { clock, mediaError, mediaSupported } from "@/lib/media";
 import { useToast } from "./toast";
@@ -223,25 +224,22 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
     cleanup();
   }
 
-  // Зангҳои воридшаванда — фавран аз хабари сервер; polling ҳар 10 сония барои эҳтиёт (танҳо вақте ки дар занг нестем).
+  // Зангҳои воридшаванда — фавран аз хабари сервер (SSE); polling ҳар 60 сония танҳо барои эҳтиёт,
+  // танҳо дар таби намоён ва вақте ки дар занг нестем — ҳар таби кушода серверро беҳуда бор намекунад.
+  const pullIncoming = useCallback(() => {
+    if (!enabled || phaseRef.current !== "idle") return;
+    api<CallInfo | null>("/calls/incoming")
+      .then((c) => {
+        if (c && phaseRef.current === "idle") setState({ phase: "incoming", call: c, peerName: c.callerName, video: c.video });
+      })
+      .catch(() => {});
+  }, [enabled]);
   useEffect(() => {
     if (!enabled || state.phase !== "idle") return;
-    let alive = true;
-    const pull = () =>
-      api<CallInfo | null>("/calls/incoming")
-        .then((c) => {
-          if (alive && c && phaseRef.current === "idle") setState({ phase: "incoming", call: c, peerName: c.callerName, video: c.video });
-        })
-        .catch(() => {});
-    pull();
-    const off = subscribe("calls", pull);
-    const t = setInterval(pull, 10000);
-    return () => {
-      alive = false;
-      off();
-      clearInterval(t);
-    };
-  }, [enabled, state.phase]);
+    pullIncoming();
+    return subscribe("calls", pullIncoming);
+  }, [enabled, state.phase, pullIncoming]);
+  useVisibleInterval(pullIncoming, 60_000);
 
   // Ҳолати занги ҷорӣ: ҷавоби тарафи дигар, рад, қатъ.
   const callId = state.call?.id;
