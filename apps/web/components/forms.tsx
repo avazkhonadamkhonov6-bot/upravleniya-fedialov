@@ -16,6 +16,7 @@ import { ImagePlus, Sparkles, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { api, ApiError } from "@/lib/api";
 import { compressImage, imageUrl } from "@/lib/image";
+import { useAiEnabled } from "@/lib/use-ai";
 import { useAuth, useBusiness } from "@/lib/auth";
 import { PRODUCT_ICONS, ProductIcon } from "./glyph";
 import { useToast } from "./toast";
@@ -323,6 +324,7 @@ export function ProductForm({ product, onDone }: { product?: Product; onDone: ()
   const [photoError, setPhotoError] = useState<string | null>(null);
   const shownPhoto = photo?.url ?? (!dropPhoto && product?.imageId ? imageUrl(product.imageId) : null);
   const [aiBusy, setAiBusy] = useState(false);
+  const aiOn = useAiEnabled();
 
   /** AI аз акс ном, категория, воҳид ва тавсифро пур мекунад — пеш аз сабт ҳамаро тағйир додан мумкин */
   async function fillFromPhoto() {
@@ -446,7 +448,7 @@ export function ProductForm({ product, onDone }: { product?: Product; onDone: ()
               {shownPhoto ? tr("Иваз кардан") : tr("Интихоби акс")}
               <input type="file" accept="image/*" className="sr-only" onChange={pickPhoto} />
             </label>
-            {photo && (
+            {photo && aiOn && (
               <button
                 type="button"
                 onClick={fillFromPhoto}

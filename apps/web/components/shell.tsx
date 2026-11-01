@@ -48,6 +48,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useCallback, useEffect, useState, useSyncExternalStore, ViewTransition } from "react";
 import { api } from "@/lib/api";
 import { useServerEvent } from "@/lib/events";
+import { useAiEnabled } from "@/lib/use-ai";
 import { useVisibleInterval } from "@/lib/use-interval";
 import { useAuth } from "@/lib/auth";
 import { AlertsBell } from "./alerts-bell";
@@ -219,6 +220,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   // Бизнеси тасдиқнашуда: ба ҷои панел экрани интизорӣ (супер-админ — ҳамеша панел)
   const approved = !!user && (user.isSuperAdmin || user.organization?.status === "APPROVED");
   const unread = useUnreadMessages(!!user && approved && canAccess(user, "messages"));
+  const aiOn = useAiEnabled();
   const feature = featureOfPath(pathname);
   const allowed = !user || !feature || canAccess(user, feature);
 
@@ -264,7 +266,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const shop = !isRestaurant(user.organization?.type);
   const relabel = (n: NavItem): NavItem =>
     shop && n.href === "/products" ? { ...n, label: "Маҳсулот ва нархҳо", short: "Маҳсулот", icon: Package } : n;
-  const groups = NAV.map((g) => ({ ...g, items: g.items.filter((n) => canAccess(user, n.feature) && (!n.only || n.only(user))).map(relabel) })).filter((g) => g.items.length);
+  // «Ёрдамчии AI» — танҳо вақте ки дар сервер калиди Claude ҳаст
+  const visible = (n: NavItem) => canAccess(user, n.feature) && (!n.only || n.only(user)) && (n.href !== "/assistant" || aiOn);
+  const groups = NAV.map((g) => ({ ...g, items: g.items.filter(visible).map(relabel) })).filter((g) => g.items.length);
   const canSearch = canAccess(user, "search");
   const all = groups.flatMap((g) => g.items);
   // Корманд 1–3 саҳифа дорад — ҳамаашро дар менюи поён нишон медиҳем.

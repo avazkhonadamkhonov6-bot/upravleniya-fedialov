@@ -11,6 +11,7 @@ import { useCart, type CartStore } from "@/lib/cart";
 import { flyToCart } from "@/lib/fx";
 import { tr } from "@/lib/i18n";
 import { storeTheme } from "@/lib/store-theme";
+import { useAiEnabled } from "@/lib/use-ai";
 import { BusinessIcon, ProductIcon } from "@/components/glyph";
 import { ProductVisual } from "@/components/product-visual";
 import { Stars } from "@/components/stars";
@@ -28,6 +29,7 @@ export function StoreView({ store }: { store: StoreDetail }) {
   const [aiIds, setAiIds] = useState<number[] | null>(null);
   const [aiBusy, setAiBusy] = useState(false);
   const [aiError, setAiError] = useState<string | null>(null);
+  const aiOn = useAiEnabled();
   // QR дар миз: ?table=5&b=2 — фармоиш бе сабти ном, рост ба ошпаз
   const params = useSearchParams();
   const table = store.type === "RESTAURANT" ? params.get("table")?.slice(0, 10) || null : null;
@@ -53,7 +55,7 @@ export function StoreView({ store }: { store: StoreDetail }) {
         (p) => (!category || p.category === category) && (!q || `${p.name} ${p.category} ${p.description}`.toLowerCase().includes(q)),
       );
   async function smartSearch() {
-    if (query.trim().length < 2 || aiBusy) return;
+    if (!aiOn || query.trim().length < 2 || aiBusy) return;
     setAiBusy(true);
     setAiError(null);
     try {
@@ -158,7 +160,7 @@ export function StoreView({ store }: { store: StoreDetail }) {
               setAiIds(null);
             }}
             maxLength={200}
-            placeholder={tr("Ҷустуҷӯ: ном ё «чизе барои зодрӯз»")}
+            placeholder={aiOn ? tr("Ҷустуҷӯ: ном ё «чизе барои зодрӯз»") : tr("Ҷустуҷӯ")}
             className="min-w-0 flex-1 bg-transparent text-[15px] text-ink outline-none placeholder:text-muted focus-visible:outline-none"
           />
           {query && (
@@ -167,14 +169,16 @@ export function StoreView({ store }: { store: StoreDetail }) {
             </button>
           )}
         </label>
-        <button
-          type="submit"
-          disabled={query.trim().length < 2 || aiBusy}
-          className="inline-flex h-11 shrink-0 cursor-pointer items-center gap-1.5 px-4 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-50"
-          style={{ borderRadius: th.radius, background: th.accent, color: th.onAccent }}
-        >
-          <Sparkles className={aiBusy ? "size-4 animate-pulse" : "size-4"} /> <span className="hidden sm:inline">{tr("Ҷустуҷӯи AI")}</span>
-        </button>
+        {aiOn && (
+          <button
+            type="submit"
+            disabled={query.trim().length < 2 || aiBusy}
+            className="inline-flex h-11 shrink-0 cursor-pointer items-center gap-1.5 px-4 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-50"
+            style={{ borderRadius: th.radius, background: th.accent, color: th.onAccent }}
+          >
+            <Sparkles className={aiBusy ? "size-4 animate-pulse" : "size-4"} /> <span className="hidden sm:inline">{tr("Ҷустуҷӯи AI")}</span>
+          </button>
+        )}
       </form>
       {aiError && <div className="mt-2 text-sm text-brand">{aiError}</div>}
       {q && list.length === 0 && !aiBusy && (

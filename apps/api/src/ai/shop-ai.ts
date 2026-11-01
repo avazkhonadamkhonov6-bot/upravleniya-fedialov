@@ -3,6 +3,7 @@ import {
   BadRequestException,
   Body,
   Controller,
+  Get,
   HttpCode,
   Injectable,
   Logger,
@@ -131,6 +132,13 @@ export class ShopAiService {
 @Controller()
 export class ShopAiController {
   constructor(private readonly ai: ShopAiService) {}
+
+  /** GET /ai/status — сайт тугмаҳои AI-ро танҳо вақте нишон медиҳад, ки ANTHROPIC_API_KEY гузошта шуда бошад */
+  @Public()
+  @Get('ai/status')
+  status() {
+    return { enabled: !!process.env.ANTHROPIC_API_KEY };
+  }
 
   /** POST /ai/product-from-photo, бадан — худи акс (мисли PUT /products/:id/image) */
   @Post('ai/product-from-photo')
