@@ -66,6 +66,7 @@ export function toProduct(p: Product & { branchStocks?: { branchId: number; qty:
     category: p.category,
     emoji: p.emoji,
     unit: p.unit,
+    description: p.description,
     price,
     cost,
     profit: Math.round(profit * 100) / 100,

@@ -12,7 +12,7 @@ import {
   type Product,
   type User,
 } from "@filialhub/shared";
-import { ImagePlus, Trash2 } from "lucide-react";
+import { ImagePlus, Sparkles, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { api, ApiError } from "@/lib/api";
 import { compressImage, imageUrl } from "@/lib/image";
@@ -306,6 +306,7 @@ export function ProductForm({ product, onDone }: { product?: Product; onDone: ()
     category: product?.category ?? categories[0],
     emoji: product?.emoji ?? DEFAULT_PRODUCT_EMOJI[type ?? "OTHER"],
     unit: product?.unit ?? defaultUnit(type),
+    description: product?.description ?? "",
     price: product?.price ?? 0,
     cost: product?.cost ?? 0,
     barcode: product?.barcode ?? "",
@@ -321,6 +322,26 @@ export function ProductForm({ product, onDone }: { product?: Product; onDone: ()
   const [dropPhoto, setDropPhoto] = useState(false);
   const [photoError, setPhotoError] = useState<string | null>(null);
   const shownPhoto = photo?.url ?? (!dropPhoto && product?.imageId ? imageUrl(product.imageId) : null);
+  const [aiBusy, setAiBusy] = useState(false);
+
+  /** AI аз акс ном, категория, воҳид ва тавсифро пур мекунад — пеш аз сабт ҳамаро тағйир додан мумкин */
+  async function fillFromPhoto() {
+    if (!photo) return;
+    setAiBusy(true);
+    setPhotoError(null);
+    try {
+      const d = await api<{ name: string; category: string; unit: string; description: string }>("/ai/product-from-photo", {
+        method: "POST",
+        body: photo.blob,
+        headers: { "Content-Type": photo.blob.type },
+      });
+      setF((cur) => ({ ...cur, name: d.name || cur.name, category: d.category || cur.category, unit: d.unit || cur.unit, description: d.description || cur.description }));
+    } catch (e) {
+      setPhotoError(e instanceof Error ? e.message : tr("Хато"));
+    } finally {
+      setAiBusy(false);
+    }
+  }
 
   async function pickPhoto(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -343,7 +364,7 @@ export function ProductForm({ product, onDone }: { product?: Product; onDone: ()
   const save = (e: React.FormEvent) => {
     e.preventDefault();
     const stock = f.tracked ? { stock: Number(f.stock) || 0, lowStock: f.lowStock === "" ? null : Number(f.lowStock) } : { stock: null, lowStock: null };
-    const body = { name: f.name, category: f.category, emoji: f.emoji, unit: f.unit, price, cost, barcode: f.barcode.trim(), ...stock, ...(product ? { isActive: f.isActive } : {}) };
+    const body = { name: f.name, category: f.category, emoji: f.emoji, unit: f.unit, description: f.description.trim(), price, cost, barcode: f.barcode.trim(), ...stock, ...(product ? { isActive: f.isActive } : {}) };
     run(async () => {
       const saved = await (product ? api<Product>(`/products/${product.id}`, { method: "PATCH", json: body }) : api<Product>("/products", { method: "POST", json: body }));
       if (photo) await api(`/products/${saved.id}/image`, { method: "PUT", body: photo.blob, headers: { "Content-Type": photo.blob.type } });
@@ -425,6 +446,16 @@ export function ProductForm({ product, onDone }: { product?: Product; onDone: ()
               {shownPhoto ? tr("Иваз кардан") : tr("Интихоби акс")}
               <input type="file" accept="image/*" className="sr-only" onChange={pickPhoto} />
             </label>
+            {photo && (
+              <button
+                type="button"
+                onClick={fillFromPhoto}
+                disabled={aiBusy}
+                className="inline-flex h-9 cursor-pointer items-center gap-1.5 rounded-xl bg-brand-soft px-3 text-sm font-semibold text-brand hover:brightness-95 disabled:opacity-60"
+              >
+                <Sparkles className={aiBusy ? "size-4 animate-pulse" : "size-4"} /> {aiBusy ? tr("AI мехонад…") : tr("AI пур кунад")}
+              </button>
+            )}
             {shownPhoto && (
               <button type="button" onClick={() => { setPhoto(null); setDropPhoto(true); }} className="h-9 cursor-pointer rounded-xl px-3 text-sm font-semibold text-brand hover:bg-brand-soft">
                 {tr("Нест кардан")}
@@ -434,6 +465,15 @@ export function ProductForm({ product, onDone }: { product?: Product; onDone: ()
           {photoError && <div className="text-xs font-medium text-brand">{photoError}</div>}
         </div>
       </div>
+      <Field label={tr("Тавсиф")} hint={tr("Ихтиёрӣ. Мизоҷон дар мағозаи онлайн мебинанд.")}>
+        <textarea
+          value={f.description}
+          onChange={(e) => setF({ ...f, description: e.target.value })}
+          rows={2}
+          maxLength={500}
+          className="w-full resize-y rounded-[14px] border-[1.5px] border-line bg-surface px-4 py-3 text-[15px] text-ink outline-none transition placeholder:text-muted focus:border-brand focus:ring-4 focus:ring-brand-soft"
+        />
+      </Field>
       <Field label={tr("Штрих-код")} hint={tr("Ихтиёрӣ. Курсорро ба ин ҷо гузоред ва молро скан кунед.")}>
         {/* Сканер пас аз рақам Enter мезанад — формаро намефиристем */}
         <Input value={f.barcode} onChange={set("barcode")} onKeyDown={(e) => e.key === "Enter" && e.preventDefault()} maxLength={64} inputMode="numeric" autoComplete="off" />

@@ -1,7 +1,7 @@
 "use client";
 
 import { BUSINESS_TYPE_LABELS, isFractionalUnit, type StoreDetail } from "@filialhub/shared";
-import { ArrowLeft, CheckCircle2, MapPin, Minus, Phone, Plus, ShoppingCart, Star, UtensilsCrossed } from "lucide-react";
+import { ArrowLeft, CheckCircle2, MapPin, Minus, Phone, Plus, Search, ShoppingCart, Sparkles, Star, UtensilsCrossed, X } from "lucide-react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useEffect, useState, ViewTransition } from "react";
@@ -23,6 +23,11 @@ export function StoreView({ store }: { store: StoreDetail }) {
   const cart = useCart();
   const [category, setCategory] = useState("");
   const [picked, setPicked] = useState<number>();
+  // Ҷустуҷӯ: аввал аз рӯи ном/категория/тавсиф, баъд бо AI аз рӯи маъно («чизе барои зодрӯз»)
+  const [query, setQuery] = useState("");
+  const [aiIds, setAiIds] = useState<number[] | null>(null);
+  const [aiBusy, setAiBusy] = useState(false);
+  const [aiError, setAiError] = useState<string | null>(null);
   // QR дар миз: ?table=5&b=2 — фармоиш бе сабти ном, рост ба ошпаз
   const params = useSearchParams();
   const table = store.type === "RESTAURANT" ? params.get("table")?.slice(0, 10) || null : null;
@@ -41,7 +46,26 @@ export function StoreView({ store }: { store: StoreDetail }) {
 
   const th = storeTheme(store.type);
   const categories = [...new Set(store.catalog.map((p) => p.category))];
-  const list = store.catalog.filter((p) => !category || p.category === category);
+  const q = query.trim().toLowerCase();
+  const list = aiIds
+    ? aiIds.flatMap((id) => store.catalog.filter((p) => p.id === id))
+    : store.catalog.filter(
+        (p) => (!category || p.category === category) && (!q || `${p.name} ${p.category} ${p.description}`.toLowerCase().includes(q)),
+      );
+  async function smartSearch() {
+    if (query.trim().length < 2 || aiBusy) return;
+    setAiBusy(true);
+    setAiError(null);
+    try {
+      const { ids } = await api<{ ids: number[] }>(`/shop/stores/${store.id}/smart-search`, { method: "POST", json: { q: query.trim() } });
+      setAiIds(ids);
+      setCategory("");
+    } catch (e) {
+      setAiError(e instanceof Error ? e.message : tr("Хато"));
+    } finally {
+      setAiBusy(false);
+    }
+  }
   const mine = cart.stores.find((s) => s.storeId === store.id);
   const total = mine?.lines.reduce((s, l) => s + l.price * l.qty, 0) ?? 0;
   const meta = { storeId: store.id, storeName: store.name, type: store.type, branchId: (table && store.branchList.some((b) => b.id === tableBranch) ? tableBranch : undefined) ?? mine?.branchId ?? picked ?? store.branchList[0]?.id };
@@ -118,13 +142,57 @@ export function StoreView({ store }: { store: StoreDetail }) {
         </div>
       )}
 
-      <div className="scrollbar-none sticky top-16 z-20 -mx-4 mt-5 flex gap-2 overflow-x-auto bg-bg/90 px-4 py-2 backdrop-blur">
+      <form
+        className="mt-5 flex gap-2"
+        onSubmit={(e) => {
+          e.preventDefault();
+          void smartSearch();
+        }}
+      >
+        <label className="flex h-11 min-w-0 flex-1 items-center gap-2 border border-line bg-surface px-3 focus-within:border-[var(--store-accent)]" style={{ borderRadius: th.radius }}>
+          <Search className="size-4 shrink-0 text-muted" />
+          <input
+            value={query}
+            onChange={(e) => {
+              setQuery(e.target.value);
+              setAiIds(null);
+            }}
+            maxLength={200}
+            placeholder={tr("Ҷустуҷӯ: ном ё «чизе барои зодрӯз»")}
+            className="min-w-0 flex-1 bg-transparent text-[15px] text-ink outline-none placeholder:text-muted focus-visible:outline-none"
+          />
+          {query && (
+            <button type="button" onClick={() => { setQuery(""); setAiIds(null); }} className="cursor-pointer text-muted hover:text-ink" aria-label={tr("Тоза кардан")}>
+              <X className="size-4" />
+            </button>
+          )}
+        </label>
+        <button
+          type="submit"
+          disabled={query.trim().length < 2 || aiBusy}
+          className="inline-flex h-11 shrink-0 cursor-pointer items-center gap-1.5 px-4 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-50"
+          style={{ borderRadius: th.radius, background: th.accent, color: th.onAccent }}
+        >
+          <Sparkles className={aiBusy ? "size-4 animate-pulse" : "size-4"} /> <span className="hidden sm:inline">{tr("Ҷустуҷӯи AI")}</span>
+        </button>
+      </form>
+      {aiError && <div className="mt-2 text-sm text-brand">{aiError}</div>}
+      {q && list.length === 0 && !aiBusy && (
+        <div className="mt-4 text-center text-sm text-muted">
+          {aiIds ? tr("Мувофиқ чизе ёфт нашуд") : tr("Аз рӯи ном ёфт нашуд — «Ҷустуҷӯи AI»-ро пахш кунед, он аз рӯи маъно меҷӯяд")}
+        </div>
+      )}
+
+      <div className="scrollbar-none sticky top-16 z-20 -mx-4 mt-3 flex gap-2 overflow-x-auto bg-bg/90 px-4 py-2 backdrop-blur">
         {["", ...categories].map((c) => {
-          const on = category === c;
+          const on = category === c && !aiIds;
           return (
             <button
               key={c || "all"}
-              onClick={() => setCategory(c)}
+              onClick={() => {
+                setCategory(c);
+                setAiIds(null);
+              }}
               className="shrink-0 cursor-pointer border px-4 py-1.5 text-sm font-semibold whitespace-nowrap transition"
               style={{ borderRadius: th.radius, background: on ? th.accent : "var(--surface)", color: on ? th.onAccent : "var(--ink-2)", borderColor: on ? th.accent : "var(--line)" }}
             >
@@ -155,6 +223,7 @@ export function StoreView({ store }: { store: StoreDetail }) {
                 )}
               </div>
               <div className="mt-3 line-clamp-2 min-h-10 text-sm font-semibold text-ink">{p.name}</div>
+              {p.description && <div className="mt-0.5 line-clamp-2 text-xs text-muted">{p.description}</div>}
               <div className="mt-1 text-base font-bold tabular" style={{ color: th.accent }}>
                 {money(p.price)} <span className="text-xs font-medium text-muted">/ {tr(p.unit)}</span>
               </div>

@@ -254,6 +254,7 @@ export class ShopService {
         category: p.category,
         emoji: p.emoji,
         unit: p.unit,
+        description: p.description,
         price: Number(p.price),
         imageId: p.imageId,
         soldOut: p.stock !== null && Number(p.stock) <= 0,

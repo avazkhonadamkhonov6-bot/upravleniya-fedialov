@@ -8,6 +8,7 @@ import { localDay, startOfLocalDay } from '../common/time';
 import { AlertsService } from '../core/alerts.service';
 import { AuditService } from '../core/audit.service';
 import { Prisma } from '../generated/prisma/client';
+import { AiInsightsService } from '../notifications/ai-insights.service';
 import { PrismaService } from '../prisma/prisma.service';
 
 export class CloseCashDto {
@@ -45,6 +46,7 @@ export class CashService {
     private readonly prisma: PrismaService,
     private readonly alerts: AlertsService,
     private readonly audit: AuditService,
+    private readonly ai: AiInsightsService,
   ) {}
 
   async report(user: AuthUser, q: { date?: string; branchId?: number }): Promise<ZReport> {
@@ -150,6 +152,10 @@ export class CashService {
       body: `Нақд: интизор ${formatMoney(me.expectedCash)}, ҳисоб ${formatMoney(counted)} · корт ${formatMoney(me.cardSales + me.debtPaidCard)} · қарз ${formatMoney(me.debtSales)}${dto.note?.trim() ? ` · ${dto.note.trim()}` : ''}`,
       link: '/sales',
     });
+    // Санҷиши шубҳанок дар замина — кассир интизор намешавад
+    void this.ai
+      .auditCashClosing({ organizationId: user.organizationId, userId: user.id, fullName: user.fullName, day: from, today: { ...me, diff, note: data.note } })
+      .then((text) => text ? this.tellBoss(user, { icon: '🕵️', title: `Санҷиши касса: ${user.fullName}`, body: text, link: '/sales' }) : undefined);
     return (await this.report({ ...user, role: 'STAFF' }, {})).rows.find((r) => r.userId === user.id)!;
   }
 

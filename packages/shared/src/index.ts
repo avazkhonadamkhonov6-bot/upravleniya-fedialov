@@ -210,6 +210,8 @@ export const FEATURES = [
   'online',
   /** Дафтари қарз: кӣ чанд қарздор аст, пардохт ва ёдрас */
   'debts',
+  /** Ёрдамчии AI: саволҳо дар бораи фурӯш, кормандон, қарз ва анбор (шеф ва менеҷер) */
+  'assistant',
   /** Панели супер-админ: тасдиқи бизнесҳо, ҳамаи филиалҳо ва кормандон */
   'admin',
 ] as const;
@@ -269,6 +271,7 @@ export function featureOfPath(pathname: string): Feature | null {
     profile: 'profile',
     online: 'online',
     debts: 'debts',
+    assistant: 'assistant',
     promos: 'customers',
     payroll: 'staff',
     admin: 'admin',
@@ -382,6 +385,8 @@ export interface Product {
   emoji: string;
   /** Воҳиди ченак: дона, кг, литр, метр… */
   unit: string;
+  /** Тавсифи кӯтоҳ барои мағозаи онлайн */
+  description: string;
   price: number;
   cost: number;
   profit: number;
@@ -1164,7 +1169,7 @@ export interface StoreDetail extends StoreSummary {
   branchList: Pick<Branch, 'id' | 'name' | 'city' | 'address' | 'phone'>[];
   /** Охирин шарҳҳо */
   reviews: StoreReview[];
-  catalog: (Pick<Product, 'id' | 'name' | 'category' | 'emoji' | 'unit' | 'price' | 'imageId'> & { soldOut: boolean })[];
+  catalog: (Pick<Product, 'id' | 'name' | 'category' | 'emoji' | 'unit' | 'description' | 'price' | 'imageId'> & { soldOut: boolean })[];
 }
 
 export interface OnlineOrderItem {

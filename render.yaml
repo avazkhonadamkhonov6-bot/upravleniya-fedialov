@@ -41,6 +41,9 @@ services:
         value: Asia/Dushanbe
       - key: DAILY_REPORT_CRON
         value: "0 0 22 * * *"
+      # Claude API: хулосаи AI дар ҳисобот, ёрдамчии чат, санҷиши касса, AI дар мағоза. Холӣ — AI хомӯш
+      - key: ANTHROPIC_API_KEY
+        sync: false
       - key: TELEGRAM_BOT_TOKEN
         sync: false
       # WhatsApp бе Facebook: Green-API (idInstance, apiTokenInstance, apiUrl аз console.green-api.com)

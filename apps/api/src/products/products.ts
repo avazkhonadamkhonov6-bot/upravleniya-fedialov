@@ -52,6 +52,9 @@ export class CreateProductDto {
   @Type(() => Number) @IsNumber() @Min(0, { message: 'Арзиши аслӣ манфӣ буда наметавонад' })
   cost: number;
 
+  @IsOptional() @IsString() @MaxLength(500)
+  description?: string;
+
   @IsOptional() @IsString() @MaxLength(64)
   barcode?: string;
 
@@ -81,6 +84,9 @@ export class UpdateProductDto {
 
   @IsOptional() @Type(() => Number) @IsNumber() @Min(0)
   cost?: number;
+
+  @IsOptional() @IsString() @MaxLength(500)
+  description?: string;
 
   @IsOptional() @IsString() @MaxLength(64)
   barcode?: string;

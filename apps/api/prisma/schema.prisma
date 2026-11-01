@@ -185,6 +185,8 @@ model Product {
   name           String
   category       String
   emoji          String            @default("📦")
+  /// Тавсифи кӯтоҳ барои мизоҷон дар мағозаи онлайн (AI аз акс навишта метавонад)
+  description    String            @default("")
   /// Воҳиди ченак: дона, кг, литр, метр…
   unit           String            @default("дона")
   price          Decimal           @db.Decimal(10, 2)

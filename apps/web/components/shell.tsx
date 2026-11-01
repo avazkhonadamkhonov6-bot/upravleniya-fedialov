@@ -32,6 +32,7 @@ import {
   Search,
   ShieldCheck,
   ShoppingBag,
+  Sparkles,
   Sun,
   UserRound,
   Users,
@@ -81,6 +82,7 @@ const NAV: { title: string; items: NavItem[] }[] = [
     title: "Асосӣ",
     items: [
       { href: "/dashboard", label: "Панели асосӣ", short: "Панел", icon: LayoutDashboard, feature: "dashboard", primary: true },
+      { href: "/assistant", label: "Ёрдамчии AI", short: "AI", icon: Sparkles, feature: "assistant" },
       { href: "/branches", label: "Филиалҳо", short: "Филиалҳо", icon: Building2, feature: "branches", only: (u) => u.role === "CHEF" },
       { href: "/branches/view", label: "Филиали ман", short: "Филиал", icon: Building2, feature: "branches", only: (u) => u.role === "MANAGER" },
       { href: "/staff", label: "Кормандон", short: "Кормандон", icon: Users, feature: "staff" },
