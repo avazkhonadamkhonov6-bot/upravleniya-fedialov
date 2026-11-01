@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from "react";
 import { Button, Card, cn, ErrorBox, PageHeader } from "@/components/ui";
 import { api } from "@/lib/api";
 import { tr } from "@/lib/i18n";
+import { useAiEnabled } from "@/lib/use-ai";
 
 type Turn = { role: "user" | "assistant"; content: string };
 
@@ -12,7 +13,9 @@ type Turn = { role: "user" | "assistant"; content: string };
 const KEEP = 20;
 
 const SAMPLES = [
+  "Фурӯши имрӯз чанд аст?",
   "Ин ҳафта кадом филиал беҳтар фурӯхт?",
+  "Молҳои беҳтарини ин моҳ",
   "Кӣ имрӯз дер омад?",
   "Кадом мизоҷон қарзашонро сари вақт надоданд?",
   "Кадом мол ба зудӣ тамом мешавад?",
@@ -25,6 +28,8 @@ export default function AssistantPage() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const bottom = useRef<HTMLDivElement>(null);
+  // Бе калиди Claude сервер ёрдамчии ройгонро (аз рӯи калимаҳо) истифода мебарад
+  const aiOn = useAiEnabled();
 
   useEffect(() => {
     bottom.current?.scrollIntoView({ behavior: "smooth", block: "end" });
@@ -56,8 +61,12 @@ export default function AssistantPage() {
   return (
     <>
       <PageHeader
-        title={tr("Ёрдамчии AI")}
-        subtitle={tr("Дар бораи фурӯш, кормандон, қарз, анбор ва касса бо забони одӣ пурсед")}
+        title={aiOn ? tr("Ёрдамчии AI") : tr("Ёрдамчӣ")}
+        subtitle={
+          aiOn
+            ? tr("Дар бораи фурӯш, кормандон, қарз, анбор ва касса бо забони одӣ пурсед")
+            : tr("Тугмаро пахш кунед ё кӯтоҳ пурсед: фурӯш, филиалҳо, мол, дермондагон, қарз, анбор, касса")
+        }
         actions={
           turns.length > 0 && (
             <Button variant="outline" size="sm" onClick={() => setTurns([])}>

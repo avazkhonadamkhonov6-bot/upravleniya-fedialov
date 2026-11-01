@@ -1,12 +1,13 @@
 import Anthropic from '@anthropic-ai/sdk';
-import { BadRequestException, Body, Controller, Injectable, Logger, Module, Post, ServiceUnavailableException } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Injectable, Logger, Module, Post } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
 import { Type } from 'class-transformer';
 import { ArrayMaxSize, ArrayMinSize, IsIn, IsString, MaxLength, MinLength, ValidateNested } from 'class-validator';
-import type { Period } from '@filialhub/shared';
+import type { BranchRank, Period, PeriodStats, ProductRank } from '@filialhub/shared';
 import { AuthUser, CurrentUser, Feature, Roles } from '../auth/decorators';
 import { branchIdList } from '../common/access';
 import { localDay, periodStart, startOfLocalDay } from '../common/time';
+import { branchesReply, cashReply, debtsReply, helpReply, lateReply, parseQuestion, productsReply, salesReply, stockReply } from './simple-assistant';
 import { AiInsightsService } from '../notifications/ai-insights.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { StatsModule } from '../stats/stats.module';
@@ -67,11 +68,49 @@ export class AssistantService {
     private readonly insights: AiInsightsService,
   ) {}
 
-  async chat(user: AuthUser, history: ChatTurnDto[]): Promise<{ reply: string }> {
-    if (!this.client) throw new ServiceUnavailableException('Ёрдамчии AI дар сервер фаъол нест (ANTHROPIC_API_KEY)');
+  async chat(user: AuthUser, history: ChatTurnDto[]): Promise<{ reply: string; ai: boolean }> {
     if (history[0].role !== 'user' || history[history.length - 1].role !== 'user') throw new BadRequestException('Паём бояд аз корбар бошад');
-
     const branches = await this.prisma.branch.findMany({ where: { id: { in: branchIdList(user) } }, select: { id: true, name: true } });
+    // Бе калиди Claude — ёрдамчии ройгон аз рӯи калимаҳо (бо ҳамон асбобҳо ва ҳуқуқҳо)
+    if (!this.client) return { reply: await this.simple(user, history[history.length - 1].content, branches), ai: false };
+    return { reply: await this.claude(user, history, branches), ai: true };
+  }
+
+  private async simple(user: AuthUser, question: string, branches: { id: number; name: string }[]): Promise<string> {
+    const q = parseQuestion(question, branches);
+    // Менеҷер як филиал дорад — ҷавоб номи ҳамонро нишон медиҳад, на «ҳамаи филиалҳо»
+    const branchName = q.branchId !== null ? (branches.find((b) => b.id === q.branchId)?.name ?? null) : branches.length === 1 ? branches[0].name : null;
+    const period: Period = q.when === 'yesterday' ? 'day' : q.when;
+    const date = q.when === 'yesterday' ? localDay(startOfLocalDay(new Date(), -1)) : null;
+    const input = { period, branch_id: q.branchId, date, overdue_only: q.overdueOnly };
+    switch (q.intent) {
+      case 'sales': {
+        // «Дирӯз» — асбоби sales_stats танҳо давраҳои ҷорӣ дорад, пас рост аз StatsService
+        if (q.when === 'yesterday') {
+          const ids = branchIdList(user, q.branchId ?? undefined);
+          const stats = await this.stats.periodStats({ in: ids }, startOfLocalDay(new Date(), -1), startOfLocalDay());
+          return salesReply(stats, q.when, branchName, q.lang);
+        }
+        return salesReply((await this.run(user, 'sales_stats', input)) as PeriodStats, q.when, branchName, q.lang);
+      }
+      case 'branches':
+        return branchesReply((await this.run(user, 'branch_ranking', input)) as BranchRank[], q.when === 'yesterday' ? 'day' : q.when, q.lang);
+      case 'products':
+        return productsReply((await this.run(user, 'top_products', input)) as ProductRank[], q.when === 'yesterday' ? 'day' : q.when, q.lang);
+      case 'late':
+        return lateReply((await this.run(user, 'late_staff', input)) as Parameters<typeof lateReply>[0], q.when, q.lang);
+      case 'debts':
+        return debtsReply((await this.run(user, 'debtors', input)) as Parameters<typeof debtsReply>[0], q.overdueOnly, q.lang);
+      case 'stock':
+        return stockReply((await this.run(user, 'stock_forecast', input)) as Parameters<typeof stockReply>[0], q.lang);
+      case 'cash':
+        return cashReply((await this.run(user, 'cash_closings', input)) as Parameters<typeof cashReply>[0], q.when, q.lang);
+      default:
+        return helpReply(q.lang);
+    }
+  }
+
+  private async claude(user: AuthUser, history: ChatTurnDto[], branches: { id: number; name: string }[]): Promise<string> {
     const system = `Ту ёрдамчии AI-и FilialHub барои ${user.role === 'CHEF' ? 'соҳиби бизнес' : 'менеҷери филиал'} ҳастӣ (${user.fullName}).
 Ба саволҳо дар бораи фурӯш, филиалҳо, кормандон, қарзҳо, анбор ва касса бо асбобҳо ҷавоб деҳ.
 - Бо ҳамон забоне ҷавоб деҳ, ки корбар навишт (тоҷикӣ ё русӣ). Кӯтоҳ ва аниқ: 1–6 сатр.
@@ -82,7 +121,7 @@ export class AssistantService {
 
     const messages: Anthropic.Beta.BetaMessageParam[] = history.map((m) => ({ role: m.role, content: m.content }));
     for (let step = 0; step < MAX_STEPS; step++) {
-      const response = await this.client.beta.messages.create({
+      const response = await this.client!.beta.messages.create({
         model: this.model,
         max_tokens: 8000,
         betas: ['server-side-fallback-2026-07-01'],
@@ -92,10 +131,10 @@ export class AssistantService {
         tools: TOOLS,
         messages,
       });
-      if (response.stop_reason === 'refusal') return { reply: 'Бубахшед, ба ин савол ҷавоб дода наметавонам.' };
+      if (response.stop_reason === 'refusal') return 'Бубахшед, ба ин савол ҷавоб дода наметавонам.';
       if (response.stop_reason !== 'tool_use') {
         const reply = response.content.flatMap((b) => (b.type === 'text' ? [b.text] : [])).join('').trim();
-        return { reply: reply || 'Ҷавоб холӣ омад — саволро дигар хел нависед.' };
+        return reply || 'Ҷавоб холӣ омад — саволро дигар хел нависед.';
       }
       // Ҳамаи блокҳо (thinking ҳам) бетағйир бармегарданд — талаби API барои давом
       messages.push({ role: 'assistant', content: response.content });
@@ -113,7 +152,7 @@ export class AssistantService {
       messages.push({ role: 'user', content: results });
     }
     this.logger.warn(`Ҳадди ${MAX_STEPS} қадам барои корбари ${user.id}`);
-    return { reply: 'Савол хеле мураккаб шуд — лутфан онро соддатар ё қисм-қисм пурсед.' };
+    return 'Савол хеле мураккаб шуд — лутфан онро соддатар ё қисм-қисм пурсед.';
   }
 
   /** Иҷрои як асбоб — ҳама бо ҳуқуқҳои корбар (branchIdList ҳангоми филиали бегона хато медиҳад) */
