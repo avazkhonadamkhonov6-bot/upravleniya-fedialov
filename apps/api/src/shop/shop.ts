@@ -31,6 +31,7 @@ import {
   type OnlineOrderStatus,
   type Payment,
   type StoreDetail,
+  type StoreStock,
   type StoreSummary,
   type StoreVisits,
   type ClientDebts,
@@ -170,6 +171,15 @@ function toOnline(o: OrderRow): OnlineOrder {
 
 const r2 = (n: number) => Math.round(n * 100) / 100;
 
+/** { branchId: миқдор } танҳо барои филиалҳои фаъол; манфӣ → 0; null — мол ҳисоб карда намешавад */
+function stockByBranch(p: { stock: Prisma.Decimal | null; branchStocks: { branchId: number; qty: Prisma.Decimal }[] }, branchIds: Set<number>) {
+  if (p.stock === null) return null;
+  const out: Record<number, number> = {};
+  for (const id of branchIds) out[id] = 0;
+  for (const s of p.branchStocks) if (branchIds.has(s.branchId)) out[s.branchId] = Math.max(0, Number(s.qty));
+  return out;
+}
+
 @Injectable()
 export class ShopService {
   constructor(
@@ -228,10 +238,11 @@ export class ShopService {
       where: { id, isPublic: true, status: 'APPROVED' },
       include: {
         branches: { where: { isActive: true }, orderBy: { id: 'asc' } },
-        products: { where: { isActive: true }, orderBy: [{ category: 'asc' }, { name: 'asc' }] },
+        products: { where: { isActive: true }, orderBy: [{ category: 'asc' }, { name: 'asc' }], include: { branchStocks: true } },
       },
     });
     if (!o || !o.branches.length) throw new NotFoundException('Мағоза ёфт нашуд');
+    const branchIds = new Set(o.branches.map((b) => b.id));
     const [rating, reviews] = await Promise.all([
       this.ratings([o.id]),
       this.prisma.review.findMany({ where: { organizationId: o.id }, orderBy: { id: 'desc' }, take: 10, include: { client: { select: { fullName: true } } } }),
@@ -259,8 +270,23 @@ export class ShopService {
         price: Number(p.price),
         imageId: p.imageId,
         soldOut: p.stock !== null && Number(p.stock) <= 0,
+        stock: stockByBranch(p, branchIds),
       })),
     };
+  }
+
+  /** Боқимондаи зинда (бе кеш): саҳифаи мағоза онро ҳар чанд сония мехонад — пас аз фурӯш рақам фавран кам мешавад */
+  async storeStock(id: number): Promise<StoreStock> {
+    const o = await this.prisma.organization.findFirst({
+      where: { id, isPublic: true, status: 'APPROVED' },
+      select: {
+        branches: { where: { isActive: true }, select: { id: true } },
+        products: { where: { isActive: true }, select: { id: true, stock: true, branchStocks: true } },
+      },
+    });
+    if (!o) throw new NotFoundException('Мағоза ёфт нашуд');
+    const branchIds = new Set(o.branches.map((b) => b.id));
+    return Object.fromEntries(o.products.map((p) => [p.id, stockByBranch(p, branchIds)]));
   }
 
   async me(client: AuthClient) {
@@ -286,10 +312,19 @@ export class ShopService {
     if (!branch) throw new BadRequestException('Филиал ёфт нашуд');
 
     const ids = [...new Set(dto.items.map((i) => i.productId))];
-    const products = await this.prisma.product.findMany({ where: { id: { in: ids }, organizationId: store.id, isActive: true } });
+    const products = await this.prisma.product.findMany({
+      where: { id: { in: ids }, organizationId: store.id, isActive: true },
+      include: { branchStocks: { where: { branchId: branch.id } } },
+    });
     if (products.length !== ids.length) throw new BadRequestException('Баъзе маҳсулот дигар фурӯхта намешаванд — сабадро нав кунед');
-    const out = products.find((p) => p.stock !== null && Number(p.stock) <= 0);
-    if (out) throw new BadRequestException(`«${out.name}» тамом шудааст — онро аз сабад гиред`);
+    // Миқдор аз боқимондаи ҳамон филиал зиёд буда наметавонад (мол аз ҳамин анбор мебарояд)
+    for (const p of products) {
+      if (p.stock === null) continue;
+      const have = Math.max(0, Number(p.branchStocks[0]?.qty ?? 0));
+      const want = dto.items.filter((i) => i.productId === p.id).reduce((s, i) => s + i.qty, 0);
+      if (have <= 0) throw new BadRequestException(`«${p.name}» тамом шудааст — онро аз сабад гиред`);
+      if (want > have) throw new BadRequestException(`«${p.name}»: дар анбор танҳо ${have} ${p.unit} ҳаст`);
+    }
 
     // Нарх аз база, на аз браузер
     const items = dto.items.map((i) => {
@@ -551,6 +586,13 @@ export class ShopController {
   @Get('telegram-bot')
   telegramBot() {
     return { bot: this.customerBot.botUsername };
+  }
+
+  @Public()
+  @Get('stores/:id/stock')
+  @Header('Cache-Control', 'no-store')
+  stock(@Param('id', ParseIntPipe) id: number) {
+    return this.shop.storeStock(id);
   }
 
   /** Санҷиши коди тахфиф дар сабад (бе истифода) */

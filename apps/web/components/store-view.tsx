@@ -1,6 +1,6 @@
 "use client";
 
-import { BUSINESS_TYPE_LABELS, isFractionalUnit, type StoreDetail } from "@filialhub/shared";
+import { BUSINESS_TYPE_LABELS, isFractionalUnit, type StoreDetail, type StoreStock } from "@filialhub/shared";
 import { ArrowLeft, CheckCircle2, MapPin, Minus, Phone, Plus, Search, ShoppingCart, Sparkles, Star, UtensilsCrossed, X } from "lucide-react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
@@ -68,6 +68,26 @@ export function StoreView({ store }: { store: StoreDetail }) {
       setAiBusy(false);
     }
   }
+  // Боқимондаи зинда: HTML кеш мешавад, рақамҳо ҳар 15 сония ва ҳангоми бозгашт ба саҳифа аз API нав мешаванд
+  const [stock, setStock] = useState<StoreStock>(() => Object.fromEntries(store.catalog.map((p) => [p.id, p.stock])));
+  useEffect(() => {
+    let alive = true;
+    const load = () => {
+      if (document.visibilityState !== "visible") return;
+      api<StoreStock>(`/shop/stores/${store.id}/stock`)
+        .then((s) => alive && setStock(s))
+        .catch(() => {});
+    };
+    load();
+    const t = setInterval(load, 15_000);
+    document.addEventListener("visibilitychange", load);
+    return () => {
+      alive = false;
+      clearInterval(t);
+      document.removeEventListener("visibilitychange", load);
+    };
+  }, [store.id]);
+
   const mine = cart.stores.find((s) => s.storeId === store.id);
   const total = mine?.lines.reduce((s, l) => s + l.price * l.qty, 0) ?? 0;
   const meta = { storeId: store.id, storeName: store.name, type: store.type, branchId: (table && store.branchList.some((b) => b.id === tableBranch) ? tableBranch : undefined) ?? mine?.branchId ?? picked ?? store.branchList[0]?.id };
@@ -210,6 +230,11 @@ export function StoreView({ store }: { store: StoreDetail }) {
         {list.map((p) => {
           const qty = cart.qtyOf(store.id, p.id);
           const line = { productId: p.id, name: p.name, emoji: p.emoji, unit: p.unit, price: p.price };
+          // Боқимонда дар филиали интихобшуда; undefined — мол ҳисоб карда намешавад
+          const byBranch = stock[p.id];
+          const left = byBranch ? (meta.branchId ? (byBranch[meta.branchId] ?? 0) : 0) : undefined;
+          const soldOut = left !== undefined && left <= 0;
+          const full = left !== undefined && qty + step(p.unit) > left;
           return (
             <div key={p.id} data-tilt="7" className="group flex flex-col border border-line bg-surface p-3 shadow-card hover:shadow-xl sm:p-4" style={{ borderRadius: th.radius }}>
               <div className="relative grid aspect-[4/3] place-items-center overflow-hidden text-5xl sm:text-6xl" style={{ background: th.soft, borderRadius: `calc(${th.radius} * 0.75)` }}>
@@ -222,8 +247,13 @@ export function StoreView({ store }: { store: StoreDetail }) {
                     <ProductIcon value={p.emoji} type={store.type} className="size-12 sm:size-14" />
                   </span>
                 )}
-                {p.soldOut && (
+                {soldOut && (
                   <span className="absolute inset-x-0 bottom-0 bg-black/60 py-1 text-center text-xs font-bold text-white">{tr("Тамом шуд|мол")}</span>
+                )}
+                {!soldOut && left !== undefined && (
+                  <span className="absolute top-2 left-2 rounded-full bg-black/60 px-2 py-0.5 text-xs font-bold text-white tabular backdrop-blur">
+                    {tr("Дар анбор: {0}", `${left} ${tr(p.unit)}`)}
+                  </span>
                 )}
               </div>
               <div className="mt-3 line-clamp-2 min-h-10 text-sm font-semibold text-ink">{p.name}</div>
@@ -232,7 +262,7 @@ export function StoreView({ store }: { store: StoreDetail }) {
                 {money(p.price)} <span className="text-xs font-medium text-muted">/ {tr(p.unit)}</span>
               </div>
               <div className="mt-auto pt-3">
-                {p.soldOut && qty === 0 ? (
+                {soldOut && qty === 0 ? (
                   <div className="flex h-10 items-center justify-center text-sm font-semibold text-muted" style={{ background: "var(--surface-2)", borderRadius: `calc(${th.radius} * 0.6)` }}>
                     {tr("Дар анбор нест")}
                   </div>
@@ -260,7 +290,9 @@ export function StoreView({ store }: { store: StoreDetail }) {
                         flyToCart(e.currentTarget, p.emoji);
                         cart.add(meta, line, step(p.unit));
                       }}
-                      className="grid size-8 cursor-pointer place-items-center"
+                      disabled={full}
+                      title={full ? tr("Ҳамааш дар сабад") : undefined}
+                      className="grid size-8 cursor-pointer place-items-center disabled:cursor-not-allowed disabled:opacity-30"
                       style={{ color: th.accent }}
                       aria-label={tr("Зиёд")}
                     >

@@ -247,14 +247,25 @@ export class ProductsService {
   async moves(user: AuthUser, id: number, branchId?: number): Promise<StockMoveDto[]> {
     if (user.role === 'STAFF' && user.position !== 'STOREKEEPER') throw new ForbiddenException('Танҳо шеф, менеҷер ё анбордор');
     await this.ensure(user, id);
+    return this.history(user, { productId: id }, branchId, 100);
+  }
+
+  /** Таърихи умумии анбор (саҳифаи «Анбор»): охирин тағйирҳои ҳамаи мол */
+  async allMoves(user: AuthUser, branchId?: number): Promise<StockMoveDto[]> {
+    if (user.role === 'STAFF' && user.position !== 'STOREKEEPER') throw new ForbiddenException('Танҳо шеф, менеҷер ё анбордор');
+    return this.history(user, { organizationId: user.organizationId }, branchId, 60);
+  }
+
+  private async history(user: AuthUser, where: Prisma.StockMoveWhereInput, branchId: number | undefined, take: number): Promise<StockMoveDto[]> {
     const b = scopeBranch(user, branchId);
     const rows = await this.prisma.stockMove.findMany({
-      where: { productId: id, branchId: b ?? { in: user.branchIds } },
-      include: { user: { select: { fullName: true } }, branch: { select: { name: true } } },
+      where: { ...where, organizationId: user.organizationId, branchId: b ?? { in: user.branchIds } },
+      include: { user: { select: { fullName: true } }, branch: { select: { name: true } }, product: { select: { id: true, name: true, emoji: true, unit: true } } },
       orderBy: { id: 'desc' },
-      take: 100,
+      take,
     });
     return rows.map((m) => ({
+      product: m.product,
       id: m.id,
       branchName: m.branch.name,
       qty: Number(m.qty),
@@ -378,6 +389,12 @@ export class ProductsController {
   @Get('suppliers')
   suppliers(@CurrentUser() user: AuthUser) {
     return this.products.suppliers(user);
+  }
+
+  /** Таърихи умумии анбор */
+  @Get('moves')
+  allMoves(@CurrentUser() user: AuthUser, @Query('branchId') branchId?: string) {
+    return this.products.allMoves(user, Number(branchId) || undefined);
   }
 
   @Get(':id/moves')

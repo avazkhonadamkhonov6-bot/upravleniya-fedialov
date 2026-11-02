@@ -247,7 +247,8 @@ export function homePath(u: Who): string {
   if (u.isSuperAdmin) return '/admin';
   if (u.role !== 'STAFF') return '/dashboard';
   if (u.position === 'CASHIER' || u.position === 'SELLER') return '/pos';
-  if (u.position === 'WAITER' || u.position === 'STOREKEEPER') return '/products';
+  if (u.position === 'STOREKEEPER') return '/warehouse';
+  if (u.position === 'WAITER') return '/products';
   return '/profile';
 }
 
@@ -265,6 +266,7 @@ export function featureOfPath(pathname: string): Feature | null {
     pos: 'pos',
     sales: 'sales',
     products: 'products',
+    warehouse: 'products',
     expenses: 'expenses',
     integrations: 'integrations',
     audit: 'audit',
@@ -791,6 +793,8 @@ export interface StockMove {
   note: string;
   userName: string | null;
   createdAt: string;
+  /** Дар таърихи умумии анбор (на таърихи як мол) */
+  product?: { id: number; name: string; emoji: string; unit: string };
 }
 
 /** Z-ҳисобот: фурӯш ва пули як кассир дар як рӯз */
@@ -1169,8 +1173,15 @@ export interface StoreDetail extends StoreSummary {
   branchList: Pick<Branch, 'id' | 'name' | 'city' | 'address' | 'phone'>[];
   /** Охирин шарҳҳо */
   reviews: StoreReview[];
-  catalog: (Pick<Product, 'id' | 'name' | 'category' | 'emoji' | 'unit' | 'description' | 'price' | 'imageId'> & { soldOut: boolean })[];
+  catalog: (Pick<Product, 'id' | 'name' | 'category' | 'emoji' | 'unit' | 'description' | 'price' | 'imageId'> & {
+    soldOut: boolean;
+    /** Боқимонда дар анбори ҳар филиал: { branchId: миқдор }; null — мол ҳисоб карда намешавад */
+    stock: StoreStock[number];
+  })[];
 }
+
+/** Боқимондаи зиндаи мағоза: { productId: { branchId: миқдор } | null } */
+export type StoreStock = Record<number, Record<number, number> | null>;
 
 export interface OnlineOrderItem {
   productId: number | null;
