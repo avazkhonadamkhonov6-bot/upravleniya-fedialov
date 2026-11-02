@@ -38,13 +38,12 @@ import {
 } from '@filialhub/shared';
 import { AdminService } from '../admin/admin';
 import { AllowPending, AuthUser, CurrentUser, Feature, Roles, SuperAdmin } from '../auth/decorators';
+import { DEMO_EMAILS } from '../auth/demo-guard';
 import { TZ } from '../common/time';
 import type { Organization, PlanPayment, User } from '../generated/prisma/client';
 import { escape, NotificationsService } from '../notifications/notifications.service';
 import { PrismaService } from '../prisma/prisma.service';
 
-/** Ҳисоби демо (seed): ҳамеша бемаҳдуд, то ба мизоҷон нишон дода шавад */
-export const DEMO_EMAIL = 'chef@filialhub.tj';
 const CARD_KEY = 'billing.card';
 const DAY = 86_400_000;
 
@@ -107,6 +106,7 @@ export class BillingService implements OnApplicationBootstrap {
   private readonly logger = new Logger('Billing');
   /** orgId → кормандоне, ки аз ҳадди тариф берун мондаанд (кеш 60 сония, то ҳар дархост базаро напурсад) */
   private readonly lockCache = new Map<number, { at: number; locked: Set<number> }>();
+  private demoOrgs: { at: number; ids: Set<number> } | null = null;
 
   constructor(
     private readonly prisma: PrismaService,
@@ -174,6 +174,15 @@ export class BillingService implements OnApplicationBootstrap {
     if (this.lockCache.size > 5000) this.lockCache.clear();
     this.lockCache.set(user.organizationId, { at: Date.now(), locked });
     return locked.has(user.id);
+  }
+
+  /** Бизнесҳои демо (кеш 5 дақиқа) — барои ҳимояи демо аз вайроншавӣ */
+  async isDemoOrg(organizationId: number): Promise<boolean> {
+    if (!this.demoOrgs || Date.now() - this.demoOrgs.at > 300_000) {
+      const rows = await this.prisma.organization.findMany({ where: { users: { some: { email: { in: DEMO_EMAILS } } } }, select: { id: true } });
+      this.demoOrgs = { at: Date.now(), ids: new Set(rows.map((r) => r.id)) };
+    }
+    return this.demoOrgs.ids.has(organizationId);
   }
 
   /** Пас аз ивази тариф ё кормандон */
@@ -413,7 +422,7 @@ export class BillingService implements OnApplicationBootstrap {
     return {
       OR: [
         { isPlatform: true },
-        { users: { some: { email: DEMO_EMAIL } } },
+        { users: { some: { email: { in: DEMO_EMAILS } } } },
         ...(admins.length ? [{ ownerId: { in: admins.map((a) => a.id) } }, { users: { some: { isSuperAdmin: true } } }] : []),
       ],
     };

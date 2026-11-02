@@ -4,6 +4,7 @@ import { JwtService } from '@nestjs/jwt';
 import { BillingService } from '../billing/billing';
 import { PrismaService } from '../prisma/prisma.service';
 import { ALLOW_PENDING, AuthClient, AuthUser, CLIENT_ONLY, IS_PUBLIC } from './decorators';
+import { DEMO_BLOCKED_MESSAGE, DEMO_CLIENT_EMAIL, isDemoBlocked } from './demo-guard';
 
 export const LOCKED_MESSAGE = 'Тарифи бизнес тамом шуд — то пардохт ҳисоби шумо баста аст. Ба соҳиби бизнес гӯед, ки тарифро дароз кунад.';
 
@@ -39,6 +40,7 @@ export class JwtAuthGuard implements CanActivate {
       if (!clientOnly) throw new ForbiddenException('Ин бахш барои кормандони ширкат аст');
       const client = await this.prisma.client.findUnique({ where: { id: payload.sub } });
       if (!client) throw new UnauthorizedException('Ҳисоб ёфт нашуд');
+      if (client.email === DEMO_CLIENT_EMAIL && isDemoBlocked(req.method, req.path, req.body)) throw new ForbiddenException(DEMO_BLOCKED_MESSAGE);
       req.client = { id: client.id, fullName: client.fullName } satisfies AuthClient;
       return true;
     }
@@ -51,6 +53,10 @@ export class JwtAuthGuard implements CanActivate {
     if (!user || !user.isActive) throw new UnauthorizedException('Ҳисоб ғайрифаъол аст');
     // Тарифи бизнес тамом шуд ва корманд аз ҳадди ройгон берун монд (кеш — база ҳар дафъа пурсида намешавад)
     if (!user.isSuperAdmin && (await this.billing.isLocked(user, user.organization))) throw new UnauthorizedException(LOCKED_MESSAGE);
+    // Демо барои ҳама кушода аст — нест кардан, ивази парол ва танзимҳо хомӯшанд
+    if (!user.isSuperAdmin && isDemoBlocked(req.method, req.path, req.body) && (await this.billing.isDemoOrg(user.organizationId))) {
+      throw new ForbiddenException(DEMO_BLOCKED_MESSAGE);
+    }
 
     const authUser: AuthUser = {
       id: user.id,

@@ -6,6 +6,7 @@ import {
   Get,
   HttpCode,
   Injectable,
+  Logger,
   Module,
   Param,
   ParseIntPipe,
@@ -14,6 +15,7 @@ import {
   Req,
   Res,
 } from '@nestjs/common';
+import { Cron } from '@nestjs/schedule';
 import type { Request, Response } from 'express';
 import { ArrayMaxSize, ArrayMinSize, IsArray, IsIn, IsInt, IsString, MaxLength, MinLength } from 'class-validator';
 import {
@@ -35,6 +37,7 @@ import { EventsService } from '../core/events';
 import { Prisma } from '../generated/prisma/client';
 import { ChatService, toChatMessage, withMediaMime } from '../notifications/chat.service';
 import { NotificationsService } from '../notifications/notifications.service';
+import { TZ } from '../common/time';
 import { PrismaService } from '../prisma/prisma.service';
 
 export class SendMessageDto {
@@ -336,8 +339,45 @@ export class MessagesController {
   }
 }
 
+/** Овоз ва видеои чат аз ин кӯҳнатар нест карда мешаванд (матни паём мемонад) */
+export const CHAT_MEDIA_DAYS = 60;
+
+/**
+ * Файлҳои овоз ва видео дар худи база нигоҳ дошта мешаванд ва онро зуд пур мекунанд (базаи ройгон 0,5–1 ГБ).
+ * Ҳар шаб файлҳои чати аз CHAT_MEDIA_DAYS (60) рӯз кӯҳнатарро нест мекунем. Акси мол ҳеҷ гоҳ нест намешавад.
+ */
+@Injectable()
+export class ChatMediaCleanup {
+  private readonly logger = new Logger('ChatMedia');
+
+  constructor(private readonly prisma: PrismaService) {}
+
+  @Cron('0 30 4 * * *', { name: 'chat-media-cleanup', timeZone: TZ })
+  async run(days = CHAT_MEDIA_DAYS) {
+    const cutoff = new Date(Date.now() - days * 86_400_000);
+    // Файле, ки танҳо ба паёмҳои кӯҳна тааллуқ дорад; акси мол ва файли бе паём (масалан ҳоло бор шуда истодааст) намерасем
+    const where = { products: { none: {} }, messages: { some: {}, every: { createdAt: { lt: cutoff } } } } satisfies Prisma.MediaWhereInput;
+    let removed = 0;
+    let bytes = 0;
+    for (;;) {
+      const batch = await this.prisma.media.findMany({ where, select: { id: true, size: true }, take: 200 });
+      if (!batch.length) break;
+      const ids = batch.map((m) => m.id);
+      const note = ` (файл пас аз ${days} рӯз нест шуд)`;
+      await this.prisma.$transaction([
+        this.prisma.$executeRaw`UPDATE "Message" SET "text" = "text" || ${note} WHERE "mediaId" = ANY(${ids})`,
+        this.prisma.media.deleteMany({ where: { id: { in: ids } } }),
+      ]);
+      removed += ids.length;
+      bytes += batch.reduce((s, m) => s + m.size, 0);
+    }
+    if (removed) this.logger.log(`Чат: ${removed} файли кӯҳна нест шуд (${(bytes / 1048576).toFixed(1)} МБ)`);
+    return { removed, bytes };
+  }
+}
+
 @Module({
   controllers: [MessagesController],
-  providers: [MessagesService],
+  providers: [MessagesService, ChatMediaCleanup],
 })
 export class MessagesModule {}

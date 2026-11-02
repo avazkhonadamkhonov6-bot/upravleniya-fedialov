@@ -5,7 +5,7 @@
 #   DATABASE_URL       — Render → filialhub-db → Connections → External Database URL
 #   BACKUP_PASSPHRASE  — пароли дароз; нусха бо он рамзгузорӣ мешавад (онро дар ҷои бехатар нигоҳ доред)
 #
-# Нусха: Actions → «Database backup» → охирин иҷро → Artifacts (30 рӯз нигоҳ дошта мешавад).
+# Нусха: Actions → «Database backup» → охирин иҷро → Artifacts (90 рӯз нигоҳ дошта мешавад).
 # Барқарор кардан:
 #   gpg -d filialhub-YYYY-MM-DD.dump.gpg > db.dump
 #   pg_restore --clean --no-owner -d "<DATABASE_URL>" db.dump
@@ -45,5 +45,5 @@ jobs:
         with:
           name: ${{ env.FILE }}
           path: ${{ env.FILE }}
-          retention-days: 30
+          retention-days: 90
           if-no-files-found: error
