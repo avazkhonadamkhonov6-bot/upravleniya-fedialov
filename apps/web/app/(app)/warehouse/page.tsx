@@ -38,15 +38,34 @@ export default function WarehousePage() {
   // Шеф: ҳамаи филиалҳо ё як филиал; дигарон — филиали худ
   const qtyOf = (p: Product) => (isChef && !branchId ? (p.stock ?? 0) : qtyIn(p, isChef ? branchId : user?.branchId));
   const limitOf = (p: Product) => p.lowStock ?? 0;
+  // Дар «Ҳамаи филиалҳо» ҳолат аз бадтарин филиал аст: агар дар ягон филиал тамом шуда бошад — «Тамом шуд»
+  const branchesWhere = (p: Product, test: (q: number) => boolean) => active.filter((b) => test(qtyIn(p, b.id))).length;
   const statusOf = (p: Product): Filter => {
+    if (isChef && !branchId && active.length) {
+      if (branchesWhere(p, (q) => q <= 0)) return "out";
+      return branchesWhere(p, (q) => q <= limitOf(p)) ? "low" : "all";
+    }
     const q = qtyOf(p);
     if (q <= 0) return "out";
-    // Ҳадди огоҳӣ барои ҳар филиал аст: дар «Ҳамаи филиалҳо» — агар дар ягон филиал кам монда бошад
-    if (isChef && !branchId) return active.some((b) => qtyIn(p, b.id) <= limitOf(p)) ? "low" : "all";
     return q <= limitOf(p) ? "low" : "all";
   };
 
+  // Шеф бо якчанд филиал: ҳар филиал сутуни худро дорад — дида мешавад, ки дар куҷо чӣ қадар ҳаст
+  const matrix = isChef && !branchId && active.length > 1;
+  const cellTone = (p: Product, q: number) => (q <= 0 ? "text-brand" : q <= limitOf(p) ? "text-warn" : "text-ink");
+
   const tracked = products?.filter((p) => p.isActive && p.stock !== null) ?? [];
+  // Ҷамъбасти ҳар филиал: чанд мол ҳаст, чандтааш тамом шуд ва арзиши анбор
+  const perBranch = active.map((b) => {
+    const qs = tracked.map((p) => ({ p, q: qtyIn(p, b.id) }));
+    return {
+      branch: b,
+      inStock: qs.filter((x) => x.q > 0).length,
+      low: qs.filter((x) => x.q > 0 && x.q <= limitOf(x.p)).length,
+      out: qs.filter((x) => x.q <= 0).length,
+      value: qs.reduce((s, x) => s + Math.max(0, x.q) * x.p.cost, 0),
+    };
+  });
   const untracked = products?.filter((p) => p.isActive && p.stock === null).length ?? 0;
   const outCount = tracked.filter((p) => statusOf(p) === "out").length;
   const lowCount = tracked.filter((p) => statusOf(p) === "low").length;
@@ -90,9 +109,36 @@ export default function WarehousePage() {
         {showCost && <Stat label={tr("Арзиши анбор")} value={products ? money(value) : "…"} hint={tr("бо арзиши аслӣ")} />}
       </div>
 
+      {isChef && active.length > 1 && products && (
+        <div className="mb-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {perBranch.map(({ branch, inStock, low, out, value: v }) => (
+            <button
+              key={branch.id}
+              type="button"
+              onClick={() => setBranchId(branchId === branch.id ? undefined : branch.id)}
+              className={cn("card cursor-pointer p-4 text-left transition hover:ring-1 hover:ring-line", branchId === branch.id && "ring-2 ring-brand")}
+            >
+              <div className="truncate font-semibold text-ink">{branch.name}</div>
+              <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-sm">
+                <span className="text-ink-2">
+                  {tr("Ҳаст")}: <b className="text-ink tabular">{inStock}</b>
+                </span>
+                <span className="text-ink-2">
+                  {tr("Кам монд")}: <b className={cn("tabular", low ? "text-warn" : "text-ink")}>{low}</b>
+                </span>
+                <span className="text-ink-2">
+                  {tr("Тамом шуд|мол")}: <b className={cn("tabular", out ? "text-brand" : "text-ink")}>{out}</b>
+                </span>
+              </div>
+              {showCost && <div className="mt-1 text-xs text-muted">{tr("Арзиши анбор")}: {money(v)}</div>}
+            </button>
+          ))}
+        </div>
+      )}
+
       <ErrorBox message={error} />
 
-      <div className="grid gap-6 xl:grid-cols-[1fr_380px]">
+      <div className={cn("grid gap-6", !matrix && "xl:grid-cols-[1fr_380px]")}>
         <Card className="p-2">
           <div className="flex flex-wrap items-center gap-3 p-3">
             <label className="flex h-11 min-w-0 flex-1 basis-56 items-center gap-2 rounded-[14px] border-[1.5px] border-line bg-surface px-3 focus-within:border-brand">
@@ -131,11 +177,17 @@ export default function WarehousePage() {
             <Empty icon="🔍" title={tr("Чизе ёфт нашуд")} />
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[560px] text-sm">
+              <table className="w-full text-sm" style={{ minWidth: 560 + (matrix ? active.length * 110 : 0) }}>
                 <thead>
                   <tr className="text-left text-xs tracking-wide text-muted uppercase">
-                    <th className="px-3 py-3 font-semibold">{tr("Маҳсулот")}</th>
-                    <th className="px-3 py-3 text-right font-semibold">{tr("Боқимонда")}</th>
+                    <th className={cn("px-3 py-3 font-semibold", matrix && "sticky left-0 z-10 bg-surface")}>{tr("Маҳсулот")}</th>
+                    {matrix &&
+                      active.map((b) => (
+                        <th key={b.id} className="max-w-32 px-3 py-3 text-right font-semibold normal-case" title={b.name}>
+                          <span className="line-clamp-2">{b.name}</span>
+                        </th>
+                      ))}
+                    <th className="px-3 py-3 text-right font-semibold">{matrix ? tr("Ҳамагӣ") : tr("Боқимонда")}</th>
                     <th className="px-3 py-3 font-semibold">{tr("Ҳолат")}</th>
                     {showCost && <th className="px-3 py-3 text-right font-semibold">{tr("Арзиш")}</th>}
                     <th className="px-3 py-3" />
@@ -146,8 +198,9 @@ export default function WarehousePage() {
                     const qty = qtyOf(p);
                     const st = statusOf(p);
                     return (
-                      <tr key={p.id} className="border-t border-line hover:bg-surface-2">
-                        <td className="px-3 py-3">
+                      <tr key={p.id} className="group/row border-t border-line hover:bg-surface-2">
+                        {/* Бо сутунҳои филиалҳо ҷадвал ба паҳлӯ мелағжад — номи мол дар ҷояш мемонад */}
+                        <td className={cn("px-3 py-3", matrix && "sticky left-0 z-10 max-w-56 bg-surface group-hover/row:bg-surface-2")}>
                           <div className="flex items-center gap-3">
                             <span className="grid size-10 shrink-0 place-items-center overflow-hidden rounded-xl bg-brand-soft text-brand">
                               <ProductVisual imageId={p.imageId} emoji={p.emoji} name={p.name} type={type} iconClass="size-5" />
@@ -158,20 +211,24 @@ export default function WarehousePage() {
                             </span>
                           </div>
                         </td>
+                        {matrix &&
+                          active.map((b) => {
+                            const bq = qtyIn(p, b.id);
+                            return (
+                              <td key={b.id} className="px-3 py-3 text-right whitespace-nowrap">
+                                <span className={cn("font-bold tabular", cellTone(p, bq))}>{Math.max(0, bq)}</span>
+                              </td>
+                            );
+                          })}
                         <td className="px-3 py-3 text-right whitespace-nowrap">
                           <span className={cn("text-base font-bold tabular", st === "out" ? "text-brand" : st === "low" ? "text-warn" : "text-ink")}>{Math.max(0, qty)}</span>{" "}
                           <span className="text-xs text-muted">{tr(p.unit)}</span>
-                          {isChef && !branchId && active.length > 1 && (
-                            <span className="mt-0.5 block text-[11px] text-muted">
-                              {active.map((b) => `${b.name}: ${Math.max(0, qtyIn(p, b.id))}`).join(" · ")}
-                            </span>
-                          )}
                         </td>
                         <td className="px-3 py-3">
                           {st === "out" ? (
-                            <Badge tone="brand">{tr("Тамом шуд|мол")}</Badge>
+                            <Badge tone="brand">{matrix ? tr("Дар {0} филиал тамом", branchesWhere(p, (q) => q <= 0)) : tr("Тамом шуд|мол")}</Badge>
                           ) : st === "low" ? (
-                            <Badge tone="warn">{tr("Кам монд")}</Badge>
+                            <Badge tone="warn">{matrix ? tr("Дар {0} филиал кам", branchesWhere(p, (q) => q <= limitOf(p))) : tr("Кам монд")}</Badge>
                           ) : (
                             <Badge tone="good">{tr("Ҳаст")}</Badge>
                           )}
