@@ -3,6 +3,7 @@ import { ModuleRef } from '@nestjs/core';
 import { POSITION_LABELS, ROLE_LABELS, type Period } from '@filialhub/shared';
 import { AdminService } from '../admin/admin';
 import type { Branch, User } from '../generated/prisma/client';
+import { BillingService } from '../billing/billing';
 import { PrismaService } from '../prisma/prisma.service';
 import { escape } from './notifications.service';
 import { ReportService } from './report.service';
@@ -69,6 +70,8 @@ export class BotService {
     const admin = this.moduleRef.get(AdminService, { strict: false });
     const adminReply = await admin.botCommand(user, command, text.trim().split(/\s+/).slice(1));
     if (adminReply) return adminReply;
+    const billingReply = await this.moduleRef.get(BillingService, { strict: false }).botCommand(user, command, text.trim().split(/s+/).slice(1));
+    if (billingReply) return billingReply;
 
     // Бизнеси тасдиқнашуда ё басташуда: омор дастрас нест (супер-админ — ҳамеша).
     const org = await this.prisma.organization.findUnique({ where: { id: user.organizationId }, select: { status: true } });

@@ -25,6 +25,7 @@ import { AuthRedirect } from "@/components/auth-redirect";
 import { BrandMark } from "@/components/brand-mark";
 import { ForceLang } from "@/components/force-lang";
 import { LangSwitcher } from "@/components/lang-switcher";
+import { PAID_PLANS, PLAN_INFO } from "@filialhub/shared";
 import { T } from "@/lib/i18n";
 import { trServer } from "@/lib/i18n-server";
 import { SITE_DESCRIPTION, SITE_NAME, SITE_URL } from "@/lib/site";
@@ -85,7 +86,7 @@ const STEPS: { n: string; t: string; d: string; box: string; dot: string }[] = [
 
 /** Саволу ҷавоб: дар саҳифа намоён ва ҳамон матн дар FAQPage (Google онро дар натиҷаҳо нишон медиҳад) */
 const FAQ: { q: string; a: string }[] = [
-  { q: "FilialHub ройгон аст?", a: "Ҳа. Сабти ном ва кор бо филиалҳо, касса, кормандон ва бозори онлайн ройгон аст." },
+  { q: "FilialHub ройгон аст?", a: "Сабти ном ва тарифи «Озмоишӣ» (1 филиал, 4 корманд) ҳамеша ройгон аст — ҳамаи имкониятҳоро санҷед. Барои филиал ва кормандони бештар тарифҳо аз 150 сомонӣ дар як моҳ." },
   {
     q: "Барои кадом бизнес мувофиқ аст?",
     a: "Тарабхона ва қаҳвахона, мағозаи хӯрокворӣ, либос, электроника, сантехника, дорухона ва маводи сохтмонӣ — бо як ё якчанд филиал.",
@@ -171,6 +172,7 @@ export function HomePage({ lang }: { lang: HomeLang }) {
             ["#features", "Имкониятҳо"],
             ["#who", "Барои кӣ"],
             ["#roles", "Нақшҳо"],
+            ["#pricing", "Нархҳо"],
             ["/shop", "Бозор"],
           ].map(([href, label]) => (
             <Link key={href} href={href} className="rounded-full px-3.5 py-2.5 text-[15px] font-medium transition hover:bg-[#f3ebdf]">
@@ -485,6 +487,37 @@ export function HomePage({ lang }: { lang: HomeLang }) {
             ))}
           </ol>
         </div>
+      </section>
+
+      {/* Нархҳо */}
+      <section id="pricing" className="mx-auto flex max-w-[1280px] scroll-mt-6 flex-col gap-8 px-4 pb-20 sm:px-8 sm:pb-[88px]">
+        <div className="flex flex-col gap-3">
+          <h2 data-reveal className={H2}>
+            {t("Нархҳо")}
+          </h2>
+          <p className="max-w-[760px] text-[17px] leading-relaxed text-[#4a3f35]">
+            {t("Озмоишӣ ҳамеша ройгон: 1 филиал ва 4 корманд. Ҳамаи имкониятҳо дар ҳама тарифҳо — фарқ танҳо дар шумори филиал ва корманд. Барои 12 моҳ −20%.")}
+          </p>
+        </div>
+        <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          {PAID_PLANS.map((p) => {
+            const info = PLAN_INFO[p];
+            return (
+              <li key={p} data-reveal className={`flex flex-col gap-2 rounded-[22px] p-6 ${info.popular ? "bg-[#16120f] text-white" : "bg-white"}`}>
+                <span className="font-display text-xl font-bold">{t(info.name)}</span>
+                <span className={`text-sm ${info.popular ? "text-[#d8cfc4]" : "text-[#5a4e43]"}`}>{t(info.tagline)}</span>
+                <span className="mt-2 font-display text-4xl font-extrabold">
+                  {info.price} <span className="text-base font-semibold">{t("сомонӣ / моҳ")}</span>
+                </span>
+                <span className="text-sm">{info.branches === null ? t("Филиалҳо бемаҳдуд") : t("то {0} филиал", [info.branches])}</span>
+                <span className="text-sm">{info.employees === null ? t("Кормандон бемаҳдуд") : t("то {0} корманд", [info.employees])}</span>
+              </li>
+            );
+          })}
+        </ul>
+        <Link href="/register" className="self-start rounded-[14px] bg-[#dc3b1c] px-[22px] py-4 font-bold text-white transition hover:bg-[#c23215]">
+          {t("Ройгон оғоз кунед")}
+        </Link>
       </section>
 
       {/* Саволҳо: <details> бе JavaScript кушода мешавад, матн дар HTML барои Google */}

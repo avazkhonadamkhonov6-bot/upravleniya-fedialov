@@ -1,3 +1,4 @@
+import { PLANS, type Plan } from '@filialhub/shared';
 import type { BusinessType, Branch as BranchDto, Client as ClientDto, Organization as OrganizationDto, Product as ProductDto, User as UserDto } from '@filialhub/shared';
 import type { Branch, Client, Organization, Prisma, Product, User } from '../generated/prisma/client';
 
@@ -17,6 +18,8 @@ export function toOrganization(o: Organization): OrganizationDto {
     status: o.status,
     statusNote: o.statusNote,
     cashierDebtLimit: Number(o.cashierDebtLimit),
+    plan: (PLANS as readonly string[]).includes(o.plan) ? (o.plan as Plan) : 'FREE',
+    planUntil: o.planUntil?.toISOString() ?? null,
     createdAt: o.createdAt.toISOString(),
   };
 }

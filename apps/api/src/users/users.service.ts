@@ -13,6 +13,7 @@ import { toUser } from '../common/serializers';
 import { Prisma } from '../generated/prisma/client';
 import { AlertsService } from '../core/alerts.service';
 import { AuditService } from '../core/audit.service';
+import { BillingService } from '../billing/billing';
 import { escape, NotificationsService } from '../notifications/notifications.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateUserDto, UpdateUserDto } from './dto';
@@ -32,6 +33,7 @@ export class UsersService {
     private readonly notifications: NotificationsService,
     private readonly audit: AuditService,
     private readonly alerts: AlertsService,
+    private readonly billing: BillingService,
   ) {}
 
   async list(actor: AuthUser, f: UserFilters) {
@@ -76,6 +78,7 @@ export class UsersService {
     }
     await this.validateShape(actor, dto.role, dto.position, dto.branchId);
     if (dto.role === 'MANAGER') await this.ensureNoOtherManager(dto.branchId!);
+    await this.billing.assertCanAdd(actor.organizationId, 'employee');
 
     const email = dto.email.toLowerCase().trim();
     if (await this.prisma.user.findUnique({ where: { email } })) {
@@ -100,6 +103,7 @@ export class UsersService {
       },
       include: { branch: true },
     });
+    this.billing.invalidate(actor.organizationId);
 
     void this.notifications.welcome(user);
     const label0 = user.position ? POSITION_LABELS[user.position] : ROLE_LABELS[user.role];
@@ -133,6 +137,8 @@ export class UsersService {
       await this.ensureNoOtherManager(branchId!, id);
     }
 
+    if (dto.isActive === true && !target.isActive) await this.billing.assertCanAdd(actor.organizationId, 'employee');
+
     const email = dto.email?.toLowerCase().trim();
     if (email && email !== target.email && (await this.prisma.user.findUnique({ where: { email } }))) {
       throw new ConflictException('Ин почтаи электронӣ аллакай истифода шудааст');
@@ -157,6 +163,8 @@ export class UsersService {
       },
       include: { branch: true },
     });
+
+    if (dto.isActive !== undefined) this.billing.invalidate(actor.organizationId);
 
     const changes = [
       dto.isActive === false && 'ғайрифаъол шуд',
@@ -183,6 +191,7 @@ export class UsersService {
     if (id === actor.id) throw new BadRequestException('Худатонро нест карда наметавонед');
     const target = await this.ensureEditable(actor, id);
     await this.prisma.user.delete({ where: { id } });
+    this.billing.invalidate(actor.organizationId);
     this.audit.log(actor, 'DELETE', 'user', id, `Корманд нест шуд: ${target.fullName}`, target.branchId);
     if (target.branchId && actor.role === 'CHEF' && target.role === 'STAFF') {
       void this.notifications.notifyBranchManagers(

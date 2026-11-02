@@ -28,7 +28,7 @@ import {
   type OrgStatus,
 } from '@filialhub/shared';
 import { AuthUser, CurrentUser, Feature, SuperAdmin } from '../auth/decorators';
-import { toBranch, toUser } from '../common/serializers';
+import { toBranch, toOrganization, toUser } from '../common/serializers';
 import type { Organization, User } from '../generated/prisma/client';
 import { escape, NotificationsService } from '../notifications/notifications.service';
 import { PrismaService } from '../prisma/prisma.service';
@@ -128,11 +128,12 @@ export class AdminService implements OnApplicationBootstrap {
   }
 
   async overview(): Promise<AdminOverview> {
-    const [byStatus, branches, employees, clients] = await Promise.all([
+    const [byStatus, branches, employees, clients, money] = await Promise.all([
       this.prisma.organization.groupBy({ by: ['status'], _count: { _all: true }, where: this.realBusinesses() }),
       this.prisma.branch.count({ where: { organization: this.realBusinesses() } }),
       this.prisma.user.count({ where: { organization: this.realBusinesses() } }),
       this.prisma.client.count(),
+      this.billingStats(),
     ]);
     const count = (s: OrgStatus) => byStatus.find((r) => r.status === s)?._count._all ?? 0;
     return {
@@ -144,6 +145,7 @@ export class AdminService implements OnApplicationBootstrap {
       branches,
       employees,
       clients,
+      ...money,
     };
   }
 
@@ -293,6 +295,17 @@ export class AdminService implements OnApplicationBootstrap {
 
   // ---------- ёрирасон ----------
 
+  /** Пардохтҳои интизор, бизнесҳои пулакӣ ва даромади ин моҳ */
+  private async billingStats() {
+    const now = new Date();
+    const [pendingPayments, paid, paying] = await Promise.all([
+      this.prisma.planPayment.count({ where: { status: 'PENDING' } }),
+      this.prisma.planPayment.aggregate({ where: { status: 'APPROVED', decidedAt: { gte: new Date(now.getFullYear(), now.getMonth(), 1) } }, _sum: { amount: true } }),
+      this.prisma.organization.count({ where: { ...this.realBusinesses(), plan: { not: 'FREE' }, planUntil: { gt: now } } }),
+    ]);
+    return { pendingPayments, paying, revenueMonth: Number(paid._sum.amount ?? 0) };
+  }
+
   /** Ширкатҳои платформа (ки супер-админ барои худ дорад) дар рӯйхати бизнесҳо нестанд */
   private realBusinesses() {
     return { isPlatform: false };
@@ -321,12 +334,14 @@ export class AdminService implements OnApplicationBootstrap {
         branches: o._count.branches,
         employees: o._count.users,
         products: o._count.products,
+        plan: toOrganization(o).plan,
+        planUntil: o.planUntil?.toISOString() ?? null,
         ownerBusinesses: Math.max((counts.find((c) => c.ownerId === o.ownerId)?._count._all ?? 1) - 1, 0),
       };
     });
   }
 
-  private async notifyAdmins(text: string, exceptUserId?: number) {
+  async notifyAdmins(text: string, exceptUserId?: number) {
     const admins = await this.prisma.user.findMany({ where: { isSuperAdmin: true, isActive: true, id: exceptUserId ? { not: exceptUserId } : undefined } });
     if (!admins.length) this.logger.warn('Супер-админ нест — огоҳинома фиристода нашуд');
     for (const a of admins.filter((a) => !a.telegramChatId && !a.whatsapp && !a.phone)) {

@@ -3,6 +3,7 @@
 import {
   BUSINESS_TYPE_LABELS,
   canAccess,
+  effectivePlan,
   featureOfPath,
   homePath,
   isRestaurant,
@@ -15,6 +16,7 @@ import {
 import {
   BarChart3,
   ChevronsUpDown,
+  CreditCard,
   Building2,
   CalendarClock,
   ClipboardList,
@@ -52,6 +54,7 @@ import { useServerEvent } from "@/lib/events";
 import { useAiEnabled } from "@/lib/use-ai";
 import { useVisibleInterval } from "@/lib/use-interval";
 import { useAuth } from "@/lib/auth";
+import { useNow } from "@/lib/use-now";
 import { AlertsBell } from "./alerts-bell";
 import { CommandPalette } from "./command-palette";
 import { LangSwitcher } from "./lang-switcher";
@@ -119,6 +122,7 @@ const NAV: { title: string; items: NavItem[] }[] = [
       { href: "/expenses", label: "Хароҷот ва фоидаи соф", short: "Хароҷот", icon: Wallet, feature: "expenses" },
       { href: "/integrations", label: "Telegram & WhatsApp", short: "Боти", icon: MessageCircle, feature: "integrations" },
       { href: "/audit", label: "Таърихи амалҳо", short: "Амалҳо", icon: History, feature: "audit" },
+      { href: "/billing", label: "Тариф ва пардохт", short: "Тариф", icon: CreditCard, feature: "billing", only: (u) => !u.isSuperAdmin },
       { href: "/profile", label: "Профил", short: "Профил", icon: UserRound, feature: "profile" },
     ],
   },
@@ -206,6 +210,31 @@ function initials(name: string) {
     .slice(0, 2)
     .map((p) => p[0].toUpperCase())
     .join("");
+}
+
+/** Шеф: тариф ба наздикӣ тамом мешавад ё тамом шуд — хабар бо пайванд ба «Тариф ва пардохт» */
+function PlanBanner({ org }: { org?: Organization | null }) {
+  const now = useNow();
+  if (!org || org.plan === "FREE" || !org.planUntil) return null;
+  const days = Math.ceil((new Date(org.planUntil).getTime() - now) / 86400000);
+  if (days > 3) return null;
+  const expired = effectivePlan(org, new Date(now)) === "FREE";
+  return (
+    <Link
+      href="/billing"
+      className={cn("mb-5 flex items-center gap-3 rounded-2xl px-4 py-3 text-sm font-semibold transition hover:brightness-95", expired ? "bg-brand-soft text-brand" : "bg-warn-soft text-warn")}
+    >
+      <CreditCard className="size-5 shrink-0" />
+      <span className="flex-1">
+        {expired
+          ? tr("Тариф тамом шуд — ҳоло маҳдудияти ройгон амал мекунад. Пардохт кунед, то ҳама чиз кушода шавад.")
+          : days > 0
+            ? tr("Тариф пас аз {0} рӯз тамом мешавад. Барои он ки кор қатъ нашавад, пешакӣ пардохт кунед.", days)
+            : tr("Мӯҳлати тариф гузашт — чанд рӯзи имтиёзӣ монд. Ҳозир пардохт кунед.")}
+      </span>
+      <span className="underline">{tr("Пардохт")}</span>
+    </Link>
+  );
 }
 
 function isActive(pathname: string, href: string) {
@@ -409,7 +438,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       <div className="aurora" aria-hidden />
       {/* Гузариши саҳифа: кӯҳна бо blur мебарояд, нав аз поён бо blur медарояд (React ViewTransition) */}
       <ViewTransition key={pathname} enter="page-swap" exit="page-swap" default="none">
-        <main className="page-enter mx-auto max-w-[1400px] px-4 pt-6 pb-28 sm:px-6 lg:px-10 lg:pt-8 lg:pb-12">{children}</main>
+        <main className="page-enter mx-auto max-w-[1400px] px-4 pt-6 pb-28 sm:px-6 lg:px-10 lg:pt-8 lg:pb-12">
+          {canAccess(user, "billing") && pathname !== "/billing" && <PlanBanner org={user.organization} />}
+          {children}
+        </main>
       </ViewTransition>
 
       {/* Mobile bottom nav */}

@@ -1,8 +1,11 @@
 import { CanActivate, ExecutionContext, ForbiddenException, Injectable, UnauthorizedException } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { JwtService } from '@nestjs/jwt';
+import { BillingService } from '../billing/billing';
 import { PrismaService } from '../prisma/prisma.service';
 import { ALLOW_PENDING, AuthClient, AuthUser, CLIENT_ONLY, IS_PUBLIC } from './decorators';
+
+export const LOCKED_MESSAGE = 'Тарифи бизнес тамом шуд — то пардохт ҳисоби шумо баста аст. Ба соҳиби бизнес гӯед, ки тарифро дароз кунад.';
 
 @Injectable()
 export class JwtAuthGuard implements CanActivate {
@@ -10,6 +13,7 @@ export class JwtAuthGuard implements CanActivate {
     private readonly reflector: Reflector,
     private readonly jwt: JwtService,
     private readonly prisma: PrismaService,
+    private readonly billing: BillingService,
   ) {}
 
   async canActivate(ctx: ExecutionContext): Promise<boolean> {
@@ -45,6 +49,8 @@ export class JwtAuthGuard implements CanActivate {
       include: { organization: { include: { branches: { select: { id: true } } } } },
     });
     if (!user || !user.isActive) throw new UnauthorizedException('Ҳисоб ғайрифаъол аст');
+    // Тарифи бизнес тамом шуд ва корманд аз ҳадди ройгон берун монд (кеш — база ҳар дафъа пурсида намешавад)
+    if (!user.isSuperAdmin && (await this.billing.isLocked(user, user.organization))) throw new UnauthorizedException(LOCKED_MESSAGE);
 
     const authUser: AuthUser = {
       id: user.id,

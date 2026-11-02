@@ -2,7 +2,7 @@ import { SkipThrottle } from '@nestjs/throttler';
 import { Controller, Get, Injectable, Logger, Req, Res } from '@nestjs/common';
 import type { Request, Response } from 'express';
 import type { Presence, ServerEvent } from '@filialhub/shared';
-import { AuthUser, CurrentUser, Feature } from '../auth/decorators';
+import { AllowPending, AuthUser, CurrentUser, Feature } from '../auth/decorators';
 import { PrismaService } from '../prisma/prisma.service';
 
 type Listener = (type: ServerEvent, data?: object) => void;
@@ -83,6 +83,8 @@ export class EventsService {
 @Controller('events')
 @SkipThrottle()
 @Feature('profile')
+// Бизнеси ҳанӯз тасдиқнашуда ҳам пайваст мешавад — вагарна браузер беҳуда такрор мекунад
+@AllowPending()
 export class EventsController {
   constructor(private readonly events: EventsService) {}
 

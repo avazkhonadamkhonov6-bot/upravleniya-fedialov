@@ -29,6 +29,7 @@ import { PayrollModule } from './payroll/payroll';
 import { CashModule } from './cash/cash';
 import { AssistantModule } from './ai/assistant';
 import { ShopAiModule } from './ai/shop-ai';
+import { BillingModule } from './billing/billing';
 
 @Module({
   imports: [
@@ -57,6 +58,7 @@ import { ShopAiModule } from './ai/shop-ai';
     CashModule,
     AssistantModule,
     ShopAiModule,
+    BillingModule,
   ],
   controllers: [HealthController],
   providers: [

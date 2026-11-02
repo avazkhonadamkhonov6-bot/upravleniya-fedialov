@@ -3,6 +3,7 @@
 import { phoneDigits, telegramLink, whatsappLink } from "@filialhub/shared";
 import { Leaf, Loader2, Mail, Phone, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { formatMoney, locale, tr } from "@/lib/i18n";
 import { Glyph, iconize } from "./glyph";
 import { StyledSelect } from "./select";
@@ -248,7 +249,8 @@ export function Modal({
     return () => window.removeEventListener("keydown", onKey);
   }, [open, onClose]);
   if (!open) return null;
-  return (
+  // Ба body: агар волидон transform дошта бошанд, fixed аз экран берун намемонад
+  return createPortal(
     <div className="fade-in fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-0 backdrop-blur-sm sm:items-center sm:p-4" onClick={onClose}>
       <div
         className={cn(
@@ -267,7 +269,8 @@ export function Modal({
         </div>
         {children}
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
 

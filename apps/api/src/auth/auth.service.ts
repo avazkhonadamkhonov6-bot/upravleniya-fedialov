@@ -4,6 +4,8 @@ import * as bcrypt from 'bcryptjs';
 import { normalizeTelegram } from '@filialhub/shared';
 import { toClient, toOrganization, toUser } from '../common/serializers';
 import { AdminService } from '../admin/admin';
+import { BillingService } from '../billing/billing';
+import { LOCKED_MESSAGE } from './jwt-auth.guard';
 import { PrismaService } from '../prisma/prisma.service';
 import type { AuthUser } from './decorators';
 import { CreateBusinessDto, LoginDto, RegisterClientDto, RegisterDto, UpdateMeDto, UpdateOrganizationDto } from './dto';
@@ -26,6 +28,7 @@ export class AuthService {
     private readonly prisma: PrismaService,
     private readonly jwt: JwtService,
     private readonly admin: AdminService,
+    private readonly billing: BillingService,
   ) {}
 
   /** Як даромадан барои ҳама: аввал шеф/кормандон, баъд мизоҷони онлайн. */
@@ -49,6 +52,7 @@ export class AuthService {
     if (!(await bcrypt.compare(dto.password, user.passwordHash))) throw wrong();
     this.limiter.success(email);
     if (!user.isActive) throw new UnauthorizedException('Ҳисоби шумо ғайрифаъол аст');
+    if (!user.isSuperAdmin && (await this.billing.isLocked(user, user.organization))) throw new UnauthorizedException(LOCKED_MESSAGE);
     // Почта дар SUPERADMIN_EMAILS — ҳангоми воридшавӣ худкор супер-админ мешавад (бе аз нав сар кардани сервер)
     const me = !user.isSuperAdmin && isSuperAdminEmail(email)
       ? await this.prisma.user.update({ where: { id: user.id }, data: { isSuperAdmin: true }, include: { branch: true, organization: true } })

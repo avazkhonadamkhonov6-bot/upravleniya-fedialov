@@ -43,6 +43,14 @@ enum OrgStatus {
   BLOCKED
 }
 
+/// Дархости пардохти тариф: соҳиб ба корт пул мефиристад, супер-админ месанҷад
+enum PlanPaymentStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  CANCELLED
+}
+
 enum DeliveryStatus {
   SENT
   DRY_RUN
@@ -77,6 +85,11 @@ model Organization {
   waApiToken       String?
   waApiUrl         String?
   waMediaUrl       String?
+  /// Тариф (Plan аз packages/shared): FREE — 1 филиал ва 4 корманд
+  plan             String         @default("FREE")
+  /// Тариф то ин сана амал мекунад; null — бемӯҳлат
+  planUntil        DateTime?
+  planPayments     PlanPayment[]
   onlineOrders     OnlineOrder[]
   debtEntries      DebtEntry[]
   debtRequests     DebtRequest[]
@@ -753,4 +766,27 @@ model StockMove {
 
   @@index([productId, createdAt])
   @@index([organizationId, createdAt])
+}
+
+/// «Ман пул фиристодам»: соҳиби бизнес тариф ва мӯҳлатро интихоб карда, ба корти платформа пул мегузаронад.
+/// Тариф танҳо пас аз тасдиқи супер-админ кушода мешавад.
+model PlanPayment {
+  id             Int               @id @default(autoincrement())
+  organizationId Int
+  organization   Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  plan           String
+  months         Int
+  amount         Decimal           @db.Decimal(12, 2)
+  /// Рақами чек, 4 рақами охири корт ё телефони фиристанда
+  reference      String            @default("")
+  status         PlanPaymentStatus @default(PENDING)
+  /// Сабаби рад
+  note           String            @default("")
+  createdById    Int?
+  decidedById    Int?
+  decidedAt      DateTime?
+  createdAt      DateTime          @default(now())
+
+  @@index([status])
+  @@index([organizationId])
 }

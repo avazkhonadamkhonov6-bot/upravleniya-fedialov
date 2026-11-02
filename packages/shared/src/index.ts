@@ -98,7 +98,118 @@ export interface Organization {
   statusNote: string;
   /** Кассир то ин қарзи умумии мизоҷ бе тасдиқи менеҷер ба қарз мефурӯшад (0 — ҳамеша тасдиқ) */
   cashierDebtLimit: number;
+  /** Тарифи пардохтшуда (ё FREE) */
+  plan: Plan;
+  /** Тариф то ин сана; null — бемӯҳлат (ё FREE) */
+  planUntil: string | null;
   createdAt: string;
+}
+
+// ---------- Тарифҳо ва пардохт ----------
+
+export const PLANS = ['FREE', 'START', 'BUSINESS', 'PRO', 'ENTERPRISE'] as const;
+export type Plan = (typeof PLANS)[number];
+
+export interface PlanInfo {
+  id: Plan;
+  name: string;
+  /** Нарх дар як моҳ (сомонӣ) */
+  price: number;
+  /** null — бемаҳдуд */
+  branches: number | null;
+  /** Кормандон бе шеф; null — бемаҳдуд */
+  employees: number | null;
+  /** Барои кӣ */
+  tagline: string;
+  /** Тарифе, ки бештар интихоб мекунанд */
+  popular?: boolean;
+}
+
+export const PLAN_INFO: Record<Plan, PlanInfo> = {
+  FREE: { id: 'FREE', name: 'Озмоишӣ', price: 0, branches: 1, employees: 4, tagline: 'Барои санҷиш — ҳамеша ройгон' },
+  START: { id: 'START', name: 'Старт', price: 150, branches: 2, employees: 10, tagline: 'Мағоза ё қаҳвахонаи хурд' },
+  BUSINESS: { id: 'BUSINESS', name: 'Бизнес', price: 290, branches: 5, employees: 30, tagline: 'Шабакаи хурди филиалҳо', popular: true },
+  PRO: { id: 'PRO', name: 'Про', price: 490, branches: 15, employees: 100, tagline: 'Шабакаи калон' },
+  ENTERPRISE: { id: 'ENTERPRISE', name: 'Корпоративӣ', price: 890, branches: null, employees: null, tagline: 'Бемаҳдуд + ёрии шахсӣ' },
+};
+
+/** Тарифҳое, ки харидан мумкин аст */
+export const PAID_PLANS = PLANS.filter((p) => p !== 'FREE') as Exclude<Plan, 'FREE'>[];
+
+/** Барои чанд моҳ пардохт кардан мумкин аст ва тахфиф (%) */
+export const BILLING_PERIODS = [1, 3, 6, 12] as const;
+export type BillingPeriod = (typeof BILLING_PERIODS)[number];
+export const PERIOD_DISCOUNT: Record<BillingPeriod, number> = { 1: 0, 3: 5, 6: 10, 12: 20 };
+
+/** Пас аз тамом шудани тариф чанд рӯз маҳдудиятҳо ҳанӯз кушодаанд */
+export const PLAN_GRACE_DAYS = 3;
+
+/** Маблағи пардохт барои тариф ва мӯҳлат (сомонӣ, бутун) */
+export function planPrice(plan: Plan, months: BillingPeriod): number {
+  return Math.round((PLAN_INFO[plan].price * months * (100 - PERIOD_DISCOUNT[months])) / 100);
+}
+
+/** Тарифе, ки ҳоло амал мекунад: пас аз мӯҳлат (ва рӯзҳои имтиёзӣ) — FREE */
+export function effectivePlan(o: { plan: string; planUntil: string | Date | null }, now = new Date()): Plan {
+  const plan = (PLANS as readonly string[]).includes(o.plan) ? (o.plan as Plan) : 'FREE';
+  if (plan === 'FREE' || !o.planUntil) return plan;
+  return new Date(o.planUntil).getTime() + PLAN_GRACE_DAYS * 86400000 > now.getTime() ? plan : 'FREE';
+}
+
+export const PLAN_PAYMENT_STATUSES = ['PENDING', 'APPROVED', 'REJECTED', 'CANCELLED'] as const;
+export type PlanPaymentStatus = (typeof PLAN_PAYMENT_STATUSES)[number];
+
+export const PLAN_PAYMENT_STATUS_LABELS: Record<PlanPaymentStatus, string> = {
+  PENDING: 'Санҷида мешавад',
+  APPROVED: 'Қабул шуд',
+  REJECTED: 'Рад шуд',
+  CANCELLED: 'Бекор шуд',
+};
+
+/** Дархости «Ман пул фиристодам» */
+export interface PlanPayment {
+  id: number;
+  organizationId: number;
+  organizationName: string;
+  plan: Plan;
+  months: number;
+  amount: number;
+  /** Рақами чек, 4 рақами охири корт ё телефони фиристанда */
+  reference: string;
+  status: PlanPaymentStatus;
+  /** Сабаби рад */
+  note: string;
+  createdAt: string;
+  decidedAt: string | null;
+  /** Барои супер-админ: соҳиби бизнес */
+  owner?: { fullName: string; phone: string; email: string } | null;
+}
+
+/** Ба кадом корт пул фиристода шавад (супер-админ дар /admin танзим мекунад) */
+export interface PaymentCard {
+  number: string;
+  holder: string;
+  bank: string;
+  /** Телефон барои саволҳо ё пардохт бо рақам */
+  phone: string;
+  /** Иловагӣ: масалан «Alif Mobi, DC Wallet низ мешавад» */
+  note: string;
+}
+
+export interface BillingInfo {
+  plan: Plan;
+  /** Тарифе, ки ҳоло амал мекунад (пас аз мӯҳлат — FREE) */
+  effective: Plan;
+  planUntil: string | null;
+  /** Чанд рӯз монд; null — бемӯҳлат */
+  daysLeft: number | null;
+  usage: { branches: number; employees: number };
+  limits: { branches: number | null; employees: number | null };
+  pending: PlanPayment | null;
+  history: PlanPayment[];
+  card: PaymentCard;
+  /** Ҳисоби демо — пардохт лозим нест */
+  isDemo: boolean;
 }
 
 // ---------- Супер-админ: тасдиқи бизнесҳо ----------
@@ -129,6 +240,8 @@ export interface AdminBusiness {
   products: number;
   /** Дигар бизнесҳои ҳамин соҳиб */
   ownerBusinesses: number;
+  plan: Plan;
+  planUntil: string | null;
 }
 
 export interface AdminBusinessDetail extends AdminBusiness {
@@ -145,6 +258,12 @@ export interface AdminOverview {
   branches: number;
   employees: number;
   clients: number;
+  /** Пардохтҳои интизори санҷиш */
+  pendingPayments: number;
+  /** Бизнесҳое, ки ҳоло тарифи пулакӣ доранд */
+  paying: number;
+  /** Даромади ин моҳ (пардохтҳои қабулшуда, сомонӣ) */
+  revenueMonth: number;
 }
 
 /** Тарзҳои пардохт дар POS; DEBT — ба қарз (ба дафтари қарзи мизоҷ) */
@@ -214,6 +333,8 @@ export const FEATURES = [
   'assistant',
   /** Панели супер-админ: тасдиқи бизнесҳо, ҳамаи филиалҳо ва кормандон */
   'admin',
+  /** Тариф ва пардохт (танҳо шеф) */
+  'billing',
 ] as const;
 export type Feature = (typeof FEATURES)[number];
 
@@ -238,7 +359,7 @@ type Who = { role: Role; position: Position | null; isSuperAdmin?: boolean };
 export function canAccess(u: Who, feature: Feature): boolean {
   if (feature === 'admin') return !!u.isSuperAdmin;
   if (u.role === 'CHEF') return true;
-  if (u.role === 'MANAGER') return feature !== 'integrations' && feature !== 'audit';
+  if (u.role === 'MANAGER') return feature !== 'integrations' && feature !== 'audit' && feature !== 'billing';
   return !!u.position && STAFF_FEATURES[u.position].includes(feature);
 }
 
@@ -277,6 +398,7 @@ export function featureOfPath(pathname: string): Feature | null {
     promos: 'customers',
     payroll: 'staff',
     admin: 'admin',
+    billing: 'billing',
   };
   return map[seg] ?? null;
 }

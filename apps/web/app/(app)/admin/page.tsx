@@ -1,9 +1,10 @@
 "use client";
 
 import { BUSINESS_TYPE_LABELS, type AdminBusiness, type AdminOverview, type OrgStatus } from "@filialhub/shared";
-import { ArrowUpRight, Building2, Clock, Search, ShieldCheck, Store, Users } from "lucide-react";
+import { ArrowUpRight, Building2, Clock, CreditCard, Search, ShieldCheck, Store, Users, Wallet } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
+import { CardSettings, PaymentsPanel, PlanControl } from "@/components/admin-billing";
 import { ReviewActions, StatusBadge } from "@/components/admin-review";
 import { BusinessIcon } from "@/components/glyph";
 import { Avatar, Card, ContactButtons, CountUp, Empty, ErrorBox, Input, PageHeader, Segmented, Skeleton, cn, formatDate } from "@/components/ui";
@@ -37,6 +38,14 @@ export default function AdminPage() {
         <Tile icon={Store} label={tr("Ҳамаи бизнесҳо")} value={overview?.businesses} />
         <Tile icon={Building2} label={tr("Филиалҳо")} value={overview?.branches} />
         <Tile icon={Users} label={tr("Кормандон")} value={overview?.employees} />
+        <Tile icon={CreditCard} label={tr("Пардохтҳои интизор")} value={overview?.pendingPayments} accent={!!overview?.pendingPayments} />
+        <Tile icon={Store} label={tr("Бизнесҳои пулакӣ")} value={overview?.paying} />
+        <Tile icon={Wallet} label={tr("Даромади ин моҳ (сомонӣ)")} value={overview?.revenueMonth} />
+      </div>
+
+      <div className="mb-6 grid gap-6 xl:grid-cols-[1.4fr_1fr]">
+        <PaymentsPanel onChanged={refresh} />
+        <CardSettings />
       </div>
 
       <Card>
@@ -111,6 +120,7 @@ function BusinessRow({ b, onChanged }: { b: AdminBusiness; onChanged: () => void
             </Link>
             <span className="text-xs text-muted">#{b.id}</span>
             <StatusBadge status={b.status} />
+            <PlanControl business={b} onDone={onChanged} />
           </div>
           <div className="mt-0.5 text-sm text-muted">
             {tr(BUSINESS_TYPE_LABELS[b.type])} · {tr("сабт: {0}", formatDate(b.createdAt, true))}

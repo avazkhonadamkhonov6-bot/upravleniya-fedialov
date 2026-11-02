@@ -3,6 +3,7 @@ import { POSITIONS, type Branch as BranchDto, type Position } from '@filialhub/s
 import type { AuthUser } from '../auth/decorators';
 import { branchWhere, scopeBranch } from '../common/access';
 import { toBranch } from '../common/serializers';
+import { BillingService } from '../billing/billing';
 import { AuditService } from '../core/audit.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateBranchDto, UpdateBranchDto } from './dto';
@@ -12,6 +13,7 @@ export class BranchesService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly audit: AuditService,
+    private readonly billing: BillingService,
   ) {}
 
   list(user: AuthUser): Promise<BranchDto[]> {
@@ -47,6 +49,7 @@ export class BranchesService {
   }
 
   async create(actor: AuthUser, dto: CreateBranchDto) {
+    await this.billing.assertCanAdd(actor.organizationId, 'branch');
     const b = await this.prisma.branch.create({
       data: { ...dto, organizationId: actor.organizationId, email: dto.email.toLowerCase(), openedAt: dto.openedAt ? new Date(dto.openedAt) : undefined },
     });
@@ -55,7 +58,8 @@ export class BranchesService {
   }
 
   async update(actor: AuthUser, id: number, dto: UpdateBranchDto) {
-    await this.ensure(actor, id);
+    const existing = await this.ensure(actor, id);
+    if (dto.isActive === true && !existing.isActive) await this.billing.assertCanAdd(actor.organizationId, 'branch');
     const b = await this.prisma.branch.update({
       where: { id },
       data: { ...dto, email: dto.email?.toLowerCase(), openedAt: dto.openedAt ? new Date(dto.openedAt) : undefined },
