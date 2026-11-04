@@ -4,23 +4,53 @@
     {
       "name": "api",
       "runtimeExecutable": "npm",
-      "runtimeArgs": ["run", "dev", "-w", "@filialhub/api"],
+      "runtimeArgs": [
+        "run",
+        "dev",
+        "-w",
+        "@filialhub/api"
+      ],
       "port": 4100,
       "url": "http://localhost:4100"
     },
     {
       "name": "api-built",
       "runtimeExecutable": "node",
-      "runtimeArgs": ["apps/api/dist/main.js"],
-      "env": { "PORT": "4199" },
+      "runtimeArgs": [
+        "--env-file=apps/api/.env",
+        "apps/api/dist/main.js"
+      ],
+      "env": {
+        "PORT": "4199"
+      },
       "port": 4199,
       "url": "http://localhost:4199"
     },
     {
       "name": "web",
       "runtimeExecutable": "npm",
-      "runtimeArgs": ["run", "dev", "-w", "@filialhub/web"],
+      "runtimeArgs": [
+        "run",
+        "dev",
+        "-w",
+        "@filialhub/web"
+      ],
       "port": 3100
+    },
+    {
+      "name": "web-prod",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": [
+        "next",
+        "start",
+        "apps/web",
+        "-p",
+        "3199"
+      ],
+      "env": {
+        "API_URL": "http://localhost:4199"
+      },
+      "port": 3199
     }
   ]
 }
