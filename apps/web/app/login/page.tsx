@@ -163,6 +163,11 @@ export default function LoginPage() {
                   <Input type="password" required value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" className="pl-10" autoComplete="current-password" />
                 </div>
               </Field>
+              <div className="-mt-2 text-right">
+                <Link href="/forgot" className="text-sm font-semibold text-brand hover:underline">
+                  {tr("Паролро фаромӯш кардед?")}
+                </Link>
+              </div>
               <ErrorBox message={error} />
               <Button type="submit" loading={busy === "form"} disabled={!!busy} className="group w-full">
                 {tr("Ворид шудан")} <ArrowRight className="size-4 transition-transform group-hover:translate-x-1" />

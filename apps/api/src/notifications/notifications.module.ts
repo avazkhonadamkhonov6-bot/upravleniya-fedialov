@@ -14,12 +14,13 @@ import { TelegramService } from './telegram.service';
 import { TelegramWebhookController } from './telegram-webhook.controller';
 import { WhatsAppWebhookController } from './whatsapp-webhook.controller';
 import { WhatsAppService } from './whatsapp.service';
+import { BackInStockService } from './back-in-stock.service';
 
 @Global()
 @Module({
   imports: [StatsModule],
   controllers: [IntegrationsController, WhatsAppWebhookController, TelegramWebhookController, ChannelsController, BusinessWhatsAppController],
-  providers: [AiInsightsService, TelegramService, WhatsAppService, NotificationsService, ReportService, BotService, TelegramBotService, ChatService, CustomerBotService],
-  exports: [AiInsightsService, NotificationsService, ChatService, TelegramService, WhatsAppService, CustomerBotService],
+  providers: [AiInsightsService, TelegramService, WhatsAppService, NotificationsService, ReportService, BotService, TelegramBotService, ChatService, CustomerBotService, BackInStockService],
+  exports: [AiInsightsService, NotificationsService, ChatService, TelegramService, WhatsAppService, CustomerBotService, BackInStockService],
 })
 export class NotificationsModule {}

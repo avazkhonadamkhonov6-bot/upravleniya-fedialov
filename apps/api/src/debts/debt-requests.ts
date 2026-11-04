@@ -104,6 +104,8 @@ export class DebtRequestsService {
     // Санҷиши пурра (филиал, мол, мизоҷ, промо, бонус) — ҳамон тавре ки фурӯши воқеӣ ҳисоб мешавад
     const q = await this.orders.quote(user, dto);
     assertCreditLimit(await this.debts.customer(user, dto.customerId), q.total);
+    // Мол бояд ҳоло дар анбор бошад; ҳангоми тасдиқ боз санҷида мешавад
+    await this.orders.checkStock(q.branchId, q.lines);
     const products = await this.prisma.product.findMany({ where: { id: { in: q.lines.map((l) => l.productId) } }, select: { id: true, name: true } });
     const lines = q.lines.map((l) => ({ name: products.find((p) => p.id === l.productId)?.name ?? '?', qty: l.qty }));
     const sale = { ...dto, branchId: q.branchId, clientRef: undefined, soldAt: undefined, lines };

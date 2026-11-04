@@ -59,7 +59,11 @@ export function toBranch(b: Branch): BranchDto {
   };
 }
 
-export function toProduct(p: Product & { branchStocks?: { branchId: number; qty: Prisma.Decimal }[] }, hideCost = false): ProductDto {
+export function toProduct(
+  p: Product & { branchStocks?: { branchId: number; qty: Prisma.Decimal }[] },
+  hideCost = false,
+  reserved?: Map<number, number>,
+): ProductDto {
   const price = Number(p.price);
   const cost = hideCost ? 0 : Number(p.cost);
   const profit = hideCost ? 0 : price - cost;
@@ -78,7 +82,8 @@ export function toProduct(p: Product & { branchStocks?: { branchId: number; qty:
     imageId: p.imageId,
     stock: p.stock === null ? null : Number(p.stock),
     lowStock: p.lowStock === null ? null : Number(p.lowStock),
-    branchStock: p.stock === null ? [] : (p.branchStocks ?? []).map((b) => ({ branchId: b.branchId, qty: Number(b.qty) })),
+    branchStock:
+      p.stock === null ? [] : (p.branchStocks ?? []).map((b) => ({ branchId: b.branchId, qty: Number(b.qty), ...(reserved ? { reserved: reserved.get(b.branchId) ?? 0 } : {}) })),
     isActive: p.isActive,
   };
 }

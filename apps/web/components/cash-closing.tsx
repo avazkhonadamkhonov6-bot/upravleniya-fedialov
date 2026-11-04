@@ -53,13 +53,17 @@ export function CashReportCard({ branchId }: { branchId?: number }) {
         <Empty icon="🧾" title={tr("Дар ин рӯз фурӯш нест")} />
       ) : (
         <>
-          <div className="mb-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
+          <div className={cn("mb-3 grid grid-cols-2 gap-2", data.totals.returns ? "sm:grid-cols-5" : "sm:grid-cols-4")}>
             {(
               [
                 [tr("Нақд (бояд дар касса)"), money(data.totals.expectedCash)],
-                [tr("Корт"), money(data.totals.cardSales + data.totals.debtPaidCard)],
-                [tr("Ба қарз"), money(data.totals.debtSales)],
+                [tr("Корт"), money(data.totals.cardSales + data.totals.debtPaidCard - data.totals.refundCard)],
+                [tr("Ба қарз"), money(data.totals.debtSales - data.totals.refundDebt)],
                 [tr("Чекҳо"), String(data.totals.orders)],
+                // Возврат алоҳида: чанд чек ва чанд пул баргашт (нақд аз касса, корт ба корти мизоҷ)
+                ...(data.totals.returns
+                  ? [[tr("Возврат ({0})", data.totals.returns), `−${money(data.totals.refundCash + data.totals.refundCard + data.totals.refundDebt)}`] as const]
+                  : []),
               ] as const
             ).map(([l, v]) => (
               <div key={l} className="rounded-xl bg-surface-2 p-3">
@@ -99,6 +103,13 @@ function Row({ r }: { r: CashReport }) {
         <div className="text-xs text-muted tabular">
           {tr("{0} чек", r.orders)} · {tr("нақд")} {money(r.cashSales)} · {tr("корт")} {money(r.cardSales)} · {tr("қарз")} {money(r.debtSales)}
           {r.debtPaidCash + r.debtPaidCard > 0 && ` · ${tr("пардохти қарз")} ${money(r.debtPaidCash + r.debtPaidCard)}`}
+          {r.returns > 0 && (
+            <span className="text-brand">
+              {" "}· {tr("возврат {0}", r.returns)}: {tr("нақд")} −{money(r.refundCash)}
+              {r.refundCard > 0 && ` · ${tr("корт")} −${money(r.refundCard)}`}
+              {r.refundDebt > 0 && ` · ${tr("қарз")} −${money(r.refundDebt)}`}
+            </span>
+          )}
         </div>
       </div>
       <div className="text-right text-sm tabular">
@@ -153,6 +164,12 @@ function CloseForm({ mine, onDone }: { mine: CashReport | undefined; onDone: () 
           <div className="text-xs text-muted">{tr("Пардохти нақди қарз")}</div>
           <b className="tabular">{money(mine?.debtPaidCash ?? 0)}</b>
         </div>
+        {(mine?.refundCash ?? 0) > 0 && (
+          <div className="col-span-2 rounded-xl bg-surface-2 p-3">
+            <div className="text-xs text-muted">{tr("Возврати нақд (аз касса дода шуд)")}</div>
+            <b className="text-brand tabular">−{money(mine?.refundCash ?? 0)}</b>
+          </div>
+        )}
         <div className="col-span-2 rounded-xl bg-brand-soft p-3">
           <div className="text-xs text-muted">{tr("Бояд дар касса бошад (нақд)")}</div>
           <div className="text-2xl font-extrabold text-brand tabular">{money(expected)}</div>

@@ -43,6 +43,7 @@ import {
   TicketPercent,
   Wallet,
   PiggyBank,
+  Truck,
   Warehouse,
   X,
 } from "lucide-react";
@@ -114,6 +115,8 @@ const NAV: { title: string; items: NavItem[] }[] = [
       { href: "/products", label: "Меню ва нархҳо", short: "Меню", icon: UtensilsCrossed, feature: "products" },
       // Анбор: шеф, менеҷер ва анбордор (дигар кормандон анборро пур намекунанд)
       { href: "/warehouse", label: "Анбор", short: "Анбор", icon: Warehouse, feature: "products", only: (u) => u.role !== "STAFF" || u.position === "STOREKEEPER", primary: true },
+      // Таъминкунандагон ва қарзи мо ба онҳо — пул, бинобар ин танҳо шеф ва менеҷер
+      { href: "/suppliers", label: "Таъминкунандагон", short: "Таъмин", icon: Truck, feature: "products", only: (u) => u.role !== "STAFF" },
     ],
   },
   {

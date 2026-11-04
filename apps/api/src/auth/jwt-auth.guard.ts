@@ -8,6 +8,17 @@ import { DEMO_BLOCKED_MESSAGE, DEMO_CLIENT_EMAIL, isDemoBlocked } from './demo-g
 
 export const LOCKED_MESSAGE = 'Тарифи бизнес тамом шуд — то пардохт ҳисоби шумо баста аст. Ба соҳиби бизнес гӯед, ки тарифро дароз кунад.';
 
+export const PASSWORD_CHANGED = 'Парол иваз шуд — бо пароли нав дубора ворид шавед';
+
+/**
+ * Токен пеш аз ивази парол дода шуда буд (дастгоҳи кӯҳна, телефони гумшуда) — рад.
+ * JWT вақтро бо сония медиҳад: токени нав дар ҳамон сонияи ивази парол қабул мешавад.
+ */
+export function issuedBeforePasswordChange(iat: number | undefined, changedAt: Date | null) {
+  if (!changedAt) return false;
+  return (iat ?? 0) < Math.floor(changedAt.getTime() / 1000);
+}
+
 @Injectable()
 export class JwtAuthGuard implements CanActivate {
   constructor(
@@ -26,7 +37,7 @@ export class JwtAuthGuard implements CanActivate {
     const token = header?.startsWith('Bearer ') ? header.slice(7) : undefined;
     if (!token) throw new UnauthorizedException('Лутфан ворид шавед');
 
-    let payload: { sub: number; kind?: 'client' };
+    let payload: { sub: number; kind?: 'client'; iat?: number };
     try {
       payload = await this.jwt.verifyAsync(token);
     } catch {
@@ -40,6 +51,7 @@ export class JwtAuthGuard implements CanActivate {
       if (!clientOnly) throw new ForbiddenException('Ин бахш барои кормандони ширкат аст');
       const client = await this.prisma.client.findUnique({ where: { id: payload.sub } });
       if (!client) throw new UnauthorizedException('Ҳисоб ёфт нашуд');
+      if (issuedBeforePasswordChange(payload.iat, client.passwordChangedAt)) throw new UnauthorizedException(PASSWORD_CHANGED);
       if (client.email === DEMO_CLIENT_EMAIL && isDemoBlocked(req.method, req.path, req.body)) throw new ForbiddenException(DEMO_BLOCKED_MESSAGE);
       req.client = { id: client.id, fullName: client.fullName } satisfies AuthClient;
       return true;
@@ -51,6 +63,7 @@ export class JwtAuthGuard implements CanActivate {
       include: { organization: { include: { branches: { select: { id: true } } } } },
     });
     if (!user || !user.isActive) throw new UnauthorizedException('Ҳисоб ғайрифаъол аст');
+    if (issuedBeforePasswordChange(payload.iat, user.passwordChangedAt)) throw new UnauthorizedException(PASSWORD_CHANGED);
     // Тарифи бизнес тамом шуд ва корманд аз ҳадди ройгон берун монд (кеш — база ҳар дафъа пурсида намешавад)
     if (!user.isSuperAdmin && (await this.billing.isLocked(user, user.organization))) throw new UnauthorizedException(LOCKED_MESSAGE);
     // Демо барои ҳама кушода аст — нест кардан, ивази парол ва танзимҳо хомӯшанд

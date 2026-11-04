@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import { BadRequestException, ForbiddenException } from '@nestjs/common';
 import type { AuthUser } from '../auth/decorators';
+import type { AuditService } from '../core/audit.service';
 import type { DebtsService } from '../debts/debts';
 import type { PrismaService } from '../prisma/prisma.service';
 import type { StockService } from '../products/stock';
@@ -32,7 +33,7 @@ function service(promoDiscount = 0, cashierDebtLimit = 0) {
     organization: { findUniqueOrThrow: async () => ({ cashierDebtLimit }) },
   } as unknown as PrismaService;
   const promos = { check: async (_org: number, code: string) => ({ code, discount: promoDiscount, label: '' }) } as unknown as PromosService;
-  return new OrdersService(prisma, {} as StockService, {} as DebtsService, promos);
+  return new OrdersService(prisma, {} as StockService, {} as DebtsService, promos, {} as AuditService);
 }
 
 const dto = (d: Partial<CreateOrderDto>): CreateOrderDto => ({ branchId: 1, payment: 'CASH', items: [{ productId: 10, qty: 2 }, { productId: 11, qty: 1 }], ...d }) as CreateOrderDto;

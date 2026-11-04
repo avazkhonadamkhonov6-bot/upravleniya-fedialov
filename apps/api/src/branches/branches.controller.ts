@@ -12,6 +12,12 @@ export class BranchesController {
     return this.branches.list(user);
   }
 
+  /** Танҳо id ва номи филиалҳои фаъоли ширкат — барои интиқоли мол (менеҷер филиалҳои дигарро намебинад) */
+  @Get('names')
+  names(@CurrentUser() user: AuthUser) {
+    return this.branches.names(user);
+  }
+
   @Get(':id')
   get(@CurrentUser() user: AuthUser, @Param('id', ParseIntPipe) id: number) {
     return this.branches.get(user, id);

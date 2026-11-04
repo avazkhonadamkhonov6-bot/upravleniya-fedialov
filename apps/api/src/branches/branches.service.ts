@@ -20,6 +20,10 @@ export class BranchesService {
     return this.query(branchWhere(user));
   }
 
+  names(user: AuthUser): Promise<{ id: number; name: string }[]> {
+    return this.prisma.branch.findMany({ where: { organizationId: user.organizationId, isActive: true }, select: { id: true, name: true }, orderBy: { id: 'asc' } });
+  }
+
   async get(user: AuthUser, id: number) {
     const [branch] = await this.query(scopeBranch(user, id) ?? id);
     if (!branch) throw new NotFoundException('Филиал ёфт нашуд');

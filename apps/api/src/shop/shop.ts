@@ -171,12 +171,22 @@ function toOnline(o: OrderRow): OnlineOrder {
 
 const r2 = (n: number) => Math.round(n * 100) / 100;
 
-/** { branchId: миқдор } танҳо барои филиалҳои фаъол; манфӣ → 0; null — мол ҳисоб карда намешавад */
-function stockByBranch(p: { stock: Prisma.Decimal | null; branchStocks: { branchId: number; qty: Prisma.Decimal }[] }, branchIds: Set<number>) {
+/**
+ * { branchId: миқдори озод } танҳо барои филиалҳои фаъол; null — мол ҳисоб карда намешавад.
+ * Озод = дар анбор − банд дар фармоишҳои онлайни кушода (reserved); манфӣ → 0.
+ */
+function stockByBranch(
+  p: { id: number; stock: Prisma.Decimal | null; branchStocks: { branchId: number; qty: Prisma.Decimal }[] },
+  branchIds: Set<number>,
+  reserved: Map<number, Map<number, number>>,
+) {
   if (p.stock === null) return null;
   const out: Record<number, number> = {};
   for (const id of branchIds) out[id] = 0;
-  for (const s of p.branchStocks) if (branchIds.has(s.branchId)) out[s.branchId] = Math.max(0, Number(s.qty));
+  const held = reserved.get(p.id);
+  for (const s of p.branchStocks) {
+    if (branchIds.has(s.branchId)) out[s.branchId] = Math.max(0, Math.round((Number(s.qty) - (held?.get(s.branchId) ?? 0)) * 1000) / 1000);
+  }
   return out;
 }
 
@@ -243,9 +253,10 @@ export class ShopService {
     });
     if (!o || !o.branches.length) throw new NotFoundException('Мағоза ёфт нашуд');
     const branchIds = new Set(o.branches.map((b) => b.id));
-    const [rating, reviews] = await Promise.all([
+    const [rating, reviews, reserved] = await Promise.all([
       this.ratings([o.id]),
       this.prisma.review.findMany({ where: { organizationId: o.id }, orderBy: { id: 'desc' }, take: 10, include: { client: { select: { fullName: true } } } }),
+      this.stock.reserved(this.prisma, { organizationId: o.id }),
     ]);
     return {
       ...(rating.get(o.id) ?? { rating: null, reviewCount: 0 }),
@@ -260,18 +271,22 @@ export class ShopService {
       preview: [...new Set(o.products.map((p) => p.emoji))].slice(0, 4),
       branchList: o.branches.map((b) => ({ id: b.id, name: b.name, city: b.city, address: b.address, phone: b.phone })),
       // Арзиши аслӣ ба мизоҷ нишон дода намешавад
-      catalog: o.products.map((p) => ({
-        id: p.id,
-        name: p.name,
-        category: p.category,
-        emoji: p.emoji,
-        unit: p.unit,
-        description: p.description,
-        price: Number(p.price),
-        imageId: p.imageId,
-        soldOut: p.stock !== null && Number(p.stock) <= 0,
-        stock: stockByBranch(p, branchIds),
-      })),
+      catalog: o.products.map((p) => {
+        const stock = stockByBranch(p, branchIds, reserved);
+        return {
+          id: p.id,
+          name: p.name,
+          category: p.category,
+          emoji: p.emoji,
+          unit: p.unit,
+          description: p.description,
+          price: Number(p.price),
+          imageId: p.imageId,
+          // Тамом — вақте ки дар ҳеҷ филиал миқдори озод нест
+          soldOut: stock !== null && Object.values(stock).every((q) => q <= 0),
+          stock,
+        };
+      }),
     };
   }
 
@@ -286,7 +301,8 @@ export class ShopService {
     });
     if (!o) throw new NotFoundException('Мағоза ёфт нашуд');
     const branchIds = new Set(o.branches.map((b) => b.id));
-    return Object.fromEntries(o.products.map((p) => [p.id, stockByBranch(p, branchIds)]));
+    const reserved = await this.stock.reserved(this.prisma, { organizationId: id });
+    return Object.fromEntries(o.products.map((p) => [p.id, stockByBranch(p, branchIds, reserved)]));
   }
 
   async me(client: AuthClient) {
@@ -312,19 +328,9 @@ export class ShopService {
     if (!branch) throw new BadRequestException('Филиал ёфт нашуд');
 
     const ids = [...new Set(dto.items.map((i) => i.productId))];
-    const products = await this.prisma.product.findMany({
-      where: { id: { in: ids }, organizationId: store.id, isActive: true },
-      include: { branchStocks: { where: { branchId: branch.id } } },
-    });
+    const products = await this.prisma.product.findMany({ where: { id: { in: ids }, organizationId: store.id, isActive: true } });
     if (products.length !== ids.length) throw new BadRequestException('Баъзе маҳсулот дигар фурӯхта намешаванд — сабадро нав кунед');
-    // Миқдор аз боқимондаи ҳамон филиал зиёд буда наметавонад (мол аз ҳамин анбор мебарояд)
-    for (const p of products) {
-      if (p.stock === null) continue;
-      const have = Math.max(0, Number(p.branchStocks[0]?.qty ?? 0));
-      const want = dto.items.filter((i) => i.productId === p.id).reduce((s, i) => s + i.qty, 0);
-      if (have <= 0) throw new BadRequestException(`«${p.name}» тамом шудааст — онро аз сабад гиред`);
-      if (want > have) throw new BadRequestException(`«${p.name}»: дар анбор танҳо ${have} ${p.unit} ҳаст`);
-    }
+    // Боқимонда дар худи транзаксияи фармоиш санҷида мешавад (StockService.ensure) — бо қулф, бе пойга
 
     // Нарх аз база, на аз браузер
     const items = dto.items.map((i) => {
@@ -338,6 +344,8 @@ export class ShopService {
   async placeOrder(client: AuthClient, dto: PlaceOrderDto) {
     const { store, branch, items, total: subtotal } = await this.prepare(dto);
     const order = await this.prisma.$transaction(async (tx) => {
+      // Мол аз ҳамин филиал мебарояд ва то «Расонида шуд» барои ин фармоиш банд мемонад
+      await this.stock.ensure(tx, branch.id, items);
       const promo = dto.promoCode?.trim() ? await this.promos.redeem(tx, store.id, dto.promoCode, subtotal, 'online') : null;
       return tx.onlineOrder.create({
         data: {
@@ -363,6 +371,7 @@ export class ShopService {
       { includeChefs: true },
     );
     this.events.emitOrg(store.id, 'orders');
+    this.stock.changed(store.id);
     return toOnline(order);
   }
 
@@ -379,19 +388,22 @@ export class ShopService {
     this.tableHits.set(branch.id, [...recent, now]);
 
     const table = dto.table.trim();
-    const order = await this.prisma.onlineOrder.create({
-      data: {
-        organizationId: store.id,
-        branchId: branch.id,
-        table,
-        address: `Мизи ${table}`,
-        phone: '',
-        note: dto.note?.trim() ?? '',
-        payment: 'CASH',
-        total,
-        items: { create: items },
-      },
-      include: orderInclude,
+    const order = await this.prisma.$transaction(async (tx) => {
+      await this.stock.ensure(tx, branch.id, items);
+      return tx.onlineOrder.create({
+        data: {
+          organizationId: store.id,
+          branchId: branch.id,
+          table,
+          address: `Мизи ${table}`,
+          phone: '',
+          note: dto.note?.trim() ?? '',
+          payment: 'CASH',
+          total,
+          items: { create: items },
+        },
+        include: orderInclude,
+      });
     });
     void this.alerts.notifyBranch(
       branch.id,
@@ -399,6 +411,7 @@ export class ShopService {
       { includeChefs: true },
     );
     this.events.emitOrg(store.id, 'orders');
+    this.stock.changed(store.id);
     return toOnline(order);
   }
 
@@ -427,7 +440,11 @@ export class ShopService {
     const o = await this.prisma.onlineOrder.findUnique({ where: { id } });
     if (!o || o.clientId !== client.id) throw new NotFoundException('Фармоиш ёфт нашуд');
     if (o.status !== 'NEW') throw new BadRequestException('Фармоиш аллакай қабул шудааст — бо мағоза тамос гиред');
-    return toOnline(await this.prisma.onlineOrder.update({ where: { id }, data: { status: 'CANCELLED' }, include: orderInclude }));
+    const updated = toOnline(await this.prisma.onlineOrder.update({ where: { id }, data: { status: 'CANCELLED' }, include: orderInclude }));
+    // Моли банд боз озод шуд — касса ва дигар мизоҷон онро мебинанд
+    this.events.emitOrg(o.organizationId, 'orders');
+    this.stock.changed(o.organizationId);
+    return updated;
   }
 
   /** Баҳо пас аз «Расонида шуд»; такрор — баҳо иваз мешавад */
@@ -524,6 +541,7 @@ export class ShopService {
     });
     if (low.length && o.branchId) void this.stock.warn(o.branchId, low);
     this.events.emitOrg(o.organizationId, 'orders');
+    this.stock.changed(o.organizationId);
     // Мизоҷ ҳолати навро дар Telegram мебинад (агар ба бот пайваст бошад)
     void this.customerBot.notifyClient(o.clientId, `🛍 Фармоиш #${id} (${updated.organization.name}): <b>${ONLINE_STATUS_LABELS[status]}</b>`);
     this.audit.log(user, 'UPDATE', 'online-order', id, `Фармоиши онлайн #${id}: ${ONLINE_STATUS_LABELS[o.status]} → ${ONLINE_STATUS_LABELS[status]}`, o.branchId);
