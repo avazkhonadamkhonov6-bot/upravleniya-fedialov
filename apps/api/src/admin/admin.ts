@@ -95,7 +95,7 @@ export class AdminService implements OnApplicationBootstrap {
           }
           // SUPERADMIN_PASSWORD дар Render — роҳи барқарор кардани пароли фаромӯшшудаи супер-админ
           if (password && password.length >= 8 && !(await bcrypt.compare(password, existing.passwordHash))) {
-            await this.prisma.user.update({ where: { id: existing.id }, data: { passwordHash: await bcrypt.hash(password, 10) } });
+            await this.prisma.user.update({ where: { id: existing.id }, data: { passwordHash: await bcrypt.hash(password, 10), passwordChangedAt: new Date() } });
             this.logger.log(`Пароли супер-админ аз SUPERADMIN_PASSWORD нав шуд: ${email}`);
           }
           this.logger.log(`Супер-админ: ${email}`);

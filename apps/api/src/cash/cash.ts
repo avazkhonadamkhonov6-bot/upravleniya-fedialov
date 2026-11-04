@@ -33,7 +33,9 @@ export function dayRange(date?: string, now = new Date()): { key: string; from: 
 }
 
 type Sums = Omit<CashReport, 'userId' | 'userName' | 'branchName' | 'closing'>;
-const empty = (): Sums => ({ orders: 0, cashSales: 0, cardSales: 0, debtSales: 0, discounts: 0, debtPaidCash: 0, debtPaidCard: 0, expectedCash: 0 });
+const empty = (): Sums => ({ orders: 0, cashSales: 0, cardSales: 0, debtSales: 0, discounts: 0, debtPaidCash: 0, debtPaidCard: 0, returns: 0, refundCash: 0, refundCard: 0, refundDebt: 0, expectedCash: 0 });
+/** Сумма бо 2 рақам; шумораҳо (чек, возврат) — бутун */
+const COUNTS = new Set(['orders', 'returns']);
 
 /**
  * Z-ҳисобот ва пӯшидани касса: ҳар кассир дар охири рӯз мебинад, ки чӣ қадар нақд/корт/қарз фурӯхт ва
@@ -55,16 +57,24 @@ export class CashService {
     const branch = scopeBranch(user, q.branchId);
     const branchIds = branch ? [branch] : user.branchIds;
     const onlyMe = user.role === 'STAFF' ? { userId: user.id } : {};
-    const [sales, paid, closings] = await Promise.all([
+    const [sales, refunds, paid, closings] = await Promise.all([
       this.prisma.order.groupBy({
         by: ['userId', 'payment'],
-        where: { branchId: { in: branchIds }, createdAt: { gte: from, lt: to }, userId: { not: null }, ...onlyMe },
+        where: { branchId: { in: branchIds }, createdAt: { gte: from, lt: to }, userId: { not: null }, returnOfId: null, ...onlyMe },
         _sum: { total: true, discount: true },
+        _count: true,
+      }),
+      // Возвратҳо алоҳида: пули нақди баргашта аз касса мебарояд, корт — ба корти мизоҷ, қарз — қарзро кам мекунад
+      this.prisma.order.groupBy({
+        by: ['userId', 'payment'],
+        where: { branchId: { in: branchIds }, createdAt: { gte: from, lt: to }, userId: { not: null }, returnOfId: { not: null }, ...onlyMe },
+        _sum: { total: true },
         _count: true,
       }),
       this.prisma.debtEntry.groupBy({
         by: ['userId', 'payment'],
-        where: { organizationId: user.organizationId, amount: { lt: 0 }, createdAt: { gte: from, lt: to }, userId: { not: null }, ...onlyMe, user: { branchId: { in: branchIds } } },
+        // orderId: null — пардохти воқеии қарз; кам шудани қарз аз возврат (orderId-и возврат) пул ба касса намеорад
+        where: { organizationId: user.organizationId, amount: { lt: 0 }, orderId: null, createdAt: { gte: from, lt: to }, userId: { not: null }, ...onlyMe, user: { branchId: { in: branchIds } } },
         _sum: { amount: true },
       }),
       this.prisma.cashClosing.findMany({ where: { branchId: { in: branchIds }, day: from, ...onlyMe } }),
@@ -80,6 +90,14 @@ export class CashService {
       else if (s.payment === 'CARD') r.cardSales += total;
       else r.debtSales += total;
     }
+    for (const s of refunds) {
+      const r = get(s.userId!);
+      const amount = -Number(s._sum.total ?? 0);
+      r.returns += s._count;
+      if (s.payment === 'CASH') r.refundCash += amount;
+      else if (s.payment === 'CARD') r.refundCard += amount;
+      else r.refundDebt += amount;
+    }
     for (const p of paid) {
       const r = get(p.userId!);
       const amount = -Number(p._sum.amount ?? 0);
@@ -91,13 +109,13 @@ export class CashService {
     const rows: CashReport[] = [...byUser.entries()].map(([userId, s]) => {
       const c = closings.find((x) => x.userId === userId);
       const p = people.find((x) => x.id === userId);
-      const rounded = Object.fromEntries(Object.entries(s).map(([k, v]) => [k, k === 'orders' ? v : r2(v)])) as Sums;
+      const rounded = Object.fromEntries(Object.entries(s).map(([k, v]) => [k, COUNTS.has(k) ? v : r2(v)])) as Sums;
       return {
         userId,
         userName: p?.fullName ?? '—',
         branchName: p?.branch?.name ?? '',
         ...rounded,
-        expectedCash: r2(s.cashSales + s.debtPaidCash),
+        expectedCash: r2(s.cashSales + s.debtPaidCash - s.refundCash),
         closing: c ? { countedCash: Number(c.countedCash), diff: Number(c.diff), note: c.note, closedAt: c.updatedAt.toISOString() } : null,
       };
     });
@@ -113,6 +131,10 @@ export class CashService {
         debtSales: t('debtSales'),
         debtPaidCash: t('debtPaidCash'),
         debtPaidCard: t('debtPaidCard'),
+        returns: t('returns'),
+        refundCash: t('refundCash'),
+        refundCard: t('refundCard'),
+        refundDebt: t('refundDebt'),
         expectedCash: t('expectedCash'),
         diff: r2(rows.reduce((s, r) => s + (r.closing?.diff ?? 0), 0)),
       },
@@ -149,7 +171,7 @@ export class CashService {
     await this.tellBoss(user, {
       icon: diff === 0 ? '✅' : '⚠️',
       title: diff === 0 ? `${user.fullName} кассаро пӯшид — бе фарқ` : `${user.fullName}: фарқи касса ${diff > 0 ? '+' : ''}${formatMoney(diff)}`,
-      body: `Нақд: интизор ${formatMoney(me.expectedCash)}, ҳисоб ${formatMoney(counted)} · корт ${formatMoney(me.cardSales + me.debtPaidCard)} · қарз ${formatMoney(me.debtSales)}${dto.note?.trim() ? ` · ${dto.note.trim()}` : ''}`,
+      body: `Нақд: интизор ${formatMoney(me.expectedCash)}, ҳисоб ${formatMoney(counted)} · корт ${formatMoney(me.cardSales + me.debtPaidCard)} · қарз ${formatMoney(me.debtSales)}${me.returns ? ` · возврат ${me.returns} (нақд −${formatMoney(me.refundCash)})` : ''}${dto.note?.trim() ? ` · ${dto.note.trim()}` : ''}`,
       link: '/sales',
     });
     // Санҷиши шубҳанок дар замина — кассир интизор намешавад

@@ -9,7 +9,7 @@ import { OrganizationCard } from "@/components/organization-card";
 import { SalaryCard } from "@/components/salary-card";
 import { Avatar, Badge, Button, Card, CardTitle, ErrorBox, Field, Input, PageHeader } from "@/components/ui";
 import { PushToggle } from "@/components/push-toggle";
-import { api } from "@/lib/api";
+import { api, setToken } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { tr, locale } from "@/lib/i18n";
 import { Iconized } from "@/components/glyph";
@@ -42,7 +42,7 @@ export default function ProfilePage() {
     setError(null);
     setOk(false);
     try {
-      const updated = await api<User>("/auth/me", {
+      const { token, ...updated } = await api<User & { token?: string }>("/auth/me", {
         method: "PATCH",
         json: {
           fullName: f.fullName,
@@ -54,6 +54,8 @@ export default function ProfilePage() {
           ...(needsPassword ? { currentPassword: f.currentPassword } : {}),
         },
       });
+      // Парол иваз шуд: дастгоҳҳои дигар баромаданд, ин дастгоҳ бо токени нав мемонад
+      if (token) setToken(token);
       setUser(updated);
       setF({ ...f, email: updated.email, whatsapp: updated.whatsapp, telegram: updated.telegram, currentPassword: "", newPassword: "" });
       setOk(true);

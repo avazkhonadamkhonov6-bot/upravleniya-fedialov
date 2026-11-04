@@ -30,6 +30,7 @@ import { CashModule } from './cash/cash';
 import { AssistantModule } from './ai/assistant';
 import { ShopAiModule } from './ai/shop-ai';
 import { BillingModule } from './billing/billing';
+import { PasswordResetModule } from './auth/password-reset';
 
 @Module({
   imports: [
@@ -59,6 +60,7 @@ import { BillingModule } from './billing/billing';
     AssistantModule,
     ShopAiModule,
     BillingModule,
+    PasswordResetModule,
   ],
   controllers: [HealthController],
   providers: [

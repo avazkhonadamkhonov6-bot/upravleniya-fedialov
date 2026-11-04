@@ -35,6 +35,11 @@ export const metadata: Metadata = {
   twitter: { card: "summary", title: SITE_NAME, description: SITE_DESCRIPTION },
   robots: { index: true, follow: true },
   formatDetection: { telephone: false },
+  // Google Search Console / Яндекс Вебмастер: «HTML tag» → танҳо қимати content дар Render → Environment
+  verification: {
+    google: process.env.GOOGLE_SITE_VERIFICATION || undefined,
+    yandex: process.env.YANDEX_VERIFICATION || undefined,
+  },
 };
 
 export const viewport: Viewport = {

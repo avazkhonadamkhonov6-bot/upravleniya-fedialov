@@ -1,12 +1,15 @@
 "use client";
 
 import { STOCK_REASON_LABELS, type Branch, type Product, type StockMove } from "@filialhub/shared";
-import { ClipboardList, PackagePlus, Search } from "lucide-react";
+import { ArrowLeftRight, ClipboardCheck, ClipboardList, PackagePlus, Search, TrendingDown } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 import { ProductVisual } from "@/components/product-visual";
 import { ReorderList } from "@/components/reorder-list";
 import { qtyIn, StockForm } from "@/components/stock-form";
+import { StockInsights } from "@/components/stock-insights";
+import { StocktakeForm, TransferForm } from "@/components/stock-transfer";
+import { useServerEvent } from "@/lib/events";
 import { Badge, Button, Card, CardTitle, cn, Empty, ErrorBox, formatDate, Modal, money, PageHeader, Segmented, Select, Skeleton } from "@/components/ui";
 import { qs } from "@/lib/api";
 import { useAuth, useBusiness } from "@/lib/auth";
@@ -33,7 +36,23 @@ export default function WarehousePage() {
   const [filter, setFilter] = useState<Filter>("all");
   const [query, setQuery] = useState("");
   const [receiving, setReceiving] = useState<Product | null>(null);
+  const [moving, setMoving] = useState<Product | null>(null);
+  const [counting, setCounting] = useState(false);
+  const [analysing, setAnalysing] = useState(false);
   const [reorder, setReorder] = useState(false);
+  // Фурӯш, возврат ё интиқол дар ҷои дигар — рақамҳо фавран нав мешаванд
+  useServerEvent("stock", () => {
+    reload();
+    reloadMoves();
+  });
+  // Интиқол ва инвентаризатсия: шеф, менеҷер ва анбордор
+  const canManage = user?.role !== "STAFF" || user?.position === "STOREKEEPER";
+  // Инвентаризатсия дар як филиал: шеф — филиали интихобшуда, дигарон — филиали худ
+  const countBranch = isChef ? (branchId ?? (active.length === 1 ? active[0].id : undefined)) : (user?.branchId ?? undefined);
+  const afterChange = () => {
+    reload();
+    reloadMoves();
+  };
 
   // Шеф: ҳамаи филиалҳо ё як филиал; дигарон — филиали худ
   const qtyOf = (p: Product) => (isChef && !branchId ? (p.stock ?? 0) : qtyIn(p, isChef ? branchId : user?.branchId));
@@ -82,10 +101,27 @@ export default function WarehousePage() {
         title={tr("Анбор")}
         subtitle={tr("Боқимондаи мол дар ҳар филиал. Ҳар фурӯш онро худкор кам мекунад.")}
         actions={
-          <Button variant="outline" onClick={() => setReorder(true)}>
-            <ClipboardList className="size-4" /> {tr("Рӯйхати харид")}
-            {outCount + lowCount > 0 && <span className="grid h-5 min-w-5 place-items-center rounded-full bg-brand px-1.5 text-[11px] font-bold text-white">{outCount + lowCount}</span>}
-          </Button>
+          <>
+            {showCost && (
+              <Button variant="outline" onClick={() => setAnalysing(true)}>
+                <TrendingDown className="size-4" /> {tr("Таҳлил")}
+              </Button>
+            )}
+            {canManage && (
+              <Button
+                variant="outline"
+                onClick={() => setCounting(true)}
+                disabled={!countBranch}
+                title={countBranch ? undefined : tr("Аввал филиалро интихоб кунед")}
+              >
+                <ClipboardCheck className="size-4" /> {tr("Инвентаризатсия")}
+              </Button>
+            )}
+            <Button variant="outline" onClick={() => setReorder(true)}>
+              <ClipboardList className="size-4" /> {tr("Рӯйхати харид")}
+              {outCount + lowCount > 0 && <span className="grid h-5 min-w-5 place-items-center rounded-full bg-brand px-1.5 text-[11px] font-bold text-white">{outCount + lowCount}</span>}
+            </Button>
+          </>
         }
       />
 
@@ -235,10 +271,15 @@ export default function WarehousePage() {
                           {p.lowStock !== null && <span className="mt-0.5 block text-[11px] text-muted">{tr("ҳад: {0}", p.lowStock)}</span>}
                         </td>
                         {showCost && <td className="px-3 py-3 text-right whitespace-nowrap text-ink-2 tabular">{money(Math.max(0, qty) * p.cost)}</td>}
-                        <td className="px-3 py-3 text-right">
+                        <td className="px-3 py-3 text-right whitespace-nowrap">
                           <Button size="sm" variant="outline" onClick={() => setReceiving(p)}>
                             <PackagePlus className="size-4" /> <span className="hidden sm:inline">{tr("Қабули мол")}</span>
                           </Button>
+                          {canManage && (
+                            <Button size="sm" variant="outline" className="ml-1.5" onClick={() => setMoving(p)} aria-label={tr("Интиқол")} title={tr("Интиқол ба филиали дигар")}>
+                              <ArrowLeftRight className="size-4" />
+                            </Button>
+                          )}
                         </td>
                       </tr>
                     );
@@ -295,6 +336,37 @@ export default function WarehousePage() {
 
       <Modal open={reorder} onClose={() => setReorder(false)} title={tr("Рӯйхати харид")}>
         {reorder && <ReorderList />}
+      </Modal>
+
+      <Modal open={!!moving} onClose={() => setMoving(null)} title={tr("Интиқол ба филиали дигар")}>
+        {moving && (
+          <TransferForm
+            product={moving}
+            fromBranchId={isChef ? branchId : (user?.branchId ?? undefined)}
+            onDone={() => {
+              setMoving(null);
+              afterChange();
+            }}
+          />
+        )}
+      </Modal>
+
+      <Modal open={analysing} onClose={() => setAnalysing(false)} title={tr("Моли мурда ва фоиданашаванда")} wide>
+        {analysing && <StockInsights branchId={isChef ? branchId : undefined} />}
+      </Modal>
+
+      <Modal open={counting} onClose={() => setCounting(false)} title={tr("Инвентаризатсия")} wide>
+        {counting && countBranch && (
+          <StocktakeForm
+            products={tracked}
+            branchId={countBranch}
+            showCost={showCost}
+            onDone={() => {
+              setCounting(false);
+              afterChange();
+            }}
+          />
+        )}
       </Modal>
 
       <Modal open={!!receiving} onClose={() => setReceiving(null)} title={tr("Қабули мол")}>

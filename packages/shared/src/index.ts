@@ -388,6 +388,7 @@ export function featureOfPath(pathname: string): Feature | null {
     sales: 'sales',
     products: 'products',
     warehouse: 'products',
+    suppliers: 'products',
     expenses: 'expenses',
     integrations: 'integrations',
     audit: 'audit',
@@ -523,8 +524,11 @@ export interface Product {
   stock: number | null;
   /** Ҳадди огоҳӣ (кам мондан) */
   lowStock: number | null;
-  /** Боқимонда дар ҳар филиал (stock — ҷамъи онҳо) */
-  branchStock: { branchId: number; qty: number }[];
+  /**
+   * Боқимонда дар ҳар филиал (stock — ҷамъи онҳо). reserved — банд дар фармоишҳои онлайни ҳанӯз нарасонида;
+   * касса танҳо qty − reserved-ро фурӯхта метавонад.
+   */
+  branchStock: { branchId: number; qty: number; reserved?: number }[];
   isActive: boolean;
 }
 
@@ -538,6 +542,8 @@ export interface OrderItem {
   qty: number;
   unitPrice: number;
   unitCost: number;
+  /** Чанд аз ин мол аллакай баргардонида шуд (возврат) */
+  returned?: number;
 }
 
 export interface Order {
@@ -558,6 +564,21 @@ export interface Order {
   /** Коди тахфиф, агар истифода шуда бошад */
   promoCode: string | null;
   items: OrderItem[];
+  /** Возврат: чеки манфӣ ба фурӯши №returnOfId (total ва qty манфӣ) */
+  returnOfId: number | null;
+  /** Сабаби возврат */
+  note: string;
+  /** Барои фурӯши аслӣ: чанд сомонӣ аллакай баргардонида шуд */
+  refunded: number;
+}
+
+/** Натиҷаи возврат: чек ва пули нақде, ки ба мизоҷ дода мешавад (қарз аввал кам мешавад) */
+export interface ReturnResult {
+  order: Order;
+  /** Ба мизоҷ ба ҳамон тарзи пардохт (нақд/корт) баргардонед */
+  cashBack: number;
+  /** Чанд аз қарзи мизоҷ кам шуд */
+  debtReduced: number;
 }
 
 export interface Paginated<T> {
@@ -882,7 +903,83 @@ export const STOCK_REASON_LABELS: Record<StockMove['reason'], string> = {
   PURCHASE: 'Харид',
   ADJUST: 'Ҳисоби дастӣ',
   WRITE_OFF: 'Хориҷ',
+  RETURN: 'Возврат',
+  TRANSFER_OUT: 'Интиқол (рафт)',
+  TRANSFER_IN: 'Интиқол (омад)',
+  STOCKTAKE: 'Инвентаризатсия',
 };
+
+/** Таҳлили мол дар N рӯз: чӣ намефурӯшад (пул дар раф хобидааст) ва чӣ фоида намедиҳад */
+export interface ProductInsight {
+  productId: number;
+  name: string;
+  emoji: string;
+  unit: string;
+  price: number;
+  cost: number;
+  /** Маржа, % аз нарх */
+  margin: number;
+  /** Фурӯш дар давра (бе возвратҳо) */
+  soldQty: number;
+  revenue: number;
+  profit: number;
+  /** Боқимонда ва арзиши он бо нархи аслӣ (null — ҳисоб карда намешавад) */
+  stock: number | null;
+  stockValue: number;
+  lastSoldAt: string | null;
+  /** Чанд рӯз боқимонда бо суръати ҳозираи фурӯш мерасад (null — фурӯш нест) */
+  daysOfStock: number | null;
+  /** dead — дар раф ҳаст, вале фурӯш нест; slow — зиёда аз 90 рӯз мерасад; loss — нарх ≤ арзиш; low — маржа < 15% */
+  flags: ('dead' | 'slow' | 'loss' | 'low')[];
+}
+
+export interface ProductInsights {
+  days: number;
+  items: ProductInsight[];
+  /** Пули «хобида»: арзиши моли мурда ва суст */
+  frozen: number;
+  dead: number;
+  slow: number;
+  loss: number;
+  low: number;
+}
+
+/** Таъминкунанда: қарзи мо ба ӯ ва ҷамъи харидҳо */
+export interface Supplier {
+  id: number;
+  name: string;
+  phone: string;
+  note: string;
+  /** Қарзи мо ба ӯ (+ мо қарздорем) */
+  debt: number;
+  /** Ҷамъи харидҳо аз «Қабули мол» (миқдор × нархи харид) */
+  purchased: number;
+  lastPurchaseAt: string | null;
+}
+
+export interface SupplierEntry {
+  id: number;
+  /** + харид ба қарз, − пардохти мо */
+  amount: number;
+  payment: Payment | null;
+  note: string;
+  userName: string | null;
+  createdAt: string;
+}
+
+export interface SupplierDetail {
+  supplier: Supplier;
+  entries: SupplierEntry[];
+  purchases: { id: number; productName: string; unit: string; qty: number; unitCost: number | null; branchName: string; createdAt: string }[];
+}
+
+/** Натиҷаи инвентаризатсия: ҳар мол ва ҷамъи камомад/зиёдатӣ бо нархи аслӣ */
+export interface StocktakeResult {
+  lines: { productId: number; name: string; unit: string; before: number; counted: number; diff: number; value: number }[];
+  /** Ҷамъи камомад (манфӣ) ва зиёдатӣ бо арзиши аслӣ */
+  shortage: number;
+  surplus: number;
+}
 
 /** Рӯйхати харид: моле, ки дар филиал кам монд ё тамом шуд */
 export interface ReorderItem {
@@ -908,7 +1005,7 @@ export interface StockMove {
   qty: number;
   /** Боқимондаи филиал пас аз тағйир */
   balance: number;
-  reason: 'SALE' | 'ONLINE' | 'PURCHASE' | 'ADJUST' | 'WRITE_OFF';
+  reason: 'SALE' | 'ONLINE' | 'PURCHASE' | 'ADJUST' | 'WRITE_OFF' | 'RETURN' | 'TRANSFER_OUT' | 'TRANSFER_IN' | 'STOCKTAKE';
   supplier: string;
   unitCost: number | null;
   orderId: number | null;
@@ -932,7 +1029,12 @@ export interface CashReport {
   /** Пардохти қарз, ки ҳамин кас қабул кард */
   debtPaidCash: number;
   debtPaidCard: number;
-  /** Пуле, ки бояд дар касса бошад: фурӯши нақд + пардохти нақди қарз */
+  /** Возвратҳое, ки ҳамин кас сабт кард: шумора ва маблағ аз рӯи тарзи пардохти чеки аслӣ */
+  returns: number;
+  refundCash: number;
+  refundCard: number;
+  refundDebt: number;
+  /** Пуле, ки бояд дар касса бошад: фурӯши нақд + пардохти нақди қарз − возврати нақд */
   expectedCash: number;
   /** Агар касса пӯшида бошад */
   closing: { countedCash: number; diff: number; note: string; closedAt: string } | null;
@@ -942,7 +1044,20 @@ export interface ZReport {
   /** «2026-10-31» */
   date: string;
   rows: CashReport[];
-  totals: { orders: number; cashSales: number; cardSales: number; debtSales: number; debtPaidCash: number; debtPaidCard: number; expectedCash: number; diff: number };
+  totals: {
+    orders: number;
+    cashSales: number;
+    cardSales: number;
+    debtSales: number;
+    debtPaidCash: number;
+    debtPaidCard: number;
+    returns: number;
+    refundCash: number;
+    refundCard: number;
+    refundDebt: number;
+    expectedCash: number;
+    diff: number;
+  };
 }
 
 /** Маош аз рӯи давомот: як корманд дар як моҳ */
@@ -1073,7 +1188,7 @@ export interface SearchResult {
 // ---------- Паёмҳо ----------
 
 /** Хабарҳои фаврӣ аз /api/events: браузер дархости мувофиқро фавран такрор мекунад */
-export type ServerEvent = 'messages' | 'calls' | 'alerts' | 'orders' | 'debts' | 'activity' | 'presence';
+export type ServerEvent = 'messages' | 'calls' | 'alerts' | 'orders' | 'debts' | 'activity' | 'presence' | 'stock';
 
 /** Чӣ кор мекунад ҳамсуҳбат (мисли WhatsApp/Telegram): «менависад…», «аудио сабт мекунад…» */
 export const CHAT_ACTIVITIES = ['typing', 'recording', 'video', 'stop'] as const;

@@ -43,6 +43,8 @@
 | 👨‍🍳 Ошпаз — профил ва маош | `cook@filialhub.tj` |
 | 🧹 Фаррош — профил ва маош | `cleaner@filialhub.tj` |
 
+Хизматҳои ройгон (Neon, UptimeRobot, Google Search Console, домен, CI) — [ROYGON.md](docs/ROYGON.md).
+
 Топшириқ — [TZ.md](docs/TZ.md). Кӣ чӣ мебинад — [SPECS.md](docs/SPECS.md) §2. Пешрафт ва хатоҳои ислоҳшуда — [ROADMAP.md](docs/ROADMAP.md), [PLAN.md](docs/PLAN.md) §9.
 
 ## 🏢 Ширкатҳо (барои ҳар соҳибкор)

@@ -184,7 +184,10 @@ export class AuthService {
       data.email = email;
     }
     if (dto.newPassword) data.passwordHash = await bcrypt.hash(dto.newPassword, 10);
-    const user = await this.prisma.user.update({ where: { id }, data, include: { branch: true, organization: true } });
+    const changedAt = dto.newPassword ? new Date() : undefined;
+    const user = await this.prisma.user.update({ where: { id }, data: { ...data, passwordChangedAt: changedAt }, include: { branch: true, organization: true } });
+    // Парол иваз шуд: дастгоҳҳои дигар мебароянд, ин дастгоҳ токени нав мегирад ва дар сайт мемонад
+    if (changedAt) return { ...toUser(user), token: await this.jwt.signAsync({ sub: user.id, role: user.role }) };
     return toUser(user);
   }
 }

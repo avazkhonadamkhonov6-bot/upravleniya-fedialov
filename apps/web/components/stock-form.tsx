@@ -11,6 +11,10 @@ import { Button, cn, Empty, ErrorBox, Field, formatDate, Input, money, Segmented
 
 /** Боқимондаи мол дар филиал (0, агар сатр набошад) */
 export const qtyIn = (p: Product, branchId: number | null | undefined) => p.branchStock.find((b) => b.branchId === branchId)?.qty ?? 0;
+/** Банд дар фармоишҳои онлайни ҳанӯз нарасонида */
+export const reservedIn = (p: Product, branchId: number | null | undefined) => p.branchStock.find((b) => b.branchId === branchId)?.reserved ?? 0;
+/** Чанд мефурӯшем: дар анбор − банд (на камтар аз 0) */
+export const freeIn = (p: Product, branchId: number | null | undefined) => Math.max(0, Math.round((qtyIn(p, branchId) - reservedIn(p, branchId)) * 1000) / 1000);
 
 /**
  * Қабули мол ба анбори филиал (+ миқдор, бо таъминкунанда ва нархи харид) ё ҳисоби дастӣ (миқдори ҳозира).
@@ -31,6 +35,7 @@ export function StockForm({ product, onDone }: { product: Product; onDone: () =>
   const [supplier, setSupplier] = useState("");
   const [unitCost, setUnitCost] = useState("");
   const [updateCost, setUpdateCost] = useState(false);
+  const [onCredit, setOnCredit] = useState(false);
   const [note, setNote] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -53,6 +58,7 @@ export function StockForm({ product, onDone }: { product: Product; onDone: () =>
           ...(mode === "add" ? { add: n } : { set: n }),
           ...(purchase && supplier.trim() ? { supplier: supplier.trim() } : {}),
           ...(purchase && unitCost !== "" ? { unitCost: Number(unitCost), updateCost: canCost && updateCost } : {}),
+          ...(purchase && canCost && onCredit && supplier.trim() && unitCost !== "" ? { onCredit: true } : {}),
           ...(note.trim() ? { note: note.trim() } : {}),
         },
       });
@@ -131,6 +137,15 @@ export function StockForm({ product, onDone }: { product: Product; onDone: () =>
             <span>
               {tr("Арзиши аслиро нав кардан: {0} → {1}", money(product.cost), money(Number(unitCost)))}
               <span className="block text-xs text-muted">{tr("Фоида аз фурӯшҳои оянда бо нархи нав ҳисоб мешавад.")}</span>
+            </span>
+          </label>
+        )}
+        {purchase && canCost && supplier.trim() && unitCost !== "" && n > 0 && (
+          <label className="flex cursor-pointer items-start gap-3 rounded-xl bg-warn-soft p-3 text-sm">
+            <input type="checkbox" checked={onCredit} onChange={(e) => setOnCredit(e.target.checked)} className="mt-0.5 size-4 accent-[var(--brand)]" />
+            <span>
+              {tr("Ба қарз гирифтем (ҳоло пардохт накардем)")}
+              <span className="block text-xs text-muted">{tr("Қарзи мо ба «{0}»: +{1}", supplier.trim(), money(n * Number(unitCost)))}</span>
             </span>
           </label>
         )}

@@ -30,18 +30,18 @@ export class StatsService {
 
   async periodStats(branchId: BranchScope, from: Date, to?: Date): Promise<PeriodStats> {
     const range = { gte: from, ...(to ? { lt: to } : {}) };
-    const [agg, exp] = await Promise.all([
+    // Возвратҳо (чеки манфӣ) маблағро кам мекунанд, вале ҳамчун фармоиш шумурда намешаванд
+    const [agg, orders, exp] = await Promise.all([
       this.prisma.order.aggregate({
         where: { branchId, createdAt: range },
         _sum: { total: true, totalCost: true },
-        _count: true,
       }),
+      this.prisma.order.count({ where: { branchId, createdAt: range, returnOfId: null } }),
       this.prisma.expense.aggregate({ where: { branchId, date: range }, _sum: { amount: true } }),
     ]);
     const revenue = Number(agg._sum.total ?? 0);
     const cost = Number(agg._sum.totalCost ?? 0);
     const expenses = Number(exp._sum.amount ?? 0);
-    const orders = agg._count;
     return {
       revenue: round(revenue),
       cost: round(cost),
@@ -95,7 +95,7 @@ export class StatsService {
         SELECT to_char(date_trunc(${granularity}, ("createdAt" AT TIME ZONE 'UTC') AT TIME ZONE ${TZ}), 'YYYY-MM-DD') AS date,
                COALESCE(SUM("total"), 0)::float AS revenue,
                COALESCE(SUM("total" - "totalCost"), 0)::float AS profit,
-               COUNT(*)::int AS orders
+               (COUNT(*) FILTER (WHERE "returnOfId" IS NULL))::int AS orders
         FROM "Order"
         WHERE "createdAt" >= ${from}
           AND "branchId" = ANY(${ids(branchId)}::int[])
@@ -111,14 +111,14 @@ export class StatsService {
 
   async branchRanking(branchIds: number[], period: Period): Promise<BranchRank[]> {
     const from = periodStart(period);
-    const [branches, sums, staff, exps] = await Promise.all([
+    const [branches, sums, counts, staff, exps] = await Promise.all([
       this.prisma.branch.findMany({ where: { isActive: true, id: { in: branchIds } }, orderBy: { id: 'asc' } }),
       this.prisma.order.groupBy({
         by: ['branchId'],
         where: { createdAt: { gte: from }, branchId: { in: branchIds } },
         _sum: { total: true, totalCost: true },
-        _count: true,
       }),
+      this.prisma.order.groupBy({ by: ['branchId'], where: { createdAt: { gte: from }, branchId: { in: branchIds }, returnOfId: null }, _count: true }),
       this.prisma.user.groupBy({ by: ['branchId'], where: { isActive: true, role: 'STAFF', branchId: { in: branchIds } }, _count: true }),
       this.prisma.expense.groupBy({ by: ['branchId'], where: { date: { gte: from }, branchId: { in: branchIds } }, _sum: { amount: true } }),
     ]);
@@ -136,7 +136,7 @@ export class StatsService {
           profit: round(revenue - cost),
           expenses: round(expenses),
           netProfit: round(revenue - cost - expenses),
-          orders: s?._count ?? 0,
+          orders: counts.find((x) => x.branchId === b.id)?._count ?? 0,
           employees: staff.find((x) => x.branchId === b.id)?._count ?? 0,
         };
       })

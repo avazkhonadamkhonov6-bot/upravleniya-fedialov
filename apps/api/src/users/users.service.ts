@@ -153,6 +153,8 @@ export class UsersService {
         whatsapp: dto.whatsapp?.trim(),
         telegram: dto.telegram !== undefined ? normalizeTelegram(dto.telegram) : undefined,
         passwordHash: dto.password ? await bcrypt.hash(dto.password, 10) : undefined,
+        // Менеҷер паролро иваз кард (корманд рафт ё парол фош шуд) — сессияҳои кӯҳнаи корманд бекор
+        passwordChangedAt: dto.password ? new Date() : undefined,
         role,
         position: position ?? null,
         branchId,

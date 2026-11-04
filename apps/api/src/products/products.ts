@@ -20,13 +20,16 @@ import {
 } from '@nestjs/common';
 import { Type } from 'class-transformer';
 import type { Request, Response } from 'express';
-import { DEFAULT_PRODUCT_EMOJI, defaultUnit, type BusinessType, type ReorderItem, type StockMove as StockMoveDto } from '@filialhub/shared';
-import { IsBoolean, IsInt, IsNumber, IsOptional, IsString, MaxLength, Min, MinLength } from 'class-validator';
+import { DEFAULT_PRODUCT_EMOJI, defaultUnit, type BusinessType, type ProductInsights, type ReorderItem, type StockMove as StockMoveDto, type StocktakeResult } from '@filialhub/shared';
+import { ArrayMinSize, IsBoolean, IsInt, IsNumber, IsOptional, IsString, MaxLength, Min, MinLength, ValidateNested } from 'class-validator';
 import { AuthUser, CurrentUser, Feature, Public, Roles } from '../auth/decorators';
 import { toProduct } from '../common/serializers';
 import { AuditService } from '../core/audit.service';
-import { scopeBranch } from '../common/access';
+import { branchIdList, scopeBranch } from '../common/access';
+import { classify } from './insights';
 import { StockService } from './stock';
+import { SuppliersModule, SuppliersService } from '../suppliers/suppliers';
+import { BackInStockService } from '../notifications/back-in-stock.service';
 import { Prisma } from '../generated/prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 
@@ -126,6 +129,46 @@ export class StockDto {
   @IsOptional() @IsBoolean()
   updateCost?: boolean;
 
+  /** Харид ба қарз: пардохт нашуд — қарзи мо ба таъминкунанда меафзояд (миқдор × нархи харид) */
+  @IsOptional() @IsBoolean()
+  onCredit?: boolean;
+
+  @IsOptional() @IsString() @MaxLength(200)
+  note?: string;
+}
+
+export class TransferDto {
+  @Type(() => Number) @IsInt()
+  fromBranchId: number;
+
+  @Type(() => Number) @IsInt()
+  toBranchId: number;
+
+  @Type(() => Number) @IsNumber({ maxDecimalPlaces: 3 }) @Min(0.001, { message: 'Миқдорро нависед' })
+  qty: number;
+
+  @IsOptional() @IsString() @MaxLength(200)
+  note?: string;
+}
+
+class CountDto {
+  @Type(() => Number) @IsInt()
+  productId: number;
+
+  /** Чанд дар раф воқеан ҳаст */
+  @Type(() => Number) @IsNumber({ maxDecimalPlaces: 3 }) @Min(0)
+  qty: number;
+}
+
+export class StocktakeDto {
+  @IsOptional() @Type(() => Number) @IsInt()
+  branchId?: number;
+
+  @ValidateNested({ each: true })
+  @Type(() => CountDto)
+  @ArrayMinSize(1, { message: 'Ақаллан як молро шумуред' })
+  counts: CountDto[];
+
   @IsOptional() @IsString() @MaxLength(200)
   note?: string;
 }
@@ -136,6 +179,8 @@ export class ProductsService {
     private readonly prisma: PrismaService,
     private readonly audit: AuditService,
     private readonly stock: StockService,
+    private readonly supplierBook: SuppliersService,
+    private readonly backInStock: BackInStockService,
   ) {}
 
   /** Филиали аввали фаъол — боқимондаи аввал ба он меравад */
@@ -150,8 +195,9 @@ export class ProductsService {
       orderBy: [{ category: 'asc' }, { name: 'asc' }],
       include: { branchStocks: true },
     });
+    const reserved = await this.stock.reserved(this.prisma, { organizationId: user.organizationId });
     // Кормандон арзиши аслӣ ва фоидаро намебинанд.
-    return products.map((p) => toProduct(p, user.role === 'STAFF'));
+    return products.map((p) => toProduct(p, user.role === 'STAFF', reserved.get(p.id) ?? new Map()));
   }
 
   async create(user: AuthUser, dto: CreateProductDto) {
@@ -284,6 +330,49 @@ export class ProductsService {
    * Рӯйхати харид: молҳои ҳисобшаванда, ки дар филиал ба ҳадди «кам монд» (ё 0) расиданд.
    * Миқдори пешниҳодшуда — то 2 × ҳад; таъминкунанда ва нарх — аз охирин харид.
    */
+  /**
+   * Моли мурда ва фоиданашаванда дар N рӯз (возвратҳо худкор кам мешаванд — qty-и онҳо манфӣ аст).
+   * Шеф — ҳама ё як филиал; менеҷер — филиали худ.
+   */
+  async insights(user: AuthUser, days: number, branchId?: number): Promise<ProductInsights> {
+    if (user.role === 'STAFF') throw new ForbiddenException('Танҳо шеф ва менеҷер');
+    const ids = branchIdList(user, branchId);
+    const from = new Date(Date.now() - days * 86_400_000);
+    const [products, sales, stock] = await Promise.all([
+      this.prisma.product.findMany({ where: { organizationId: user.organizationId, isActive: true } }),
+      this.prisma.$queryRaw<{ productId: number; qty: number; revenue: number; profit: number; last: Date | null }[]>`
+        SELECT oi."productId",
+               SUM(oi.qty)::float AS qty,
+               SUM(oi.qty * oi."unitPrice")::float AS revenue,
+               SUM(oi.qty * (oi."unitPrice" - oi."unitCost"))::float AS profit,
+               MAX(o."createdAt") FILTER (WHERE oi.qty > 0) AS last
+        FROM "OrderItem" oi JOIN "Order" o ON o.id = oi."orderId"
+        WHERE o."createdAt" >= ${from} AND o."branchId" = ANY(${ids}::int[])
+        GROUP BY 1`,
+      this.prisma.branchStock.groupBy({ by: ['productId'], where: { branchId: { in: ids } }, _sum: { qty: true } }),
+    ]);
+    return classify(
+      products.map((p) => {
+        const s = sales.find((x) => x.productId === p.id);
+        const q = stock.find((x) => x.productId === p.id)?._sum.qty;
+        return {
+          productId: p.id,
+          name: p.name,
+          emoji: p.emoji,
+          unit: p.unit,
+          price: Number(p.price),
+          cost: Number(p.cost),
+          soldQty: s?.qty ?? 0,
+          revenue: s?.revenue ?? 0,
+          profit: s?.profit ?? 0,
+          stock: p.stock === null ? null : Number(q ?? 0),
+          lastSoldAt: s?.last ?? null,
+        };
+      }),
+      days,
+    );
+  }
+
   async reorder(user: AuthUser, branchId?: number): Promise<ReorderItem[]> {
     if (user.role === 'STAFF' && user.position !== 'STOREKEEPER') throw new ForbiddenException('Танҳо шеф, менеҷер ё анбордор');
     const b = scopeBranch(user, branchId);
@@ -350,9 +439,54 @@ export class ProductsService {
       await this.prisma.product.update({ where: { id }, data: { cost: dto.unitCost } });
       fixed.cost = new Prisma.Decimal(dto.unitCost);
     }
+    // Харид бо номи таъминкунанда → ӯ дар «Таъминкунандагон»; ба қарз — қарзи мо меафзояд
+    if (dto.add && dto.add > 0 && dto.supplier?.trim()) {
+      await this.supplierBook.recordPurchase(this.prisma, {
+        organizationId: user.organizationId,
+        name: dto.supplier,
+        amount: dto.add * (dto.unitCost ?? 0),
+        // Анбордор молро қабул мекунад, вале қарзи пулиро шеф ё менеҷер сабт мекунад
+        onCredit: !!dto.onCredit && user.role !== 'STAFF',
+        userId: user.id,
+        note: `${p.name} × ${dto.add} ${p.unit}`,
+      });
+    }
     const now = fixed.branchStocks.find((b) => b.branchId === branchId);
+    // Мол тамом буд ва боз омад — мизоҷони доимӣ дар Telegram хабар мегиранд
+    if (Number(before?.qty ?? 0) <= 0 && Number(now?.qty ?? 0) > 0 && fixed.stock !== null) this.backInStock.notify(id, branchId);
     this.audit.log(user, 'UPDATE', 'product', id, `${p.name}: анбори филиал ${before ? Number(before.qty) : 0} → ${Number(now?.qty ?? 0)} ${p.unit}`, branchId);
     return toProduct(fixed, user.role === 'STAFF');
+  }
+
+  /**
+   * Интиқол байни филиалҳо. Шеф — аз ҳар филиал; менеҷер ва анбордор — танҳо аз филиали худ (ба ҳар филиали ширкат).
+   */
+  async transfer(user: AuthUser, id: number, dto: TransferDto) {
+    if (user.role === 'STAFF' && user.position !== 'STOREKEEPER') throw new ForbiddenException('Танҳо шеф, менеҷер ё анбордор');
+    const p = await this.ensure(user, id);
+    scopeBranch(user, dto.fromBranchId);
+    const to = await this.prisma.branch.findUnique({ where: { id: dto.toBranchId }, select: { organizationId: true, isActive: true, name: true } });
+    if (!to || to.organizationId !== user.organizationId || !to.isActive) throw new BadRequestException('Филиали қабулкунанда ёфт нашуд');
+    const before = await this.prisma.branchStock.findUnique({ where: { productId_branchId: { productId: id, branchId: dto.toBranchId } } });
+    const moved = await this.stock.transfer(id, dto.fromBranchId, dto.toBranchId, dto.qty, { userId: user.id, note: dto.note });
+    if (Number(before?.qty ?? 0) <= 0) this.backInStock.notify(id, dto.toBranchId);
+    this.audit.log(user, 'UPDATE', 'product', id, `${p.name}: интиқол ${dto.qty} ${p.unit} → ${to.name}`, dto.fromBranchId);
+    return toProduct(moved, user.role === 'STAFF');
+  }
+
+  /** Инвентаризатсия: шумориш дар як филиал → камомад ва зиёдатӣ (бо нархи аслӣ — танҳо барои шеф ва менеҷер) */
+  async stocktake(user: AuthUser, dto: StocktakeDto): Promise<StocktakeResult> {
+    if (user.role === 'STAFF' && user.position !== 'STOREKEEPER') throw new ForbiddenException('Танҳо шеф, менеҷер ё анбордор');
+    const branchId = scopeBranch(user, dto.branchId);
+    if (!branchId) throw new BadRequestException('Филиалро интихоб кунед');
+    const lines = await this.stock.stocktake(user.organizationId, branchId, dto.counts, { userId: user.id, note: dto.note || 'Инвентаризатсия' });
+    const hide = user.role === 'STAFF';
+    const shown = lines.map((l) => (hide ? { ...l, value: 0 } : l));
+    const shortage = Math.round(shown.reduce((s, l) => s + Math.min(0, l.value), 0) * 100) / 100;
+    const surplus = Math.round(shown.reduce((s, l) => s + Math.max(0, l.value), 0) * 100) / 100;
+    const changed = lines.filter((l) => l.diff !== 0).length;
+    this.audit.log(user, 'UPDATE', 'product', null, `Инвентаризатсия: ${lines.length} мол шумурда шуд, ${changed} фарқ${hide ? '' : `, камомад ${-shortage} сомонӣ`}`, branchId);
+    return { lines: shown, shortage, surplus };
   }
 
   /** Акс барои ҳама (бозори онлайн): танҳо файлҳое, ки акси ягон мол ҳастанд */
@@ -377,6 +511,13 @@ export class ProductsController {
   @Get()
   list(@CurrentUser() user: AuthUser) {
     return this.products.list(user);
+  }
+
+  /** GET /products/insights?days=30 — моли мурда, суст ва фоиданашаванда */
+  @Get('insights')
+  insights(@CurrentUser() user: AuthUser, @Query('days') days?: string, @Query('branchId') branchId?: string) {
+    const d = Math.min(Math.max(Number(days) || 30, 7), 365);
+    return this.products.insights(user, d, Number(branchId) || undefined);
   }
 
   /** Рӯйхати харид: моли кам монда */
@@ -438,6 +579,20 @@ export class ProductsController {
   stock(@CurrentUser() user: AuthUser, @Param('id', ParseIntPipe) id: number, @Body() dto: StockDto) {
     return this.products.adjustStock(user, id, dto);
   }
+
+  /** POST /products/5/transfer — интиқол аз як филиал ба дигар */
+  @Post(':id/transfer')
+  @HttpCode(200)
+  transfer(@CurrentUser() user: AuthUser, @Param('id', ParseIntPipe) id: number, @Body() dto: TransferDto) {
+    return this.products.transfer(user, id, dto);
+  }
+
+  /** POST /products/stocktake — инвентаризатсияи филиал */
+  @Post('stocktake')
+  @HttpCode(200)
+  stocktake(@CurrentUser() user: AuthUser, @Body() dto: StocktakeDto) {
+    return this.products.stocktake(user, dto);
+  }
 }
 
 /** GET /api/images/7 — акси мол барои бозори онлайн ва Google (бе воридшавӣ, кеш як сол) */
@@ -458,6 +613,7 @@ export class ImagesController {
 }
 
 @Module({
+  imports: [SuppliersModule],
   controllers: [ProductsController, ImagesController],
   providers: [ProductsService],
 })

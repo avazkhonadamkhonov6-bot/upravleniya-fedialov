@@ -499,22 +499,54 @@ export function HomePage({ lang }: { lang: HomeLang }) {
             {t("Озмоишӣ ҳамеша ройгон: 1 филиал ва 4 корманд. Ҳамаи имкониятҳо дар ҳама тарифҳо — фарқ танҳо дар шумори филиал ва корманд. Барои 12 моҳ −20%.")}
           </p>
         </div>
-        <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          {PAID_PLANS.map((p) => {
+        {/* Мизоҷ бояд дар 5 сония фаҳмад: ройгон оғоз мекунӣ, нарх танҳо аз шумори филиал ва корманд вобаста аст */}
+        <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
+          {(["FREE", ...PAID_PLANS] as const).map((p) => {
             const info = PLAN_INFO[p];
+            const dark = !!info.popular;
             return (
-              <li key={p} data-reveal className={`flex flex-col gap-2 rounded-[22px] p-6 ${info.popular ? "bg-[#16120f] text-white" : "bg-white"}`}>
+              <li key={p} data-reveal className={`relative flex flex-col gap-2 rounded-[22px] p-6 ${dark ? "bg-[#16120f] text-white" : "bg-white"}`}>
+                {dark && <span className="absolute -top-3 left-6 rounded-full bg-[#ffc531] px-3 py-1 text-xs font-bold text-[#16120f]">{t("Бештар интихоб мекунанд")}</span>}
                 <span className="font-display text-xl font-bold">{t(info.name)}</span>
-                <span className={`text-sm ${info.popular ? "text-[#d8cfc4]" : "text-[#5a4e43]"}`}>{t(info.tagline)}</span>
+                <span className={`text-sm ${dark ? "text-[#d8cfc4]" : "text-[#5a4e43]"}`}>{t(info.tagline)}</span>
                 <span className="mt-2 font-display text-4xl font-extrabold">
                   {info.price} <span className="text-base font-semibold">{t("сомонӣ / моҳ")}</span>
                 </span>
                 <span className="text-sm">{info.branches === null ? t("Филиалҳо бемаҳдуд") : t("то {0} филиал", [info.branches])}</span>
                 <span className="text-sm">{info.employees === null ? t("Кормандон бемаҳдуд") : t("то {0} корманд", [info.employees])}</span>
+                <Link
+                  href="/register"
+                  className={`mt-auto pt-3 text-center text-sm font-bold ${dark ? "text-[#ffc531]" : "text-[#dc3b1c]"} hover:underline`}
+                >
+                  {info.price === 0 ? t("Ройгон оғоз кунед") : t("Интихоб кунед")} →
+                </Link>
               </li>
             );
           })}
         </ul>
+        <div data-reveal className="rounded-[22px] bg-white p-6">
+          <h3 className="font-display text-lg font-bold">{t("Дар ҳамаи тарифҳо, ҳатто ройгон:")}</h3>
+          <ul className="mt-3 grid gap-x-6 gap-y-2 text-[15px] text-[#4a3f35] sm:grid-cols-2 lg:grid-cols-3">
+            {[
+              "Касса (POS) бо чек ва QR",
+              "Анбор: боқимонда, интиқол, инвентаризатсия",
+              "Возврат бо баргашти мол ба анбор",
+              "Мизоҷон, бонус ва дафтари қарз",
+              "Таъминкунандагон ва қарзи мо ба онҳо",
+              "Бозори онлайн ва фармоиш аз QR-и миз",
+              "Ҳисобот ба Telegram ва WhatsApp",
+              "Ҷадвал, давомот ва маош",
+              "Тоҷикӣ, русӣ ва англисӣ",
+            ].map((x) => (
+              <li key={x} className="flex gap-2">
+                <span className="text-[#dc3b1c]" aria-hidden>
+                  ✓
+                </span>
+                {t(x)}
+              </li>
+            ))}
+          </ul>
+        </div>
         <Link href="/register" className="self-start rounded-[14px] bg-[#dc3b1c] px-[22px] py-4 font-bold text-white transition hover:bg-[#c23215]">
           {t("Ройгон оғоз кунед")}
         </Link>

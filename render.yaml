@@ -78,6 +78,14 @@ services:
         sync: false
       - key: SUPERADMIN_PHONE
         sync: false
+      # Домени худ (масалан https://filialhub.tj) — canonical, sitemap ва Open Graph. Холӣ — суроғаи onrender.com
+      - key: SITE_URL
+        sync: false
+      # Google Search Console ва Яндекс Вебмастер: қимати content аз «HTML tag» (ҳангоми build навишта мешавад)
+      - key: GOOGLE_SITE_VERIFICATION
+        sync: false
+      - key: YANDEX_VERIFICATION
+        sync: false
       # Занг дар шабакаҳои мобилӣ: сервери TURN (ихтиёрӣ, ҳангоми build навишта мешавад), масалан turn:turn.example.com:3478
       - key: NEXT_PUBLIC_TURN_URL
         sync: false

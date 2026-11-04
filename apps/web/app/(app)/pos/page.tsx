@@ -17,7 +17,8 @@ import { useApi } from "@/lib/use-api";
 import { tr } from "@/lib/i18n";
 import { Glyph, Iconized } from "@/components/glyph";
 import { ProductVisual } from "@/components/product-visual";
-import { qtyIn } from "@/components/stock-form";
+import { freeIn, reservedIn } from "@/components/stock-form";
+import { useServerEvent } from "@/lib/events";
 
 export default function PosPage() {
   return (
@@ -35,7 +36,9 @@ function Pos() {
   const [customer, setCustomer] = useState<Customer | null>(null);
   const [usePoints, setUsePoints] = useState(false);
   const isChef = user?.role === "CHEF";
-  const { data: fresh } = useApi<Product[]>("/products");
+  const { data: fresh, reload: reloadProducts } = useApi<Product[]>("/products");
+  // Фурӯш дар кассаи дигар, қабули мол ё фармоиши онлайн — боқимонда фавран нав мешавад
+  useServerEvent("stock", reloadProducts);
   // Бе интернет — рӯйхати охирини нигоҳдошташуда (POS-и офлайн)
   const stored = useSyncExternalStore(noSubscribe, storedProducts, noProducts);
   const products = fresh ?? stored;
@@ -102,19 +105,27 @@ function Pos() {
   const selectedBranch = isChef ? (branchId ?? activeBranches?.[0]?.id) : undefined;
   const stockBranch = selectedBranch ?? user?.branchId ?? undefined;
 
-  const add = (id: number, d: number) =>
-    setCart((c) => {
-      const next = { ...c, [id]: Math.max(0, Math.round(((c[id] ?? 0) + d) * 1000) / 1000) };
-      if (!next[id]) delete next[id];
-      return next;
-    });
+  /** Аз миқдори озод зиёд ба сабад гузоштан мумкин нест; молҳои ҳисобнашаванда — бе ҳад */
+  const cap = (id: number, want: number) => {
+    const p = active.find((x) => x.id === id);
+    if (!p || p.stock === null || want <= 0) return want;
+    const free = freeIn(p, stockBranch);
+    if (want > free) {
+      toast.error(free > 0 ? tr("Дар анбор танҳо {0} {1}", free, tr(p.unit)) : tr("Дар анбор нест"), p.name);
+      return free;
+    }
+    return want;
+  };
   /** Миқдори дақиқ (масалан 1,5 кг) — барои воҳидҳои касрӣ */
-  const setQty = (id: number, v: number) =>
+  const setQty = (id: number, v: number) => {
+    const qty = cap(id, Math.max(0, Math.round((Number.isFinite(v) ? v : 0) * 1000) / 1000));
     setCart((c) => {
-      const next = { ...c, [id]: Math.max(0, Math.round((Number.isFinite(v) ? v : 0) * 1000) / 1000) };
+      const next = { ...c, [id]: qty };
       if (!next[id]) delete next[id];
       return next;
     });
+  };
+  const add = (id: number, d: number) => setQty(id, (cart[id] ?? 0) + d);
 
   async function submit() {
     setBusy(true);
@@ -144,6 +155,7 @@ function Pos() {
       }
       const order = await api<Order>("/orders", { method: "POST", json: { ...payload, clientRef: ref } });
       setDone(order);
+      reloadProducts();
       setDonePhone(customer?.phone ?? null);
       setCart({});
       setCustomer(null);
@@ -253,11 +265,13 @@ function Pos() {
                         <span className="text-xs font-medium text-muted"> / {tr(p.unit)}</span>
                       </span>
                       {p.stock !== null && (() => {
-                        // Боқимонда дар филиали ҳамин фурӯш
-                        const left = qtyIn(p, stockBranch) - qty;
+                        // Озод дар филиали ҳамин фурӯш: анбор − фармоишҳои онлайн − сабади ҳозира
+                        const left = Math.round((freeIn(p, stockBranch) - qty) * 1000) / 1000;
+                        const held = reservedIn(p, stockBranch);
                         return (
                           <span className={cn("mt-1 text-[11px] font-semibold tabular", left <= 0 ? "text-brand" : left <= (p.lowStock ?? 0) ? "text-warn" : "text-muted")}>
-                            {left <= 0 ? tr("Дар анбор нест") : tr("Боқимонда: {0}", Math.round(left * 1000) / 1000)}
+                            {left <= 0 ? tr("Дар анбор нест") : tr("Боқимонда: {0}", left)}
+                            {held > 0 && <span className="block font-medium text-muted">{tr("{0} банд (онлайн)", held)}</span>}
                           </span>
                         );
                       })()}
