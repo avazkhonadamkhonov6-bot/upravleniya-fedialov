@@ -265,8 +265,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   }, [loading, user, client, router]);
 
   // Саҳифае, ки барои нақш/вазифаи корбар баста аст — ба саҳифаи аввали ӯ мебарем.
+  // router.replace ҳангоми боркунии аввал баъзан ба охир намерасад (экрани боркунӣ абадан мемонад) —
+  // агар дар 1 сония саҳифа иваз нашавад, пурра бор мекунем.
   useEffect(() => {
-    if (user && !allowed) router.replace(homePath(user));
+    if (!user || allowed) return;
+    const to = homePath(user);
+    router.replace(to);
+    const fallback = setTimeout(() => location.replace(to), 1000);
+    return () => clearTimeout(fallback);
   }, [user, allowed, router]);
 
   useEffect(() => {
