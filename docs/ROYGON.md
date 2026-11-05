@@ -8,7 +8,8 @@
 Базаи Render Free пас аз 30 рӯз **нест мешавад**. Neon (нақшаи Free, 0,5 ГБ) мӯҳлат надорад.
 
 1. neon.tech → Sign up (бо GitHub) → **Create project** → минтақа: Frankfurt (наздик ба Render).
-2. Neon → Dashboard → **Connection string** (Pooled) → нусха гиред.
+2. Neon → Dashboard → **Connect** → **Connection pooling**-ро хомӯш кунед → суроғаро нусха гиред
+   (суроғаи pooled барои `prisma migrate` мувофиқ нест — миграцияҳо ҳангоми deploy мемонанд).
 3. Маълумотро гузаронед: Neon → **Import data** → «External URL»-и базаи Render-ро гузоред
    (Render → filialhub-db → Connections → External Database URL).
 4. Render → filialhub-web → **Environment** → `DATABASE_URL` = суроғаи Neon → **Save** (сервис худаш аз нав сар мешавад).
