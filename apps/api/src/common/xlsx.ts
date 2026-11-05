@@ -48,7 +48,8 @@ function zip(files: { name: string; data: Buffer }[]) {
   let offset = 0;
   for (const f of files) {
     const name = Buffer.from(f.name, 'utf8');
-    const packed = deflateRawSync(f.data);
+    // Сатҳи 3: ~2,4 баробар тезтар аз пешфарз (6), файл ~20% калонтар — дар Render CPU кам аст
+    const packed = deflateRawSync(f.data, { level: 3 });
     const crc = crc32(f.data);
     const head = Buffer.alloc(30);
     head.writeUInt32LE(0x04034b50, 0);

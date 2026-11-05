@@ -300,14 +300,39 @@ export class OrdersService {
   /** Фурӯш ба Excel (то 20 000 сатр); кормандон арзиш ва фоидаро намебинанд */
   async export(user: AuthUser, q: { branchId?: number; from?: string; to?: string }) {
     assertCanSell(user);
-    const rows = await this.prisma.order.findMany({ where: this.where(user, q), include, orderBy: { createdAt: 'desc' }, take: 20_000 });
+    // Танҳо майдонҳои ҷадвал. Рӯйхати маҳсулотро худи база ҷамъ мекунад — дар Render (0,1 CPU) 20 000 фармоиш
+    // бо include-и пурра ~30 с серверро банд мекард.
+    const rows = await this.prisma.order.findMany({
+      where: this.where(user, q),
+      select: {
+        id: true, createdAt: true, total: true, totalCost: true, payment: true, discount: true, returnOfId: true, note: true,
+        branch: { select: { name: true } },
+        user: { select: { fullName: true } },
+        customer: { select: { fullName: true } },
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 20_000,
+    });
+    const lists = new Map<number, string>();
+    if (rows.length) {
+      const agg = await this.prisma.$queryRaw<{ orderId: number; list: string }[]>(Prisma.sql`
+        SELECT oi."orderId", string_agg(p.name || ' × ' || (oi.qty::float8)::text, ', ' ORDER BY oi.id) AS list
+        FROM "OrderItem" oi JOIN "Product" p ON p.id = oi."productId"
+        WHERE oi."orderId" = ANY(${rows.map((o) => o.id)}::int[])
+        GROUP BY oi."orderId"`);
+      for (const a of agg) lists.set(a.orderId, a.list);
+    }
     const staff = user.role === 'STAFF';
     const headers = ['№', 'Сана', 'Филиал', 'Кассир', 'Мизоҷ', 'Пардохт', 'Маҳсулот', 'Тахфиф', 'Маблағ', ...(staff ? [] : ['Арзиши аслӣ', 'Фоида'])];
-    const data = rows.map((r) => {
-      const o = toOrder(r);
-      const list = o.items.map((i) => `${i.name} × ${i.qty}`).join(', ');
+    const data = rows.map((o) => {
+      const total = Number(o.total);
+      const totalCost = Number(o.totalCost);
+      const list = lists.get(o.id) ?? '';
       const items = o.returnOfId ? `Возврат аз №${o.returnOfId}: ${list}${o.note ? ` (${o.note})` : ''}` : list;
-      return [o.id, localDateTime(r.createdAt), o.branchName, o.userName, o.customerName ?? '', PAYMENT_LABELS[o.payment], items, o.discount || null, o.total, ...(staff ? [] : [o.totalCost, o.profit])];
+      return [
+        o.id, localDateTime(o.createdAt), o.branch.name, o.user?.fullName ?? '—', o.customer?.fullName ?? '', PAYMENT_LABELS[o.payment], items,
+        Number(o.discount) || null, total, ...(staff ? [] : [totalCost, r2(total - totalCost)]),
+      ];
     });
     return xlsx('Фурӯш', headers, data, [8, 17, 20, 20, 20, 10, 50, 10, 12, 12, 12]);
   }
