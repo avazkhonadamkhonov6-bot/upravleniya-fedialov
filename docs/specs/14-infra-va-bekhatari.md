@@ -14,7 +14,7 @@
 
 ### Сервери худ (Oracle Cloud Always Free)
 
-4 CPU ва 24 ГБ ройгон, бе хоб ва бе ҳадди соат: `deploy/oracle/` (Docker + Caddy, HTTPS бо sslip.io). Қадамҳо — [deploy/oracle/README.md](../../deploy/oracle/README.md). Deploy-и худкор — `.github/workflows/deploy-oracle.yml` (бе `ORACLE_HOST` ҳеҷ кор намекунад).
+4 CPU ва 24 ГБ ройгон, бе хоб ва бе ҳадди соат: `deploy/oracle/` (Docker + Caddy, HTTPS бо sslip.io). Қадамҳо — [docs/SERVER.md](../SERVER.md). Deploy-и худкор — `.github/workflows/deploy-oracle.yml` (бе `ORACLE_HOST` ҳеҷ кор намекунад).
 
 ### Базаи ройгони доимӣ (Neon)
 

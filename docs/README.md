@@ -7,6 +7,10 @@
 | [ROADMAP.md](ROADMAP.md) | Марҳилаҳо ва пешрафт |
 | [SPECS.md](SPECS.md) | Мушаххасот: кӣ чӣ мебинад, API, санҷиш |
 | [DESIGN.md](DESIGN.md) | Услуби визуалӣ барои дизайнер |
+| [SERVER.md](SERVER.md) | **Сервер, база ва суръат**: Render ҳоло, гузариш ба Neon ва Oracle Cloud (ройгон), ҳалли мушкилот |
+| [ROYGON.md](ROYGON.md) | Хидматҳои ройгон қадам ба қадам: Neon, UptimeRobot, Google, CI, Telegram |
+| [FURUSH.md](FURUSH.md) | Чӣ тавр FilialHub-ро фурӯхтан: видео, матнҳо |
+| [specs/15-sanjish.md](specs/15-sanjish.md) | Санҷиш: тестҳо ва ҳисоботи санҷиши пурраи сайт |
 | [specs/](specs/README.md) | **Мушаххасоти пурраи ҳар модул** (16 файл): чӣ дорад, бо чӣ сохта шудааст, API, файлҳо, тестҳо. Аз ин ҷо сар кунед |
 
 Оғоз ва Render — [README.md](../README.md)-и лоиҳа.

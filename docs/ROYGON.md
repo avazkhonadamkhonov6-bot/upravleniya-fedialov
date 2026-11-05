@@ -18,6 +18,8 @@
 
 Тафсилот: [specs/14-infra-va-bekhatari.md](specs/14-infra-va-bekhatari.md).
 
+Баъд аз Neon — сервери тезтари ройгон (Oracle Cloud, 4 CPU / 24 ГБ): [SERVER.md](SERVER.md).
+
 ## 2. UptimeRobot — хабар, вақте ки сайт кор намекунад
 
 1. uptimerobot.com → Sign up (Free: 50 монитор, ҳар 5 дақиқа).

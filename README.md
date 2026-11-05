@@ -44,6 +44,7 @@
 | 🧹 Фаррош — профил ва маош | `cleaner@filialhub.tj` |
 
 Хизматҳои ройгон (Neon, UptimeRobot, Google Search Console, домен, CI) — [ROYGON.md](docs/ROYGON.md).
+Сервер, база, суръат ва гузариш ба Oracle Cloud (ройгон) — [SERVER.md](docs/SERVER.md). Санҷиши пурра — [15-sanjish.md](docs/specs/15-sanjish.md).
 
 Топшириқ — [TZ.md](docs/TZ.md). Кӣ чӣ мебинад — [SPECS.md](docs/SPECS.md) §2. Пешрафт ва хатоҳои ислоҳшуда — [ROADMAP.md](docs/ROADMAP.md), [PLAN.md](docs/PLAN.md) §9.
 
