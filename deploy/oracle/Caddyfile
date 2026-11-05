@@ -1,0 +1,8 @@
+{$DOMAIN} {
+	# Фишурдан (zstd/gzip); HTTP/3 худкор фаъол аст
+	encode zstd gzip
+	# flush_interval -1: хабарҳои зинда (/api/events, SSE) фавран мераванд, дар буфер намемонанд
+	reverse_proxy app:3000 {
+		flush_interval -1
+	}
+}

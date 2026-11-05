@@ -12,6 +12,10 @@
 
 Бедор мондан: API ҳар 10 дақиқа `RENDER_EXTERNAL_URL/api/health`-ро мепурсад (`KEEP_AWAKE=false` — хомӯш), ва `keep-awake.yml` дар GitHub Actions эҳтиёт аст. Ҳар раванди Node ҳадди хотираи 200 МБ дорад (512 МБ-и ройгон).
 
+### Сервери худ (Oracle Cloud Always Free)
+
+4 CPU ва 24 ГБ ройгон, бе хоб ва бе ҳадди соат: `deploy/oracle/` (Docker + Caddy, HTTPS бо sslip.io). Қадамҳо — [deploy/oracle/README.md](../../deploy/oracle/README.md). Deploy-и худкор — `.github/workflows/deploy-oracle.yml` (бе `ORACLE_HOST` ҳеҷ кор намекунад).
+
 ### Базаи ройгони доимӣ (Neon)
 
 Базаи Render Free пас аз 30 рӯз нест мешавад. Neon (neon.tech, нақшаи Free, 0,5 ГБ) мӯҳлат надорад:

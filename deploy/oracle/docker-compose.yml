@@ -1,0 +1,48 @@
+# FilialHub + Caddy (HTTPS-и ройгон аз Let's Encrypt, худкор нав мешавад).
+# Тағйирёбандаҳо: deploy/oracle/.env (намуна — .env.example). Ба кор андохтан: ./deploy/oracle/update.sh
+name: filialhub
+
+services:
+  app:
+    build:
+      context: ../..
+      dockerfile: deploy/oracle/Dockerfile
+      args:
+        SITE_URL: https://${DOMAIN}
+        NEXT_PUBLIC_TURN_URL: ${NEXT_PUBLIC_TURN_URL:-}
+        NEXT_PUBLIC_TURN_USERNAME: ${NEXT_PUBLIC_TURN_USERNAME:-}
+        NEXT_PUBLIC_TURN_CREDENTIAL: ${NEXT_PUBLIC_TURN_CREDENTIAL:-}
+    env_file: .env
+    environment:
+      SITE_URL: https://${DOMAIN}
+      WEB_ORIGIN: https://${DOMAIN}
+      # Telegram ва Green-API webhook-ро ба ҳамин суроға мегузоранд (дар Render ин RENDER_EXTERNAL_URL буд)
+      TELEGRAM_WEBHOOK_URL: https://${DOMAIN}
+      GREENAPI_WEBHOOK_BASE: https://${DOMAIN}
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 10s
+      start_period: 90s
+      retries: 3
+
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    environment:
+      DOMAIN: ${DOMAIN}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - app
+
+volumes:
+  caddy_data:
+  caddy_config:

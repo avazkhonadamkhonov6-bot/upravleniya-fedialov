@@ -1,0 +1,39 @@
+# Deploy-и худкор ба сервери Oracle Cloud — танҳо пас аз CI-и сабз дар main.
+# То танзим нашавад, ҳеҷ кор намекунад (сабз мегузарад). Render ба ин вобаста нест.
+#
+# Танзим: Settings → Secrets and variables → Actions
+#   Variables → ORACLE_HOST     — IP-и сервер
+#   Secrets   → ORACLE_SSH_KEY  — калиди хусусии SSH (файли .key, ки Oracle ҳангоми сохтани сервер дод)
+name: Deploy to Oracle
+
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: deploy-oracle
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Deploy
+        env:
+          ORACLE_HOST: ${{ vars.ORACLE_HOST }}
+          ORACLE_SSH_KEY: ${{ secrets.ORACLE_SSH_KEY }}
+        run: |
+          if [ -z "$ORACLE_HOST" ] || [ -z "$ORACLE_SSH_KEY" ]; then
+            echo "ORACLE_HOST ё ORACLE_SSH_KEY гузошта нашудааст — ҳеҷ кор намекунем"; exit 0
+          fi
+          mkdir -p ~/.ssh
+          echo "$ORACLE_SSH_KEY" > ~/.ssh/id && chmod 600 ~/.ssh/id
+          ssh -i ~/.ssh/id -o StrictHostKeyChecking=accept-new -o ServerAliveInterval=30 \
+            "ubuntu@$ORACLE_HOST" '~/filialhub/deploy/oracle/update.sh'

@@ -1,0 +1,11 @@
+**/node_modules
+**/.next
+**/dist
+apps/api/src/generated
+**/.env
+**/.env.local
+deploy/oracle/.env
+.git
+.claude
+**/*.tsbuildinfo
+**/next-env.d.ts

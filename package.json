@@ -12,6 +12,7 @@
     "build": "npm run build -w @filialhub/shared && npm run build -w @filialhub/api && npm run build -w @filialhub/web",
     "start": "concurrently -n api,web -c red,cyan \"npm run start -w @filialhub/api\" \"npm run start -w @filialhub/web\"",
     "start:render": "npm run db:migrate -w @filialhub/api && (cd apps/api && npx tsx prisma/seed.ts --if-empty &) && concurrently --kill-others -n api,web \"cd apps/api && node --max-old-space-size=200 dist/main.js\" \"cd apps/web && node --max-old-space-size=200 ../../node_modules/next/dist/bin/next start -p $PORT\"",
+    "start:docker": "npm run db:migrate -w @filialhub/api && (cd apps/api && npx tsx prisma/seed.ts --if-empty &) && concurrently --kill-others -n api,web \"cd apps/api && node --max-old-space-size=2048 dist/main.js\" \"cd apps/web && node --max-old-space-size=2048 ../../node_modules/next/dist/bin/next start -p $PORT\"",
     "db:setup": "npm run db:setup -w @filialhub/api",
     "db:seed": "npm run db:seed -w @filialhub/api",
     "dev:web": "npm run build -w @filialhub/shared && npm run dev -w @filialhub/web",
