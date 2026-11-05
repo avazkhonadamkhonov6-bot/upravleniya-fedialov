@@ -35,6 +35,32 @@ async function bootstrap() {
   await app.listen(port);
   console.log(`🚀 FilialHub API: http://localhost:${port}/api`);
   keepAwake();
+  warmShopPages();
+}
+
+/**
+ * Саҳифаҳои мағоза дар Next.js бо кеш сохта мешаванд; пас аз deploy ё 1 соати бекорӣ кеш холӣ аст
+ * ва мизоҷи аввал дар Render то 5 сония интизор мешавад. Пас аз оғоз ва ҳар 10 дақиқа рӯйхати мағозаҳо
+ * ва саҳифаи ҳар мағозаро (аз sitemap) як бор мекушоем — мизоҷ ҳамеша саҳифаи тайёрро мегирад.
+ */
+function warmShopPages() {
+  const base = (process.env.RENDER_EXTERNAL_URL ?? process.env.SITE_URL)?.replace(/\/+$/, '');
+  if (!base?.startsWith('https://') || process.env.WARM_SHOP === 'false') return;
+  const warm = async () => {
+    try {
+      const sitemap = await (await fetch(`${base}/sitemap.xml`, { signal: AbortSignal.timeout(30000) })).text();
+      const urls = [...sitemap.matchAll(/<loc>([^<]+)<\/loc>/g)].map((m) => m[1]).filter((u) => /\/shop(\/|$)/.test(u));
+      // Пай дар пай, на ҳамзамон — сервери ройгон 0,1 CPU дорад
+      for (const url of [...new Set([`${base}/shop`, ...urls])].slice(0, 30)) {
+        await fetch(url, { signal: AbortSignal.timeout(30000) }).then((r) => r.arrayBuffer()).catch(() => {});
+      }
+    } catch {
+      // сайт ҳанӯз сар нашудааст — дафъаи оянда
+    }
+  };
+  // Сайт (Next.js) баъд аз API сар мешавад — каме интизор мешавем
+  setTimeout(warm, 60 * 1000).unref();
+  setInterval(warm, 10 * 60 * 1000).unref();
 }
 
 /**

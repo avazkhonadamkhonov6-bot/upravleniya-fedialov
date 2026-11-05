@@ -39,6 +39,7 @@ Neon-и ройгон пас аз 5 дақиқаи бекорӣ «мехобад�
 | `JWT_SECRET` | имзои токенҳо ва кодҳои Telegram. **Ҳатмӣ дар production** — бе он API сар намешавад |
 | `WEB_ORIGIN`, `PORT`, `API_PORT`, `TIMEZONE` | CORS, порт (`API_PORT` аз `PORT` пеш аст — вақте сайт ва API як хидматанд), минтақаи вақт (`Asia/Dushanbe`) |
 | `KEEP_AWAKE` | `false` — API суроғаи худро ҳар 10 дақиқа намепурсад (пешфарз: фаъол, агар `RENDER_EXTERNAL_URL` бошад) |
+| `WARM_SHOP` | `false` — саҳифаҳои мағозаро гарм намекунад (пешфарз: пас аз оғоз ва ҳар 10 дақиқа саҳифаҳои `/shop` аз sitemap кушода мешаванд, то мизоҷи аввал интизор нашавад) |
 | `TELEGRAM_BOT_TOKEN`, `TELEGRAM_MODE`, `TELEGRAM_WEBHOOK_URL` | бот |
 | `GREENAPI_*` | WhatsApp бе Facebook (ва Partner барои ҳар бизнес) |
 | `WHATSAPP_TOKEN`, `WHATSAPP_PHONE_NUMBER_ID`, `WHATSAPP_VERIFY_TOKEN`, `WHATSAPP_APP_SECRET`, `WHATSAPP_TEMPLATE*` | Meta Cloud API |
